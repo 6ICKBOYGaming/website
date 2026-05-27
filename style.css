@@ -13,6 +13,10 @@
   --btn-text: #0f0f0f;
   --category-hover: #333333;
   --price-green: #00ff88;
+  
+  /* เพิ่มโทนสีเหลืองสำหรับแอดมิน */
+  --admin-yellow: #ffd700;
+  --admin-yellow-hover: #e6c200;
 }
 
 [data-theme="light"] {
@@ -99,6 +103,18 @@ header {
 .top-buttons button:hover {
   background: var(--text-main);
   color: var(--bg-main);
+}
+
+/* ปุ่มแอดมินสีเหลืองตรงส่วนหัวเว็บ */
+.top-buttons button.btn-admin-yellow {
+  background: var(--admin-yellow) !important;
+  color: #000000 !important;
+  border: 1px solid var(--admin-yellow) !important;
+}
+
+.top-buttons button.btn-admin-yellow:hover {
+  background: var(--admin-yellow-hover) !important;
+  border-color: var(--admin-yellow-hover) !important;
 }
 
 #search {
@@ -480,6 +496,19 @@ header {
 
 .admin-panel button:hover {
   opacity: 0.8;
+}
+
+/* สไตล์พิเศษสำหรับปุ่มจัดการสีเหลืองตัวหนังสือดำ */
+.btn-submit-yellow {
+  background: var(--admin-yellow) !important;
+  color: #000000 !important;
+  border: none !important;
+  font-weight: bold !important;
+}
+
+.btn-submit-yellow:hover {
+  background: var(--admin-yellow-hover) !important;
+  opacity: 1 !important;
 }
 
 .admin-cat-item {

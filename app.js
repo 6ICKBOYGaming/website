@@ -41,7 +41,7 @@ let isAdmin = false;
 let currentEditId = null;
 let currentEditCategoryId = null; 
 let selectedCategory = "ทั้งหมด";
-let currentSortMode = "tierlist"; // โหมดเริ่มต้นเรียงตามลำดับผู้ดูแล (Tier list)
+let currentSortMode = "tierlist"; 
 
 let draggedProductId = null;
 let draggedCategoryId = null;
@@ -153,12 +153,10 @@ function card(p, index){
     btnsContent = shopeeBtns + lazadaBtn;
   }
 
-  // ปรับเงื่อนไขลากสินค้า: อนุญาตเมื่อเป็นแอดมินและอยู่ในโหมด tierlist เท่านั้น
   const canDrag = isAdmin && currentSortMode === "tierlist";
   const dragAttr = canDrag ? `draggable="true" data-id="${p.id}" class="card admin-draggable"` : `class="card"`;
   const currentQuickPriceVal = priceSale > 0 ? priceSale : (priceNormal > 0 ? priceNormal : "");
 
-  // 🎖️ เงื่อนไขป้ายเลข Tier list 1-5: จะต้องเลือกโหมด 'tierlist' เท่านั้น และต้องไม่อยู่หน้าหมวดหมู่ "ทั้งหมด"
   let tierBadgeHtml = "";
   if (currentSortMode === "tierlist" && selectedCategory !== "ทั้งหมด" && index !== undefined && index >= 0 && index < 5) {
     const displayRank = index + 1;
@@ -461,7 +459,7 @@ window.handleWidgetUpdate = async () => {
   }
 };
 
-/* ================= ⚡️ เรนเดอร์หน้าจอหลัก & เรียงลำดับสินค้า (Render Logic) ================= */
+/* ================= ⚡️ เรนเดอร์หน้าจอหลัก & เรียงลำดับสินค้า ================= */
 function render(){
   if (document.getElementById("categoryTitle")) {
     document.getElementById("categoryTitle").innerText = "หมวดหมู่: " + selectedCategory;
@@ -483,7 +481,6 @@ function render(){
     filtered = filtered.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
   }
 
-  // 🎯 เพิ่มตรรกะการเรียงลำดับสินค้าตามโหมดที่เลือก (Sorting Logic)
   if (currentSortMode === "priceAsc") {
     filtered.sort((a, b) => {
       const aIsCS = !!a.comingSoon || (!a.price && !a.salePrice);
@@ -507,7 +504,6 @@ function render(){
       return bPrice - aPrice;
     });
   } else {
-    // โหมดเริ่มต้น 'tierlist': เรียงลำดับตามค่า order ใน Firebase ที่ผู้ดูแลลากวางไว้
     filtered.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
@@ -518,7 +514,6 @@ function render(){
   renderSidebarCategories();
   renderAdminCategoryList();
   
-  // แจ้งเตือนแอดมินลากวาง
   if (isAdmin && currentSortMode === "tierlist") {
     if (dragNoticeEl) dragNoticeEl.style.display = "block";
     setupProductDragAndDrop(filtered);
@@ -767,7 +762,6 @@ if(searchInput) {
   });
 }
 
-// 🔄 จับ Event การเปลี่ยนแปลงเงื่อนไขของการเรียงลำดับสินค้า
 if(sortProductsSelect) {
   sortProductsSelect.addEventListener("change", (e) => {
     currentSortMode = e.target.value;

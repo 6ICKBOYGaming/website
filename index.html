@@ -17,7 +17,7 @@
 
         <div class="top-buttons">
             <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
-            <button id="loginBtn">🔒 ผู้ดูแล</button>
+            <button id="loginBtn" class="btn-admin-yellow">🔒 ผู้ดูแล</button>
             <button id="logoutBtn" style="display: none;">Logout</button>
         </div>
     </div>
@@ -86,7 +86,7 @@
                 <label><input type="checkbox" id="comingSoon"> Coming Soon (เตรียมวางจำหน่าย)</label>
             </div>
 
-            <button id="submitBtn" onclick="handleProductSubmit()">เพิ่มสินค้าเข้าระบบ</button>
+            <button id="submitBtn" class="btn-submit-yellow" onclick="handleProductSubmit()">เพิ่มสินค้าเข้าระบบ</button>
         </div>
 
         <div class="admin-panel category-panel" id="adminCategoryPanel" style="display: none;">
@@ -96,7 +96,7 @@
                     <input id="adminCategoryInput" placeholder="กรอกชื่อหมวดหมู่ใหม่" style="flex: 1; margin-bottom: 0 !important;">
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button id="categorySubmitBtn" onclick="handleCategorySubmit()" style="flex: 2; padding: 12px !important; background: var(--btn-bg) !important; color: var(--btn-text) !important; margin-top: 5px !important; font-weight: bold; border-radius: 10px; border: none; cursor: pointer;">เพิ่มหมวดหมู่</button>
+                    <button id="categorySubmitBtn" class="btn-submit-yellow" onclick="handleCategorySubmit()" style="flex: 2; padding: 12px !important; margin-top: 5px !important; font-weight: bold; border-radius: 10px; border: none; cursor: pointer;">เพิ่มหมวดหมู่</button>
                     <button id="categoryCancelBtn" onclick="clearCategoryForm()" style="flex: 1; padding: 12px !important; background: var(--input-bg) !important; color: var(--text-main) !important; margin-top: 5px !important; display: none; border-radius: 10px; border: 1px solid var(--border-color); cursor: pointer;">ยกเลิก</button>
                 </div>
             </div>
@@ -125,7 +125,7 @@
                         <input type="checkbox" id="widgetVisibleCheck"> เปิดการแสดงผลกรอบกิจกรรมแจกโค้ดหน้าร้านค้า
                     </label>
                 </div>
-                <button onclick="handleWidgetUpdate()">💾 บันทึกตั้งค่ากิจกรรมโค้ดส่วนลด</button>
+                <button class="btn-submit-yellow" onclick="handleWidgetUpdate()">💾 บันทึกตั้งค่ากิจกรรมโค้ดส่วนลด</button>
             </div>
         </div>
 
