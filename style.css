@@ -922,6 +922,19 @@ main h2 {
   background: var(--category-hover) !important;
 }
 
+/* เพิ่มเติมสไตล์สำหรับแผงเรียงลำดับ NEW / HOT */
+.drag-sort-panel {
+  display: none;
+  flex-direction: column;
+}
+
+.admin-cat-item.cat-drag-over {
+  border: 2px dashed var(--admin-yellow) !important;
+  background: var(--bg-main) !important;
+  transform: scale(0.98);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
 .auth-modal {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;

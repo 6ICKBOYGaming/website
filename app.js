@@ -45,6 +45,11 @@ let currentSortMode = "tierlist";
 
 let draggedProductId = null;
 let draggedCategoryId = null;
+let draggedSortId = null; // สำหรับระบุสินค้าที่ลากวางในแผงลำดับ NEW / HOT
+
+// ตัวแปรสำหรับคุมเวลา Auto-slide (แยกสัญญากันเพื่อให้เลื่อนไม่พร้อมกัน)
+let hotSlideInterval = null;
+let newSlideInterval = null;
 
 const hotEl = document.getElementById("hotProducts");
 const newEl = document.getElementById("newProducts");
@@ -79,6 +84,7 @@ const shopeePromoWidget = document.getElementById("shopeePromoWidget");
 const widgetGiftImg = document.getElementById("widgetGiftImg");
 const widgetMainLink = document.getElementById("widgetMainLink");
 const adminWidgetPanel = document.getElementById("adminWidgetPanel");
+const adminDragSortPanel = document.getElementById("adminDragSortPanel"); // แผงจัดเรียงสินค้าใหม่
 const widgetImageInput = document.getElementById("widgetImageInput");
 const widgetLinkInput = document.getElementById("widgetLinkInput");
 const widgetVisibleCheck = document.getElementById("widgetVisibleCheck");
@@ -465,11 +471,15 @@ function render(){
     document.getElementById("categoryTitle").innerText = "หมวดหมู่: " + selectedCategory;
   }
   
-  const hotProducts = allProducts.filter(p => p.isHot);
-  const newProducts = allProducts.filter(p => p.isNew);
+  // ปรับเงื่อนไขการกรองให้จัดเรียงสินค้า HOT และ NEW ตามค่าลำดับอัปเดตจาก Firebase
+  const hotProducts = allProducts.filter(p => p.isHot).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
+  const newProducts = allProducts.filter(p => p.isNew).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
 
   if(hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
   if(newEl) newEl.innerHTML = newProducts.map(p => card(p)).join("");
+
+  // เรียกใช้ฟังก์ชันเริ่มจับเวลาเลื่อนอัตโนมัติแบบเหลื่อมเวลากัน
+  initAutoSliders();
 
   let filtered = [...allProducts];
   if (selectedCategory !== "ทั้งหมด") {
@@ -616,6 +626,12 @@ window.handleProductSubmit = async () => {
     } else {
       const maxOrder = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0);
       productData.order = maxOrder + 1;
+      
+      // กำหนดค่าเริ่มต้นให้กับฟิลด์การจัดการลำดับ NEW / HOT ด้วยเช่นกัน
+      const maxHotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0);
+      const maxNewOrder = allProducts.reduce((max, p) => ((p.newOrder ?? 0) > max ? p.newOrder : max), 0);
+      productData.hotOrder = maxHotOrder + 1;
+      productData.newOrder = maxNewOrder + 1;
 
       await addDoc(productsRef, productData);
       alert("เพิ่มสินค้าใหม่สำเร็จ!");
@@ -717,6 +733,7 @@ onAuthStateChanged(auth, (user) => {
     if(adminPanel) adminPanel.style.display = "flex";
     if(adminCategoryPanel) adminCategoryPanel.style.display = "flex";
     if(adminWidgetPanel) adminWidgetPanel.style.display = "flex";
+    if(adminDragSortPanel) adminDragSortPanel.style.display = "flex"; // เปิดแสดงแผงจัดเรียงสินค้าใหม่
   } else {
     isAdmin = false;
     if(loginBtn) loginBtn.style.display = "inline-block";
@@ -724,6 +741,7 @@ onAuthStateChanged(auth, (user) => {
     if(adminPanel) adminPanel.style.display = "none";
     if(adminCategoryPanel) adminCategoryPanel.style.display = "none";
     if(adminWidgetPanel) adminWidgetPanel.style.display = "none";
+    if(adminDragSortPanel) adminDragSortPanel.style.display = "none"; // ซ่อนแผงจัดเรียงสินค้าใหม่
   }
   
   if (user) {
@@ -752,6 +770,7 @@ onSnapshot(productsRef, (snapshot) => {
     allProducts.push({ id: docSnap.id, ...docSnap.data() });
   });
   render();
+  renderAdminDragSortLists(); // เรียกอัปเดตรายชื่อในกล่องลากวางของระบบ NEW / HOT แบบรีลไทม์
 });
 
 listenToWidgetSettings();
@@ -781,18 +800,131 @@ if (backToTopBtn) {
   });
 }
 
-/* ================= 🔄 Auto Scroll Slider ================= */
+/* ================= 🔄 ระบบสไลด์แบบปุ่มกดและ Auto-slide เนียนตา ================= */
 window.scrollSlide = (elementId, direction) => {
   const el = document.getElementById(elementId);
   if (!el || el.children.length <= 1) return;
+
   const cardWidth = el.children[0].offsetWidth + 10; 
   const maxScrollLeft = el.scrollWidth - el.clientWidth;
 
   if (direction === "right") {
-    if (el.scrollLeft >= maxScrollLeft - 5) el.scrollLeft = 0;
-    else el.scrollLeft += cardWidth;
+    if (el.scrollLeft >= maxScrollLeft - 10) {
+      el.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      el.scrollTo({ left: el.scrollLeft + cardWidth, behavior: "smooth" });
+    }
   } else {
-    if (el.scrollLeft <= 5) el.scrollLeft = maxScrollLeft;
-    else el.scrollLeft -= cardWidth;
+    if (el.scrollLeft <= 10) {
+      el.scrollTo({ left: maxScrollLeft, behavior: "smooth" });
+    } else {
+      el.scrollTo({ left: el.scrollLeft - cardWidth, behavior: "smooth" });
+    }
   }
 };
+
+// ฟังก์ชันสร้างคิวเวลาสไลด์อัตโนมัติ (ปรับแต่งให้เลื่อนไม่พร้อมกันเพื่อความเนียนตา)
+function initAutoSliders() {
+  // ล้างลูปเก่าทิ้งก่อนเสมอ ป้องกันบั๊กเวลาข้อมูลอัปเดต
+  if (hotSlideInterval) clearInterval(hotSlideInterval);
+  if (newSlideInterval) clearInterval(newSlideInterval);
+
+  // 1. ส่วนสินค้าขายดี (HOT): เลื่อนทุกๆ 6 วินาที (6000ms)
+  hotSlideInterval = setInterval(() => {
+    window.scrollSlide("hotProducts", "right");
+  }, 6000);
+
+  // 2. ส่วนสินค้าใหม่ (NEW): ขยับคิวเวลาออกไปเป็นทุกๆ 7 วินาที (7000ms) 
+  newSlideInterval = setInterval(() => {
+    window.scrollSlide("newProducts", "right");
+  }, 7000);
+}
+
+/* ================= 🔀 ระบบลากเรียงลำดับสินค้า HOT และ NEW ================= */
+function renderAdminDragSortLists() {
+  const adminHotDragList = document.getElementById("adminHotDragList");
+  const adminNewDragList = document.getElementById("adminNewDragList");
+
+  if (!adminHotDragList || !adminNewDragList) return;
+
+  // กรองสินค้าเฉพาะที่มีป้ายกำกับ และเรียงตามฟิลด์ลำดับ
+  const hotProducts = allProducts.filter(p => p.isHot).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
+  const newProducts = allProducts.filter(p => p.isNew).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
+
+  if (hotProducts.length === 0) {
+    adminHotDragList.innerHTML = "<div style='color:var(--text-muted); font-size:13px; text-align:center; padding:8px;'>ไม่มีสินค้า HOT</div>";
+  } else {
+    adminHotDragList.innerHTML = hotProducts.map(p => `
+      <div class="admin-cat-item admin-draggable" draggable="true" data-sortid="${p.id}" data-type="hot">
+        <span>☰ ${p.name}</span>
+      </div>
+    `).join("");
+  }
+
+  if (newProducts.length === 0) {
+    adminNewDragList.innerHTML = "<div style='color:var(--text-muted); font-size:13px; text-align:center; padding:8px;'>ไม่มีสินค้า NEW</div>";
+  } else {
+    adminNewDragList.innerHTML = newProducts.map(p => `
+      <div class="admin-cat-item admin-draggable" draggable="true" data-sortid="${p.id}" data-type="new">
+        <span>☰ ${p.name}</span>
+      </div>
+    `).join("");
+  }
+
+  setupNewHotDragAndDrop();
+}
+
+function setupNewHotDragAndDrop() {
+  const dragItems = document.querySelectorAll("#adminHotDragList .admin-cat-item, #adminNewDragList .admin-cat-item");
+
+  dragItems.forEach(item => {
+    item.addEventListener("dragstart", (e) => {
+      draggedSortId = item.getAttribute("data-sortid");
+      e.dataTransfer.effectAllowed = "move";
+    });
+
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      item.classList.add("cat-drag-over");
+    });
+
+    item.addEventListener("dragleave", () => {
+      item.classList.remove("cat-drag-over");
+    });
+
+    item.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      item.classList.remove("cat-drag-over");
+
+      const targetId = item.getAttribute("data-sortid");
+      const listType = item.getAttribute("data-type");
+
+      if (!draggedSortId || draggedSortId === targetId) return;
+
+      let currentFilteredGroup = allProducts
+        .filter(p => listType === "hot" ? p.isHot : p.isNew)
+        .sort((a, b) => (listType === "hot" ? (a.hotOrder ?? 0) - (b.hotOrder ?? 0) : (a.newOrder ?? 0) - (b.newOrder ?? 0)));
+
+      const draggedIndex = currentFilteredGroup.findIndex(p => p.id === draggedSortId);
+      const targetIndex = currentFilteredGroup.findIndex(p => p.id === targetId);
+
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      const [removed] = currentFilteredGroup.splice(draggedIndex, 1);
+      currentFilteredGroup.splice(targetIndex, 0, removed);
+
+      try {
+        for (let i = 0; i < currentFilteredGroup.length; i++) {
+          const productDocRef = doc(db, "products", currentFilteredGroup[i].id);
+          if (listType === "hot") {
+            await updateDoc(productDocRef, { hotOrder: i });
+          } else {
+            await updateDoc(productDocRef, { newOrder: i });
+          }
+        }
+      } catch (err) {
+        console.error("Firebase Order Update Error:", err);
+      }
+    });
+  });
+}

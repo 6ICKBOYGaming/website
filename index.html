@@ -129,6 +129,26 @@
             </div>
         </div>
 
+        <!-- แผงจัดเรียงสินค้า NEW และ HOT แบบลากวางชื่อสินค้า เพิ่มใหม่ด้านล่างแผงควบคุมวิดเจ็ต -->
+        <div class="admin-panel drag-sort-panel" id="adminDragSortPanel" style="display: none;">
+            <h3>🔥 จัดลำดับสินค้า NEW และ HOT</h3>
+            <p style="color: var(--text-muted); font-size: 13px; margin: 0 0 10px 0;">ลากสลับตำแหน่งเพื่อเรียงลำดับสินค้าที่จะแสดงในแถบสไลด์ด้านซ้ายมือ (บนลงล่าง = ซ้ายไปขวา)</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--admin-yellow); font-size: 14px;">🔥 ลำดับสินค้าแนะนำ (HOT)</h4>
+                    <div id="adminHotDragList" style="max-height: 300px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="margin: 0 0 8px 0; color: #00ff88; font-size: 14px;">🆕 ลำดับสินค้าใหม่ (NEW)</h4>
+                    <div id="adminNewDragList" style="max-height: 300px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="category-header-wrapper">
             <div class="category-header-row">
                 <h2 id="categoryTitle">หมวดหมู่: ทั้งหมด</h2>
