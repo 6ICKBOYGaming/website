@@ -14,6 +14,7 @@
   --category-hover: #333333;
   --price-green: #00ff88;
   
+  /* เพิ่มโทนสีเหลืองสำหรับแอดมิน */
   --admin-yellow: #ffd700;
   --admin-yellow-hover: #e6c200;
 }
@@ -88,11 +89,6 @@ header {
   letter-spacing: 0.5px;
 }
 
-.top-buttons {
-  display: flex;
-  align-items: center;
-}
-
 .top-buttons button {
   padding: 8px 16px;
   background: transparent;
@@ -109,6 +105,7 @@ header {
   color: var(--bg-main);
 }
 
+/* ปุ่มแอดมินสีเหลืองตรงส่วนหัวเว็บ */
 .top-buttons button.btn-admin-yellow {
   background: var(--admin-yellow) !important;
   color: #000000 !important;
@@ -210,11 +207,6 @@ header {
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 12px;
-}
-
-.categories-container {
-  display: flex;
-  flex-direction: column;
 }
 
 .category {
@@ -506,6 +498,7 @@ header {
   opacity: 0.8;
 }
 
+/* สไตล์พิเศษสำหรับปุ่มจัดการสีเหลืองตัวหนังสือดำ */
 .btn-submit-yellow {
   background: var(--admin-yellow) !important;
   color: #000000 !important;
@@ -929,15 +922,10 @@ main h2 {
   background: var(--category-hover) !important;
 }
 
+/* เพิ่มเติมสไตล์สำหรับแผงเรียงลำดับ NEW / HOT */
 .drag-sort-panel {
   display: none;
   flex-direction: column;
-}
-
-.drag-sort-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
 }
 
 .admin-cat-item.cat-drag-over {
@@ -984,6 +972,7 @@ main h2 {
 }
 
 .close-auth:hover { color: var(--text-main); }
+
 .auth-box h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; text-align: center; }
 
 .auth-box input {
@@ -1000,72 +989,354 @@ main h2 {
   border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer;
 }
 
-/* ==========================================================================
-   📱 MOBILE RESPONSIVE VALUE (Default สไตล์เรียงแถวดิ่งแบบดั้งเดิม)
-   ========================================================================== */
-@media (max-width: 992px) {
-  /* ปรับโครงสร้างหน้าเว็บหลักให้ยืดเต็มจอและต่อกันเป็นแนวตั้งตามธรรมชาติ */
+@media (max-width: 1200px) {
   .layout {
-    grid-template-columns: 1fr !important;
-    padding: 10px;
-    gap: 20px;
+    grid-template-columns: 1fr;
   }
-
-  /* ปรับแต่ง Grid สินค้าให้ปรับขนาดตามความกว้างหน้าจออัตโนมัติ (ไม่ฝืนบังคับ 2 คอลัมน์) */
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
-    gap: 15px !important;
-  }
-
-  /* คืนค่าระบบหมวดหมู่และแถบนำทางให้แสดงผลแนวดิ่งปกติเหมือนบนคอม */
-  .categories-container {
-    flex-direction: column !important;
-    overflow-x: visible !important;
-    gap: 0;
-  }
-
-  .category {
-    margin-top: 8px;
-    border-radius: 10px;
-    white-space: normal;
-  }
-
-  /* ปรับแผงคุมระบบจัดเรียงแอดมิน */
-  .drag-sort-columns {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* ปล่อยให้ข้อความรายละเอียดแสดงตามดั้งเดิม ไม่ซ่อนเนื้อหา */
-  .card p {
-    display: -webkit-box !important;
-  }
-
-  /* ปรับระยะขอบหัวข้อหลักให้พอดีบนจอมือถือ */
-  .category-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .sort-wrapper {
+  .sidebar, .sidebar-right {
     width: 100%;
-    justify-content: space-between;
   }
 }
 
 @media (max-width: 480px) {
-  header {
-    padding: 12px 15px;
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 10px;
   }
-  .top-bar h1 {
-    font-size: 20px;
+}
+/* =========================================================
+📱 MOBILE RESPONSIVE FULL FIX FOR 6ICKBOY
+========================================================= */
+
+@media screen and (max-width: 1024px){
+
+  .layout{
+    grid-template-columns: 1fr;
   }
-  .web-logo {
-    width: 36px;
-    height: 36px;
+
+  .sidebar,
+  .sidebar-right{
+    width:100%;
   }
-  #search {
-    padding: 10px;
-    font-size: 13px;
+
+}
+
+
+@media screen and (max-width: 768px){
+
+  html,
+  body{
+    width:100%;
+    overflow-x:hidden;
   }
+
+  body{
+    min-width:100%;
+  }
+
+  header{
+    padding:12px;
+  }
+
+  .top-bar{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:12px;
+  }
+
+  .logo-wrapper{
+    width:100%;
+  }
+
+  .top-bar h1{
+    font-size:22px;
+  }
+
+  .web-logo{
+    width:42px;
+    height:42px;
+  }
+
+  .top-buttons{
+    width:100%;
+    display:flex;
+    gap:8px;
+  }
+
+  .top-buttons button{
+    flex:1;
+    font-size:13px;
+    padding:10px;
+  }
+
+  #search{
+    margin-top:12px;
+    font-size:14px;
+    padding:12px;
+  }
+
+  .layout{
+    display:flex;
+    flex-direction:column;
+    gap:15px;
+    padding:12px;
+  }
+
+  .sidebar,
+  .sidebar-right,
+  main{
+    width:100%;
+  }
+
+  .sidebar-box,
+  .right-box,
+  .admin-panel{
+    width:100%;
+    border-radius:14px;
+    padding:14px;
+  }
+
+  .category{
+    font-size:13px;
+    padding:10px;
+  }
+
+  .sidebar-title-wrapper h2,
+  .right-box h3,
+  .sidebar-box h3{
+    font-size:14px;
+  }
+
+  .grid{
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:10px;
+  }
+
+  .card{
+    width:100%;
+    min-width:0;
+    border-radius:14px;
+  }
+
+  .card img{
+    width:100%;
+    height:150px;
+    object-fit:cover;
+  }
+
+  .card .info{
+    padding:10px;
+  }
+
+  .card h4{
+    font-size:13px;
+    line-height:1.4;
+    height:auto;
+    min-height:36px;
+    margin-bottom:6px;
+  }
+
+  .price{
+    font-size:15px;
+  }
+
+  .old-price-slashed{
+    font-size:11px;
+  }
+
+  .card p{
+    font-size:11px;
+    line-height:1.4;
+    -webkit-line-clamp:2;
+    margin-bottom:10px;
+  }
+
+  .btn{
+    font-size:11px;
+    padding:8px;
+    border-radius:8px;
+  }
+
+  .badge{
+    font-size:10px;
+    padding:4px 8px;
+  }
+
+  .tier-badge{
+    width:28px;
+    height:28px;
+    font-size:13px;
+  }
+
+  .tier-badge.rank-1{
+    width:32px;
+    height:32px;
+    font-size:14px;
+  }
+
+  .price-container{
+    gap:6px;
+  }
+
+  .btns{
+    gap:5px;
+  }
+
+  .category-header-row{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .sort-wrapper{
+    width:100%;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+  }
+
+  #sortProductsSelect{
+    width:100%;
+    box-sizing:border-box;
+  }
+
+  .sidebar-box .card{
+    min-width:100%;
+    max-width:100%;
+  }
+
+  .sidebar-box .card img{
+    height:180px;
+  }
+
+  .admin-panel{
+    padding:14px;
+  }
+
+  .admin-panel h3{
+    font-size:16px;
+  }
+
+  .admin-panel input,
+  .admin-panel textarea,
+  .admin-panel select{
+    font-size:14px;
+  }
+
+  .admin-checkboxes{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .category-header-wrapper{
+    margin-bottom:12px;
+  }
+
+  .drag-notice-alert{
+    font-size:12px;
+  }
+
+  .fb-follow-btn,
+  .shopee-code-btn{
+    font-size:13px;
+  }
+
+  .gift-img-wrapper{
+    height:120px;
+  }
+
+  .row{
+    gap:10px;
+  }
+
+  .slide-ctrl-btns button{
+    width:26px;
+    height:26px;
+  }
+
+  #backToTopBtn{
+    width:44px;
+    height:44px;
+    right:15px;
+    bottom:15px;
+  }
+
+}
+
+
+/* =========================================================
+📱 SMALL MOBILE
+========================================================= */
+
+@media screen and (max-width: 480px){
+
+  header{
+    padding:10px;
+  }
+
+  .layout{
+    padding:10px;
+    gap:12px;
+  }
+
+  .grid{
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:8px;
+  }
+
+  .card img{
+    height:125px;
+  }
+
+  .card .info{
+    padding:8px;
+  }
+
+  .card h4{
+    font-size:12px;
+    min-height:34px;
+  }
+
+  .price{
+    font-size:14px;
+  }
+
+  .card p{
+    font-size:10px;
+  }
+
+  .btn{
+    font-size:10px;
+    padding:7px;
+  }
+
+  .badge{
+    font-size:9px;
+    padding:3px 6px;
+  }
+
+  .sidebar-box,
+  .right-box,
+  .admin-panel{
+    padding:12px;
+  }
+
+  .top-buttons button{
+    font-size:12px;
+    padding:9px;
+  }
+
+  .top-bar h1{
+    font-size:20px;
+  }
+
+  .web-logo{
+    width:38px;
+    height:38px;
+  }
+
+  .gift-img-wrapper{
+    height:100px;
+  }
+
 }
