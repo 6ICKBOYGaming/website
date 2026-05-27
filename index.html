@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6ICKBOY</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <div class="top-bar">
+        <div class="logo-wrapper">
+            <img src="https://i.postimg.cc/MffGQXrG/image.png" alt="6ICKBOY Logo" class="web-logo">
+            <h1>6ICKBOY</h1>
+        </div>
+
+        <div class="top-buttons">
+            <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
+            <button id="loginBtn">🔒 ผู้ดูแล</button>
+            <button id="logoutBtn" style="display: none;">Logout</button>
+        </div>
+    </div>
+
+    <input id="search" placeholder="ค้นหาสินค้า...">
+</header>
+
+<div class="layout">
+
+    <aside class="sidebar">
+        <div class="sidebar-box">
+            <h3>หมวดหมู่</h3>
+            <div id="categories"></div>
+        </div>
+
+        <div class="sidebar-box hot-box">
+            <div class="sidebar-title-wrapper">
+                <h2>🔥 HOT สินค้าขายดี</h2>
+                <div class="slide-ctrl-btns">
+                    <button onclick="scrollSlide('hotProducts', 'left')">❮</button>
+                    <button onclick="scrollSlide('hotProducts', 'right')">❯</button>
+                </div>
+            </div>
+            <div id="hotProducts" class="row"></div>
+        </div>
+
+        <div class="sidebar-box new-box">
+            <div class="sidebar-title-wrapper">
+                <h2>🆕 NEW สินค้าใหม่</h2>
+                <div class="slide-ctrl-btns">
+                    <button onclick="scrollSlide('newProducts', 'left')">❮</button>
+                    <button onclick="scrollSlide('newProducts', 'right')">❯</button>
+                </div>
+            </div>
+            <div id="newProducts" class="row"></div>
+        </div>
+    </aside>
+
+    <main>
+        <div class="admin-panel" id="adminPanel" style="display: none;">
+            <h3>📦 แผงจัดการข้อมูลสินค้า</h3>
+            
+            <input id="productName" placeholder="ชื่อสินค้า">
+            <input id="productImage" placeholder="URL รูปสินค้า">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input id="productPrice" placeholder="ราคาปกติ/ราคาเก่า (บาท)">
+                <input id="productSalePrice" placeholder="ราคาลดพิเศษ (บาท) *ถ้ามี*">
+            </div>
+            <small style="color: var(--text-muted); font-size: 11px; margin-top: -6px; display: block;">*หากเว้นว่างราคาทั้งหมดไว้ ระบบจะตั้งเป็น Coming Soon... อัตโนมัติ*</small>
+            
+            <textarea id="productDescription" placeholder="รายละเอียดสินค้าเด่น..."></textarea>
+            
+            <div class="select-wrapper">
+                <label for="productCategory" style="margin-bottom: 4px; display: block; font-size: 13px; color: var(--text-muted);">เลือกหมวดหมู่สินค้า:</label>
+                <select id="productCategory">
+                    </select>
+            </div>
+
+            <input id="shopee1" placeholder="ลิงก์ Shopee ช่องทางที่ 1">
+            <input id="shopee2" placeholder="ลิงก์ Shopee ช่องทางที่ 2">
+            <input id="lazada" placeholder="ลิงก์ Lazada">
+
+            <div class="admin-checkboxes" style="margin: 12px 0;">
+                <label><input type="checkbox" id="isNew"> NEW (สินค้าใหม่)</label>
+                <label><input type="checkbox" id="isHot"> HOT (สินค้าแนะนำ)</label>
+                <label><input type="checkbox" id="comingSoon"> Coming Soon (เตรียมวางจำหน่าย)</label>
+            </div>
+
+            <button id="submitBtn" onclick="handleProductSubmit()">เพิ่มสินค้าเข้าระบบ</button>
+        </div>
+
+        <div class="admin-panel category-panel" id="adminCategoryPanel" style="display: none;">
+            <h3 id="adminCategoryTitle">📁 แผงจัดการระบบหมวดหมู่สินค้า</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;">
+                <div style="display: flex; gap: 10px;">
+                    <input id="adminCategoryInput" placeholder="กรอกชื่อหมวดหมู่ใหม่" style="flex: 1; margin-bottom: 0 !important;">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="categorySubmitBtn" onclick="handleCategorySubmit()" style="flex: 2; padding: 12px !important; background: var(--btn-bg) !important; color: var(--btn-text) !important; margin-top: 5px !important; font-weight: bold; border-radius: 10px; border: none; cursor: pointer;">เพิ่มหมวดหมู่</button>
+                    <button id="categoryCancelBtn" onclick="clearCategoryForm()" style="flex: 1; padding: 12px !important; background: var(--input-bg) !important; color: var(--text-main) !important; margin-top: 5px !important; display: none; border-radius: 10px; border: 1px solid var(--border-color); cursor: pointer;">ยกเลิก</button>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h4 style="margin: 0; color: var(--text-muted); font-size: 13px;">รายชื่อหมวดหมู่สินค้าปัจจุบัน:</h4>
+                <small style="color: var(--text-muted); font-size: 11px; background: var(--bg-main); padding: 2px 6px; border-radius: 4px;">💡 ลากขึ้น-ลงเพื่อจัดลำดับได้ทันที</small>
+            </div>
+            <div id="adminCategoryList" style="max-height: 240px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);">
+                </div>
+        </div>
+
+        <div class="admin-panel widget-panel" id="adminWidgetPanel" style="display: none;">
+            <h3>🎁 แผงควบคุมหน้าต่างกิจกรรมรับโค้ดส่วนลด (กรอบล่าง)</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div>
+                    <label style="display:block; margin-bottom:4px; font-size:13px; color:var(--text-muted);">URL รูปภาพกิจกรรม/รูปกล่องของขวัญ:</label>
+                    <input id="widgetImageInput" placeholder="URL รูปกล่องของขวัญโปรโมชั่น">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom:4px; font-size:13px; color:var(--text-muted);">ลิงก์ปุ่มไปรับโค้ดส่วนลด (Shopee Link):</label>
+                    <input id="widgetLinkInput" placeholder="กรอกลิงก์โค้ดส่วนลดปลายทาง">
+                </div>
+                <div style="margin: 5px 0 5px 0;">
+                    <label>
+                        <input type="checkbox" id="widgetVisibleCheck"> 🟢 เปิดใช้งานและแสดงหน้าต่างรับโค้ดส่วนลดบนหน้าเว็บ
+                    </label>
+                </div>
+            </div>
+            <button id="saveWidgetBtn" onclick="handleWidgetUpdate()">💾 บันทึกตั้งค่าหน้าต่างกิจกรรม</button>
+        </div>
+
+        <section>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin:0;">สินค้าทั้งหมด</h2>
+                <small id="dragNotice" style="color:var(--text-muted); display:none; font-size:12px; background:var(--input-bg); padding:4px 8px; border-radius:6px; border:1px solid var(--border-color);">💡 คุณสามารถลากสินค้าสลับตำแหน่งขึ้นหน้าหรือไว้ท้ายได้ทันที</small>
+            </div>
+            <div id="products" class="grid"></div>
+        </section>
+    </main>
+
+    <aside class="sidebar-right">
+        <div class="right-box follow-box">
+            <h3>📣 ติดตามเราได้ที่ Facebook</h3>
+            <div class="follow-content">
+                <div class="fb-page-wrapper" style="margin-bottom: 15px; background: var(--bg-deep); border-radius: 8px; overflow: hidden; display: flex; justify-content: center;">
+                    <div class="fb-page" 
+                         data-href="https://www.facebook.com/6ICKBOYCHANNEL" 
+                         data-tabs="timeline" 
+                         data-width="258" 
+                         data-height="340" 
+                         data-small-header="false" 
+                         data-adapt-container-width="true" 
+                         data-hide-cover="false" 
+                         data-show-facepile="true">
+                        <blockquote cite="https://www.facebook.com/6ICKBOYCHANNEL" class="fb-xfbml-parse-ignore">
+                            <a href="https://www.facebook.com/6ICKBOYCHANNEL">6ICKBOY</a>
+                        </blockquote>
+                    </div>
+                </div>
+                <a href="https://www.facebook.com/6ICKBOYCHANNEL" target="_blank" class="fb-follow-btn">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 6px; vertical-align: middle;">
+                        <path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z"/>
+                    </svg>
+                    กดติดตาม Fanpage
+                </a>
+            </div>
+        </div>
+
+        <div class="right-box promo-box" id="shopeePromoWidget" style="display: none;">
+            <h3>🎁 รับโค้ดส่วนลด Shopee</h3>
+            <div class="promo-content">
+                <div class="gift-img-wrapper">
+                    <img id="widgetGiftImg" src="https://i.postimg.cc/9F4P0hX8/gift-box.png" alt="Shopee Gift Box" class="gift-box-img">
+                </div>
+                <p class="promo-text">กดรับโค้ดส่วนลดพิเศษสำหรับซื้อสินค้าผ่านทาง Shopee ได้ที่ปุ่มด้านล่างนี้เลย!</p>
+                <a id="widgetMainLink" href="https://s.shopee.co.th/1VwHRlinNy" target="_blank" class="shopee-code-btn">
+                    🎟️ ไปรับโค้ดเลย
+                </a>
+            </div>
+        </div>
+    </aside>
+
+</div>
+
+<button id="backToTopBtn" title="เลื่อนขึ้นบนสุด">
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5-.5z"/>
+    </svg>
+</button>
+
+<footer>
+    &copy; 2026 6ICKBOY Copyright reserved
+</footer>
+
+<div id="fb-root"></div>
+<script async defer crossorigin="anonymous" src="https://connect.facebook.net/th_TH/sdk.js#xfbml=1&version=v18.0" nonce="j8kL2O9p"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

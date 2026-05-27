@@ -1,0 +1,909 @@
+/* --- การตั้งค่าธีมสีระบบ (CSS Variables) --- */
+:root {
+  --bg-main: #0f0f0f;
+  --bg-box: #181818;
+  --bg-card: #1b1b1b;
+  --bg-deep: #050505;
+  --text-main: #ffffff;
+  --text-muted: #888888;
+  --border-color: #252525;
+  --border-focus: #666666;
+  --input-bg: #222222;
+  --header-bg: #151515;
+  --btn-bg: #ffffff;
+  --btn-text: #0f0f0f;
+  --category-hover: #333333;
+  --price-green: #00ff88;
+}
+
+[data-theme="light"] {
+  --bg-main: #f5f5f7;
+  --bg-box: #ffffff;
+  --bg-card: #ffffff;
+  --bg-deep: #e8e8ed;
+  --text-main: #1d1d1f;
+  --text-muted: #6e6e73;
+  --border-color: #d2d2d7;
+  --border-focus: #86868b;
+  --input-bg: #f5f5f7;
+  --header-bg: #ffffff;
+  --btn-bg: #1d1d1f;
+  --btn-text: #ffffff;
+  --category-hover: #e8e8ed;
+  --price-green: #00aa5b;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  padding: 12px 20px;
+  background: var(--header-bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  transition: background 0.3s ease;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.web-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.top-bar h1 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 24px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.top-buttons button {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--text-main);
+  color: var(--text-main);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.top-buttons button:hover {
+  background: var(--text-main);
+  color: var(--bg-main);
+}
+
+#search {
+  width: 100%;
+  padding: 12px;
+  margin-top: 15px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+  outline: none;
+}
+
+#search:focus {
+  border-color: var(--border-focus);
+}
+
+/* =======================================================
+    📊 Layout 3 คอลัมน์หลัก
+   ======================================================= */
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr 290px; 
+  gap: 20px;
+  padding: 20px;
+  flex: 1 0 auto;
+  box-sizing: border-box;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar-box {
+  background: var(--bg-box);
+  padding: 15px;
+  border-radius: 15px;
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+}
+
+.sidebar-title-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.sidebar-title-wrapper h2 {
+  margin: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+  font-size: 14px;
+}
+
+.slide-ctrl-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.slide-ctrl-btns button {
+  background: var(--input-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.slide-ctrl-btns button:hover {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+}
+
+.sidebar-box h3 {
+  margin-top: 0;
+  color: var(--text-main);
+  font-size: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.category {
+  padding: 10px;
+  margin-top: 8px;
+  background: var(--input-bg);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-main);
+  opacity: 0.8;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.category:hover {
+  background: var(--category-hover);
+  opacity: 1;
+}
+
+.category.active {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-weight: bold;
+  opacity: 1;
+}
+
+.row {
+  display: flex;
+  overflow-x: auto;
+  gap: 10px;
+  padding-bottom: 5px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+
+.row::-webkit-scrollbar {
+  display: none;
+}
+
+.sidebar-box .card {
+  min-width: 100%;
+  max-width: 100%;
+  scroll-snap-align: start;
+  box-sizing: border-box;
+}
+
+.sidebar-box .card img {
+  height: 180px;
+}
+
+.sidebar-box .card p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =======================================================
+    💎 [แถบขวา] Facebook & Shopee Widget
+   ======================================================= */
+.sidebar-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.right-box {
+  background: var(--bg-box);
+  padding: 15px;
+  border-radius: 15px;
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.right-box h3 {
+  margin-top: 0;
+  color: var(--text-main);
+  font-size: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.follow-content p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 14px 0;
+}
+
+.fb-follow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px;
+  background: #1877f2;
+  color: #ffffff;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+  box-sizing: border-box;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.fb-follow-btn:hover {
+  background: #166fe5;
+  transform: translateY(-1px);
+}
+
+.promo-box {
+  border: 1px solid var(--border-color);
+  background: var(--bg-box);
+}
+
+.promo-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.gift-img-wrapper {
+  width: 100%;
+  height: 140px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--bg-deep);
+}
+
+.gift-box-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.promo-box:hover .gift-box-img {
+  transform: scale(1.06) rotate(2deg);
+}
+
+.promo-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 15px 0;
+}
+
+.shopee-code-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  background: #ff5722;
+  color: #ffffff;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+  box-sizing: border-box;
+  box-shadow: 0 4px 10px rgba(255, 87, 34, 0.2);
+  transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.shopee-code-btn:hover {
+  background: #f4511e;
+  box-shadow: 0 6px 14px rgba(255, 87, 34, 0.3);
+  transform: translateY(-2px);
+}
+
+#backToTopBtn {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  z-index: 99;
+  width: 46px;
+  height: 46px;
+  background: var(--bg-box);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.2s ease, background-color 0.3s ease;
+}
+
+#backToTopBtn.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+#backToTopBtn:hover {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  transform: translateY(-3px);
+}
+
+/* =======================================================
+    🛠️ Admin Panel
+   ======================================================= */
+.admin-panel {
+  display: none;
+  flex-direction: column;
+  background: var(--bg-box);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+  gap: 12px;
+}
+
+.admin-panel h3 {
+  margin-top: 0;
+  margin-bottom: 5px;
+  color: var(--text-main);
+  font-size: 18px;
+}
+
+.admin-panel input[type="text"],
+.admin-panel input:not([type="checkbox"]),
+.admin-panel select,
+.admin-panel textarea {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 10px;
+  box-sizing: border-box;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.admin-panel input:not([type="checkbox"]):focus,
+.admin-panel select:focus,
+.admin-panel textarea:focus {
+  border-color: var(--border-focus);
+}
+
+.admin-panel textarea {
+  height: 80px;
+  resize: vertical;
+}
+
+.admin-panel label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-main);
+  margin-right: 15px;
+  user-select: none;
+}
+
+.admin-panel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--text-main);
+  cursor: pointer;
+}
+
+.admin-panel button {
+  width: 100%;
+  padding: 12px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-top: 5px;
+}
+
+.admin-panel button:hover {
+  opacity: 0.8;
+}
+
+.admin-cat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--input-bg);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border-color);
+  gap: 10px;
+}
+
+.admin-cat-item span {
+  font-size: 14px;
+  color: var(--text-main);
+  flex-grow: 1;
+}
+
+.admin-cat-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.admin-cat-item .btn-mini-edit {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.admin-cat-item .btn-mini-delete {
+  background: #ff3333;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* 🎯 ส่วนกากบาทระบบล้างคำค้นหาปกติ */
+input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888888'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  margin-right: 2px;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+input::-webkit-search-cancel-button:hover {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
+}
+
+/* --- พื้นที่หลักตารางสินค้าทั้งหมดตรงกลาง --- */
+main {
+  display: flex;
+  flex-direction: column;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+main h2 {
+  font-size: 18px;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: 15px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.card img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.card .info {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.card h4 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+/* =======================================================
+    🎯 ระบบสไตล์การตั้งราคาใหม่ (ขีดเส้นสีดำที่ราคาเก่า และราคาใหม่สีเขียว)
+   ======================================================= */
+.price-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.card .price {
+  font-weight: bold;
+  color: var(--price-green);
+  font-size: 14px;
+}
+
+.card .price.old-price-slashed {
+  color: #555555; /* ปรับสีตัวอักษรให้ดรอป */
+  font-size: 12px;
+  text-decoration: line-through #000000 2px; /* ขีดเส้นสีดำหนา 2px คาดกลางราคาเก่าตามเงื่อนไข */
+  font-weight: normal;
+}
+
+.card .price.coming-soon-text {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ช่องพิมพ์ตั้งราคาด่วนสำหรับ Admin */
+.quick-price-box {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.quick-price-box label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.quick-price-input {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-deep) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--price-green) !important; /* พิมพ์ราคาด่วนเป็นสีเขียว */
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+  text-align: center;
+  font-weight: bold;
+}
+
+.quick-price-input:focus {
+  border-color: var(--border-focus) !important;
+}
+
+.badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  padding: 3px 6px;
+  font-size: 9px;
+  font-weight: bold;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.badge.hot {
+  background: #ff5722;
+  color: #fff;
+}
+
+.btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.btn {
+  display: block;
+  padding: 8px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12px;
+  text-decoration: none;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  box-sizing: border-box;
+  transition: opacity 0.2s ease;
+}
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn.shopee {
+  background: #ff5722;
+  color: #fff;
+}
+
+.btn.lazada {
+  background: #00008b;
+  color: #fff;
+}
+
+.btn.disabled {
+  background: var(--border-color);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn.coming-soon-btn {
+  background: var(--input-bg);
+  color: var(--text-muted);
+  border: 1px dashed var(--border-focus);
+  cursor: default;
+  pointer-events: none;
+  width: 100%;
+}
+
+.admin-card-actions {
+  display: flex;
+  gap: 5px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.btn.edit {
+  background: var(--input-bg);
+  color: var(--text-main);
+  flex: 1;
+  border: 1px solid var(--border-color);
+}
+
+.btn.delete {
+  background: #ff3333;
+  color: #fff;
+  flex: 1;
+}
+
+footer {
+  text-align: center;
+  padding: 24px 20px;
+  font-size: 14px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  background: var(--header-bg);
+  transition: background 0.3s ease, color 0.3s ease;
+  flex-shrink: 0;
+}
+
+.admin-draggable {
+  cursor: grab !important;
+  user-select: none;
+}
+
+.admin-draggable:active {
+  cursor: grabbing !important;
+  opacity: 0.5;
+}
+
+.card.drag-over {
+  border: 2px dashed var(--btn-bg) !important;
+  transform: scale(1.02);
+}
+
+.admin-cat-item.admin-draggable {
+  cursor: grab !important;
+  user-select: none;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.admin-cat-item.admin-draggable:active {
+  cursor: grabbing !important;
+  opacity: 0.6;
+}
+
+.admin-cat-item.cat-drag-over {
+  border: 2px dashed var(--btn-bg) !important;
+  background: var(--category-hover) !important;
+  transform: scale(1.01);
+}
+
+/* =======================================================
+    📱 RESPONSIVE SYSTEM
+   ======================================================= */
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 240px 1fr;
+  }
+  .sidebar-right {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 15px;
+  }
+  
+  .sidebar { order: 1; }
+  main { order: 2; }
+  .sidebar-right { 
+    order: 3; 
+    grid-column: span 1;
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-box .card img {
+    height: 140px;
+  }
+  
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 10px;
+  }
+}
+/* ================= ======================================
+    ⚡️ CONFIGS FOR COMPACT QUICK PRICE INPUT WITH CLEAR BTN
+   ======================================================= */
+.quick-price-box {
+  margin-top: 8px;
+  background: var(--bg-deep);
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.quick-price-box label {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.quick-price-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.quick-price-input {
+  flex: 1;
+  background: var(--input-bg) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color) !important;
+  padding: 4px 8px !important;
+  font-size: 13px !important;
+  border-radius: 4px !important;
+  height: 28px !important;
+  box-sizing: border-box;
+}
+
+.quick-price-clear-btn {
+  background: #ff4d4d !important;
+  color: #ffffff !important;
+  border: none !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.quick-price-clear-btn:hover {
+  background: #ff3333 !important;
+}
