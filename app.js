@@ -45,9 +45,8 @@ let currentSortMode = "tierlist";
 
 let draggedProductId = null;
 let draggedCategoryId = null;
-let draggedSortId = null; // สำหรับระบุสินค้าที่ลากวางในแผงลำดับ NEW / HOT
+let draggedSortId = null;
 
-// ตัวแปรสำหรับคุมเวลา Auto-slide (แยกสัญญากันเพื่อให้เลื่อนไม่พร้อมกัน)
 let hotSlideInterval = null;
 let newSlideInterval = null;
 
@@ -84,7 +83,7 @@ const shopeePromoWidget = document.getElementById("shopeePromoWidget");
 const widgetGiftImg = document.getElementById("widgetGiftImg");
 const widgetMainLink = document.getElementById("widgetMainLink");
 const adminWidgetPanel = document.getElementById("adminWidgetPanel");
-const adminDragSortPanel = document.getElementById("adminDragSortPanel"); // แผงจัดเรียงสินค้าใหม่
+const adminDragSortPanel = document.getElementById("adminDragSortPanel");
 const widgetImageInput = document.getElementById("widgetImageInput");
 const widgetLinkInput = document.getElementById("widgetLinkInput");
 const widgetVisibleCheck = document.getElementById("widgetVisibleCheck");
@@ -471,14 +470,12 @@ function render(){
     document.getElementById("categoryTitle").innerText = "หมวดหมู่: " + selectedCategory;
   }
   
-  // ปรับเงื่อนไขการกรองให้จัดเรียงสินค้า HOT และ NEW ตามค่าลำดับอัปเดตจาก Firebase
   const hotProducts = allProducts.filter(p => p.isHot).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
   const newProducts = allProducts.filter(p => p.isNew).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
 
   if(hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
   if(newEl) newEl.innerHTML = newProducts.map(p => card(p)).join("");
 
-  // เรียกใช้ฟังก์ชันเริ่มจับเวลาเลื่อนอัตโนมัติแบบเหลื่อมเวลากัน
   initAutoSliders();
 
   let filtered = [...allProducts];
@@ -627,7 +624,6 @@ window.handleProductSubmit = async () => {
       const maxOrder = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0);
       productData.order = maxOrder + 1;
       
-      // กำหนดค่าเริ่มต้นให้กับฟิลด์การจัดการลำดับ NEW / HOT ด้วยเช่นกัน
       const maxHotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0);
       const maxNewOrder = allProducts.reduce((max, p) => ((p.newOrder ?? 0) > max ? p.newOrder : max), 0);
       productData.hotOrder = maxHotOrder + 1;
@@ -733,7 +729,7 @@ onAuthStateChanged(auth, (user) => {
     if(adminPanel) adminPanel.style.display = "flex";
     if(adminCategoryPanel) adminCategoryPanel.style.display = "flex";
     if(adminWidgetPanel) adminWidgetPanel.style.display = "flex";
-    if(adminDragSortPanel) adminDragSortPanel.style.display = "flex"; // เปิดแสดงแผงจัดเรียงสินค้าใหม่
+    if(adminDragSortPanel) adminDragSortPanel.style.display = "flex";
   } else {
     isAdmin = false;
     if(loginBtn) loginBtn.style.display = "inline-block";
@@ -741,7 +737,7 @@ onAuthStateChanged(auth, (user) => {
     if(adminPanel) adminPanel.style.display = "none";
     if(adminCategoryPanel) adminCategoryPanel.style.display = "none";
     if(adminWidgetPanel) adminWidgetPanel.style.display = "none";
-    if(adminDragSortPanel) adminDragSortPanel.style.display = "none"; // ซ่อนแผงจัดเรียงสินค้าใหม่
+    if(adminDragSortPanel) adminDragSortPanel.style.display = "none";
   }
   
   if (user) {
@@ -770,7 +766,7 @@ onSnapshot(productsRef, (snapshot) => {
     allProducts.push({ id: docSnap.id, ...docSnap.data() });
   });
   render();
-  renderAdminDragSortLists(); // เรียกอัปเดตรายชื่อในกล่องลากวางของระบบ NEW / HOT แบบรีลไทม์
+  renderAdminDragSortLists();
 });
 
 listenToWidgetSettings();
@@ -800,7 +796,7 @@ if (backToTopBtn) {
   });
 }
 
-/* ================= 🔄 ระบบสไลด์แบบปุ่มกดและ Auto-slide เนียนตา ================= */
+/* ================= 🔄 ระบบสไลด์แบบปุ่มกดและ Auto-slide ================= */
 window.scrollSlide = (elementId, direction) => {
   const el = document.getElementById(elementId);
   if (!el || el.children.length <= 1) return;
@@ -823,18 +819,14 @@ window.scrollSlide = (elementId, direction) => {
   }
 };
 
-// ฟังก์ชันสร้างคิวเวลาสไลด์อัตโนมัติ (ปรับแต่งให้เลื่อนไม่พร้อมกันเพื่อความเนียนตา)
 function initAutoSliders() {
-  // ล้างลูปเก่าทิ้งก่อนเสมอ ป้องกันบั๊กเวลาข้อมูลอัปเดต
   if (hotSlideInterval) clearInterval(hotSlideInterval);
   if (newSlideInterval) clearInterval(newSlideInterval);
 
-  // 1. ส่วนสินค้าขายดี (HOT): เลื่อนทุกๆ 6 วินาที (6000ms)
   hotSlideInterval = setInterval(() => {
     window.scrollSlide("hotProducts", "right");
   }, 6000);
 
-  // 2. ส่วนสินค้าใหม่ (NEW): ขยับคิวเวลาออกไปเป็นทุกๆ 7 วินาที (7000ms) 
   newSlideInterval = setInterval(() => {
     window.scrollSlide("newProducts", "right");
   }, 7000);
@@ -847,7 +839,6 @@ function renderAdminDragSortLists() {
 
   if (!adminHotDragList || !adminNewDragList) return;
 
-  // กรองสินค้าเฉพาะที่มีป้ายกำกับ และเรียงตามฟิลด์ลำดับ
   const hotProducts = allProducts.filter(p => p.isHot).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
   const newProducts = allProducts.filter(p => p.isNew).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
 

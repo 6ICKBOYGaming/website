@@ -14,7 +14,6 @@
   --category-hover: #333333;
   --price-green: #00ff88;
   
-  /* เพิ่มโทนสีเหลืองสำหรับแอดมิน */
   --admin-yellow: #ffd700;
   --admin-yellow-hover: #e6c200;
 }
@@ -105,7 +104,6 @@ header {
   color: var(--bg-main);
 }
 
-/* ปุ่มแอดมินสีเหลืองตรงส่วนหัวเว็บ */
 .top-buttons button.btn-admin-yellow {
   background: var(--admin-yellow) !important;
   color: #000000 !important;
@@ -207,6 +205,11 @@ header {
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 12px;
+}
+
+.categories-container {
+  display: flex;
+  flex-direction: column;
 }
 
 .category {
@@ -498,7 +501,6 @@ header {
   opacity: 0.8;
 }
 
-/* สไตล์พิเศษสำหรับปุ่มจัดการสีเหลืองตัวหนังสือดำ */
 .btn-submit-yellow {
   background: var(--admin-yellow) !important;
   color: #000000 !important;
@@ -922,10 +924,15 @@ main h2 {
   background: var(--category-hover) !important;
 }
 
-/* เพิ่มเติมสไตล์สำหรับแผงเรียงลำดับ NEW / HOT */
 .drag-sort-panel {
   display: none;
   flex-direction: column;
+}
+
+.drag-sort-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
 }
 
 .admin-cat-item.cat-drag-over {
@@ -972,7 +979,6 @@ main h2 {
 }
 
 .close-auth:hover { color: var(--text-main); }
-
 .auth-box h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; text-align: center; }
 
 .auth-box input {
@@ -989,18 +995,195 @@ main h2 {
   border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer;
 }
 
-@media (max-width: 1200px) {
-  .layout {
-    grid-template-columns: 1fr;
+/* ==========================================================================
+   📱 MOBILE & TABLET STYLES (ปรับเปลี่ยนโครงสร้างให้ดูง่ายคล้ายแอป Shopee)
+   ========================================================================== */
+@media (max-width: 992px) {
+  body {
+    -webkit-text-size-adjust: 100%;
   }
-  .sidebar, .sidebar-right {
+
+  /* ปรับแถบโครงสร้างใหญ่ให้เรียงลงมาแนวตั้งชิ้นต่อชิ้น */
+  .layout {
+    grid-template-columns: 1fr !important;
+    gap: 15px;
+    padding: 10px;
+  }
+
+  /* เลื่อนแถบหมวดหมู่ (Sidebar ลำดับเดิม) มาไว้ด้านบน */
+  .sidebar {
+    order: 1;
+    gap: 12px;
+  }
+
+  /* ปรับแถบหมวดหมู่สินค้าให้เป็นแนวนอนลากสไลด์ดูง่ายสไตล์ Shopee */
+  .sidebar-box {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .categories-container {
+    flex-direction: row !important;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 5px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .categories-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category {
+    margin-top: 0;
+    white-space: nowrap;
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 20px; /* ทรงโค้งมนแบบช้อปปี้ */
+  }
+
+  /* ย้ายบอร์ดกลางรายการหลักมาอยู่จุดที่ 2 */
+  main {
+    order: 2;
+  }
+
+  /* ย้ายเพจขวา/กิจกรรมโค้ดส่วนลดไปลงท้ายสุด */
+  .sidebar-right {
+    order: 3;
+    gap: 15px;
+  }
+
+  /* บังคับคอลัมน์ระบบจัดเรียงแอดมินในโมบายล์ */
+  .drag-sort-columns {
+    grid-template-columns: 1fr !important;
+    gap: 15px;
+  }
+
+  /* 🛒 ล็อกการจัดตารางสินค้าบนมือถือให้เป็น 2 คอลัมน์คู่เสมอกันสไตล์ Shopee */
+  .grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* โมดิฟายการ์ดสินค้าให้เรียบ คลีน และแสดงขอบเขตคมชัดบนจอเล็ก */
+  .card {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+  }
+
+  /* 🖼️ ล็อกสัดส่วนภาพสินค้าบนจอมือถือเป็นสี่เหลี่ยมจัตุรัส 1:1 ถ่ายทอดภาพเต็มตา */
+  .card img {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+  }
+
+  /* ปรับการเว้นระยะเนื้อหาภายในให้กระทัดรัด */
+  .card .info {
+    padding: 8px;
+  }
+
+  .card h4 {
+    font-size: 13px;
+    height: 36px;
+    margin-bottom: 4px;
+    line-height: 1.3;
+    -webkit-line-clamp: 2;
+  }
+
+  .price-container {
+    margin-bottom: 6px;
+    gap: 4px;
+  }
+
+  .price {
+    font-size: 15px;
+  }
+
+  .old-price-slashed {
+    font-size: 11px;
+  }
+
+  .coming-soon-text {
+    font-size: 12px;
+  }
+
+  /* ซ่อนคำอธิบายสินค้าแบบยาว (p) ออกไปบนมือถือเพื่อให้ตัวการ์ดสมดุลพอดีคู่กัน */
+  .card p {
+    display: none !important;
+  }
+
+  /* บีบกระชับกลุ่มปุ่มทางเลือกช่องทางขาย */
+  .btns {
+    gap: 4px;
+  }
+
+  .btn {
+    padding: 7px;
+    font-size: 11px;
+    border-radius: 6px;
+  }
+
+  /* จัดตำแหน่งกล่องราคาด่วนแอดมินบนจอมือถือ */
+  .quick-price-box {
+    margin-top: 4px;
+    padding: 4px;
+  }
+  
+  .quick-price-input {
+    font-size: 12px !important;
+    height: 26px !important;
+    padding: 2px 6px !important;
+  }
+
+  .quick-price-clear-btn {
+    height: 26px !important;
+    width: 22px !important;
+  }
+
+  /* ปรับตราอันดับเลื่อนความสำคัญบนมือถือ */
+  .tier-badge {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+    top: 6px;
+    left: 6px;
+  }
+  .tier-badge.rank-1 { width: 26px; height: 26px; font-size: 12px; }
+
+  /* แถบหัวเรื่องจัดเรียงด้านบนสุดของ Main */
+  .category-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .sort-wrapper {
     width: 100%;
+    justify-content: space-between;
+  }
+
+  #sortProductsSelect {
+    flex: 1;
+    max-width: 200px;
+    text-align: center;
   }
 }
 
 @media (max-width: 480px) {
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
-    gap: 10px;
+  /* ล็อกขยายหน้าขนาดจอเล็กพิเศษเพื่อให้ไม่เกิดการซูมฟอนต์เกินขนาด */
+  header h1 {
+    font-size: 20px;
+  }
+  .web-logo {
+    width: 36px;
+    height: 36px;
+  }
+  #search {
+    padding: 10px;
+    font-size: 13px;
   }
 }
