@@ -1,4 +1,3 @@
-/* --- การตั้งค่าธีมสีระบบ (CSS Variables) --- */
 :root {
   --bg-main: #0f0f0f;
   --bg-box: #181818;
@@ -118,9 +117,6 @@ header {
   border-color: var(--border-focus);
 }
 
-/* =======================================================
-    📊 Layout 3 คอลัมน์หลัก
-   ======================================================= */
 .layout {
   display: grid;
   grid-template-columns: 240px 1fr 290px; 
@@ -253,9 +249,6 @@ header {
   overflow: hidden;
 }
 
-/* =======================================================
-    💎 [แถบขวา] Facebook & Shopee Widget
-   ======================================================= */
 .sidebar-right {
   display: flex;
   flex-direction: column;
@@ -405,9 +398,6 @@ header {
   transform: translateY(-3px);
 }
 
-/* =======================================================
-    🛠️ Admin Panel
-   ======================================================= */
 .admin-panel {
   display: none;
   flex-direction: column;
@@ -537,7 +527,6 @@ header {
   cursor: pointer;
 }
 
-/* 🎯 ส่วนกากบาทระบบล้างคำค้นหาปกติ */
 input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   height: 16px;
@@ -555,10 +544,63 @@ input::-webkit-search-cancel-button:hover {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
 }
 
-/* --- พื้นที่หลักตารางสินค้าทั้งหมดตรงกลาง --- */
 main {
   display: flex;
   flex-direction: column;
+}
+
+.category-header-wrapper {
+  margin-bottom: 15px;
+}
+
+.category-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sort-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+#sortProductsSelect {
+  background: var(--bg-box);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: bold;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+#sortProductsSelect:focus {
+  border-color: var(--border-focus);
+}
+
+main h2 {
+  font-size: 18px;
+  margin: 0;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+}
+
+.drag-notice-alert {
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px dashed var(--price-green);
+  color: var(--text-main);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 10px;
+  line-height: 1.4;
 }
 
 .grid {
@@ -567,135 +609,134 @@ main {
   gap: 15px;
 }
 
-main h2 {
-  font-size: 18px;
-  margin-top: 0;
-  margin-bottom: 15px;
-}
-
 .card {
   background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 15px;
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-color);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  transform: translateY(-4px);
+  border-color: var(--border-focus);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.tier-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: linear-gradient(135deg, #ffcc00, #ff9900);
+  color: #000000;
+  font-weight: 900;
+  font-size: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(255, 204, 0, 0.5);
+  border: 2px solid #ffffff;
+  z-index: 3;
+}
+
+.tier-badge.rank-1 { background: linear-gradient(135deg, #fff3a1, #ffd700); box-shadow: 0 0 12px #ffd700; width: 34px; height: 34px; font-size: 16px; }
+.tier-badge.rank-2 { background: linear-gradient(135deg, #e0e0e0, #b0b0b0); color: #111; }
+.tier-badge.rank-3 { background: linear-gradient(135deg, #fcdbb0, #cd7f32); color: #fff; }
+
+.badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #00ff88;
+  color: #000;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 8px;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.badge.hot {
+  background: #ff3333;
+  color: #fff;
 }
 
 .card img {
   width: 100%;
-  height: 160px;
+  height: 180px;
   object-fit: cover;
+  background: #222;
+  transition: transform 0.3s ease;
+}
+
+.card:hover img {
+  transform: scale(1.03);
 }
 
 .card .info {
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 }
 
 .card h4 {
-  margin: 0 0 6px 0;
-  font-size: 14px;
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.card p {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin: 0 0 10px 0;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 42px;
 }
 
-/* =======================================================
-    🎯 ระบบสไตล์การตั้งราคาใหม่ (ขีดเส้นสีดำที่ราคาเก่า และราคาใหม่สีเขียว)
-   ======================================================= */
 .price-container {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 8px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
-.card .price {
-  font-weight: bold;
+.price {
   color: var(--price-green);
-  font-size: 14px;
+  font-weight: bold;
+  font-size: 18px;
 }
 
-.card .price.old-price-slashed {
-  color: #555555; /* ปรับสีตัวอักษรให้ดรอป */
-  font-size: 12px;
-  text-decoration: line-through #000000 2px; /* ขีดเส้นสีดำหนา 2px คาดกลางราคาเก่าตามเงื่อนไข */
+.old-price-slashed {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  font-size: 13px;
   font-weight: normal;
 }
 
-.card .price.coming-soon-text {
-  color: var(--text-muted);
+.coming-soon-text {
+  color: #ffcc00 !important;
+  font-size: 14px;
   font-style: italic;
 }
 
-/* ช่องพิมพ์ตั้งราคาด่วนสำหรับ Admin */
-.quick-price-box {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-color);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.quick-price-box label {
-  display: block;
-  font-size: 11px;
+.card p {
+  margin: 0 0 14px 0;
+  font-size: 12.5px;
   color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.quick-price-input {
-  width: 100%;
-  padding: 6px 10px;
-  background: var(--bg-deep) !important;
-  border: 1px solid var(--border-color) !important;
-  color: var(--price-green) !important; /* พิมพ์ราคาด่วนเป็นสีเขียว */
-  border-radius: 6px;
-  font-size: 12px;
-  outline: none;
-  box-sizing: border-box;
-  text-align: center;
-  font-weight: bold;
-}
-
-.quick-price-input:focus {
-  border-color: var(--border-focus) !important;
-}
-
-.badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  padding: 3px 6px;
-  font-size: 9px;
-  font-weight: bold;
-  border-radius: 4px;
-  z-index: 1;
-}
-
-.badge.hot {
-  background: #ff5722;
-  color: #fff;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex-grow: 1;
 }
 
 .btns {
@@ -707,19 +748,14 @@ main h2 {
 
 .btn {
   display: block;
-  padding: 8px;
-  border-radius: 8px;
   text-align: center;
-  font-size: 12px;
+  padding: 9px;
+  border-radius: 8px;
   text-decoration: none;
+  font-size: 13px;
   font-weight: bold;
-  cursor: pointer;
-  border: none;
   box-sizing: border-box;
-  transition: opacity 0.2s ease;
-}
-.btn:hover {
-  opacity: 0.9;
+  transition: all 0.2s ease;
 }
 
 .btn.shopee {
@@ -727,132 +763,63 @@ main h2 {
   color: #fff;
 }
 
+.btn.shopee:hover {
+  background: #f4511e;
+}
+
 .btn.lazada {
-  background: #00008b;
+  background: #000080;
   color: #fff;
 }
 
+.btn.lazada:hover {
+  background: #000066;
+}
+
 .btn.disabled {
-  background: var(--border-color);
+  background: var(--input-bg);
   color: var(--text-muted);
   cursor: not-allowed;
+  border: 1px solid var(--border-color);
   pointer-events: none;
 }
 
 .btn.coming-soon-btn {
-  background: var(--input-bg);
-  color: var(--text-muted);
-  border: 1px dashed var(--border-focus);
-  cursor: default;
+  background: var(--bg-deep);
+  color: #ffcc00;
+  border: 1px dashed #ffcc00;
   pointer-events: none;
-  width: 100%;
 }
 
 .admin-card-actions {
-  display: flex;
-  gap: 5px;
-  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
   margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
 }
 
 .btn.edit {
-  background: var(--input-bg);
-  color: var(--text-main);
-  flex: 1;
+  background: #222;
+  color: #fff;
   border: 1px solid var(--border-color);
+}
+
+.btn.edit:hover {
+  background: #333;
+  border-color: var(--border-focus);
 }
 
 .btn.delete {
   background: #ff3333;
   color: #fff;
-  flex: 1;
 }
 
-footer {
-  text-align: center;
-  padding: 24px 20px;
-  font-size: 14px;
-  color: var(--text-muted);
-  border-top: 1px solid var(--border-color);
-  background: var(--header-bg);
-  transition: background 0.3s ease, color 0.3s ease;
-  flex-shrink: 0;
+.btn.delete:hover {
+  background: #cc0000;
 }
 
-.admin-draggable {
-  cursor: grab !important;
-  user-select: none;
-}
-
-.admin-draggable:active {
-  cursor: grabbing !important;
-  opacity: 0.5;
-}
-
-.card.drag-over {
-  border: 2px dashed var(--btn-bg) !important;
-  transform: scale(1.02);
-}
-
-.admin-cat-item.admin-draggable {
-  cursor: grab !important;
-  user-select: none;
-  transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.admin-cat-item.admin-draggable:active {
-  cursor: grabbing !important;
-  opacity: 0.6;
-}
-
-.admin-cat-item.cat-drag-over {
-  border: 2px dashed var(--btn-bg) !important;
-  background: var(--category-hover) !important;
-  transform: scale(1.01);
-}
-
-/* =======================================================
-    📱 RESPONSIVE SYSTEM
-   ======================================================= */
-@media (max-width: 1100px) {
-  .layout {
-    grid-template-columns: 240px 1fr;
-  }
-  .sidebar-right {
-    grid-column: span 2;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 768px) {
-  .layout {
-    grid-template-columns: 1fr;
-    padding: 12px;
-    gap: 15px;
-  }
-  
-  .sidebar { order: 1; }
-  main { order: 2; }
-  .sidebar-right { 
-    order: 3; 
-    grid-column: span 1;
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar-box .card img {
-    height: 140px;
-  }
-  
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
-    gap: 10px;
-  }
-}
-/* ================= ======================================
-    ⚡️ CONFIGS FOR COMPACT QUICK PRICE INPUT WITH CLEAR BTN
-   ======================================================= */
 .quick-price-box {
   margin-top: 8px;
   background: var(--bg-deep);
@@ -888,22 +855,110 @@ footer {
 }
 
 .quick-price-clear-btn {
-  background: #ff4d4d !important;
-  color: #ffffff !important;
-  border: none !important;
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 4px !important;
-  cursor: pointer !important;
-  font-size: 12px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
+  background: #333;
+  color: #888;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  width: 24px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s ease;
 }
 
 .quick-price-clear-btn:hover {
-  background: #ff3333 !important;
+  background: #ff3333;
+  color: #fff;
+  border-color: #ff3333;
+}
+
+.card.admin-draggable {
+  cursor: grab;
+}
+.card.admin-draggable:active {
+  cursor: grabbing;
+}
+.card.product-drag-over {
+  border: 2px dashed var(--price-green) !important;
+  transform: scale(0.98);
+  opacity: 0.7;
+}
+
+.cat-drag-over {
+  border: 1px dashed var(--price-green) !important;
+  background: var(--category-hover) !important;
+}
+
+.auth-modal {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.auth-box {
+  background: var(--bg-box);
+  border: 1px solid var(--border-color);
+  padding: 28px;
+  border-radius: 20px;
+  width: 340px;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  animation: authFade 0.25s ease;
+}
+
+@keyframes authFade {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.close-auth {
+  position: absolute;
+  top: 15px; right: 15px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.close-auth:hover { color: var(--text-main); }
+
+.auth-box h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; text-align: center; }
+
+.auth-box input {
+  display: block; width: 100%; padding: 12px;
+  background: var(--input-bg); border: 1px solid var(--border-color);
+  color: var(--text-main); border-radius: 10px; margin-bottom: 12px;
+  box-sizing: border-box; font-size: 14px; outline: none;
+}
+
+.auth-box input:focus { border-color: var(--border-focus); }
+
+.auth-box button {
+  width: 100%; padding: 12px; background: var(--btn-bg); color: var(--btn-text);
+  border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer;
+}
+
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar, .sidebar-right {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 10px;
+  }
 }
