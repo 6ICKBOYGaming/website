@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>6ICKBOY รวมเกมมิ่งเกียร์</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -10,20 +10,18 @@
 
 <header>
     <div class="top-bar">
-        <!-- ปรับตรงนี้ให้แสดงผลแบบ flex และกำหนดช่องว่างชิดกันพอดี (gap: 12px) -->
         <div class="logo-wrapper" style="display: flex; align-items: center; gap: 12px;">
             <a href="index.html" style="display: flex; align-items: center;">
                 <img src="https://i.postimg.cc/MffGQXrG/image.png" alt="6ICKBOY Logo" class="web-logo">
             </a>
-            <!-- เอา margin ของ h1 ออกเพื่อไม่ให้มันดันระยะห่างเพี้ยน -->
             <h1 style="margin: 0;"> 6ICK BOY</h1>
         </div>
         <div class="top-buttons">
-          <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
+            <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
             <button id="loginBtn" class="btn-admin-yellow">🔒 ผู้ดูแล</button>
             <button id="logoutBtn" style="display: none;">Logout</button>
-      </div>
-  </div>
+        </div>
+    </div>
 
     <input id="search" placeholder="ค้นหาสินค้า...">
 </header>
@@ -31,12 +29,12 @@
 <div class="layout">
 
     <aside class="sidebar">
-        <div class="sidebar-box">
+        <section class="sidebar-box">
             <h3>หมวดหมู่</h3>
             <div id="categories"></div>
-        </div>
+        </section>
 
-        <div class="sidebar-box hot-box">
+        <section class="sidebar-box hot-box">
             <div class="sidebar-title-wrapper">
                 <h2>🔥 HOT สินค้าขายดี</h2>
                 <div class="slide-ctrl-btns">
@@ -45,9 +43,9 @@
                 </div>
             </div>
             <div id="hotProducts" class="row"></div>
-        </div>
+        </section>
 
-        <div class="sidebar-box new-box">
+        <section class="sidebar-box new-box">
             <div class="sidebar-title-wrapper">
                 <h2>🆕 NEW สินค้าใหม่</h2>
                 <div class="slide-ctrl-btns">
@@ -56,11 +54,11 @@
                 </div>
             </div>
             <div id="newProducts" class="row"></div>
-        </div>
+        </section>
     </aside>
 
     <main>
-        <div class="admin-panel" id="adminPanel" style="display: none;">
+        <section class="admin-panel" id="adminPanel" style="display: none;">
             <h3>📦 แผงจัดการข้อมูลสินค้า</h3>
             
             <input id="productName" placeholder="ชื่อสินค้า">
@@ -73,26 +71,39 @@
             
             <textarea id="productDescription" placeholder="รายละเอียดสินค้าเด่น..."></textarea>
             
-            <div class="select-wrapper">
-                <label for="productCategory" style="margin-bottom: 4px; display: block; font-size: 13px; color: var(--text-muted);">เลือกหมวดหมู่สินค้า:</label>
-                <select id="productCategory">
-                </select>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="select-wrapper">
+                    <label for="productCategory" style="margin-bottom: 4px; display: block; font-size: 13px; color: var(--text-muted);">เลือกหมวดหมู่สินค้า:</label>
+                    <select id="productCategory" style="width:100%;"></select>
+                </div>
+
+                <div class="select-wrapper">
+                    <label for="productTier" style="margin-bottom: 4px; display: block; font-size: 13px; color: var(--text-muted);">🏆 ระดับ Tier List สินค้า (1-5):</label>
+                    <select id="productTier" style="width:100%;">
+                        <option value="">-- ไม่ระบุ Tier (ไม่แสดงเลขบนรูป) --</option>
+                        <option value="1">🏆 Tier 1 (สินค้าดีที่สุด/แนะนำพิเศษ)</option>
+                        <option value="2">🥈 Tier 2 (คุ้มค่าคุ้มราคาเกรดเอ)</option>
+                        <option value="3">🥉 Tier 3 (ประสิทธิภาพมาตรฐานทั่วไป)</option>
+                        <option value="4">🔮 Tier 4 (ทางเลือกเสริมระดับเริ่มต้น)</option>
+                        <option value="5">⚙️ Tier 5 (ระดับประหยัดงบสุดคุ้ม)</option>
+                    </select>
+                </div>
             </div>
 
             <input id="shopee1" placeholder="ลิงก์ Shopee ช่องทางที่ 1">
             <input id="shopee2" placeholder="ลิงก์ Shopee ช่องทางที่ 2">
             <input id="lazada" placeholder="ลิงก์ Lazada">
 
-            <div class="admin-checkboxes" style="margin: 12px 0;">
-                <label><input type="checkbox" id="isNew"> NEW (สินค้าใหม่)</label>
-                <label><input type="checkbox" id="isHot"> HOT (สินค้าแนะนำ)</label>
-                <label><input type="checkbox" id="comingSoon"> Coming Soon (เตรียมวางจำหน่าย)</label>
+            <div class="admin-checkboxes" style="margin: 12px 0; display: flex; flex-wrap: wrap; gap: 14px;">
+                <label style="cursor:pointer;"><input type="checkbox" id="isNew"> 🆕 NEW (ป้ายสติกเกอร์สินค้าใหม่)</label>
+                <label style="cursor:pointer;"><input type="checkbox" id="isHot"> 🔥 HOT (ป้ายสติกเกอร์สินค้าขายดี)</label>
+                <label style="cursor:pointer;"><input type="checkbox" id="comingSoon"> ⏳ Coming Soon (เตรียมวางจำหน่าย)</label>
             </div>
 
             <button id="submitBtn" class="btn-submit-yellow" onclick="handleProductSubmit()">เพิ่มสินค้าเข้าระบบ</button>
-        </div>
+        </section>
 
-        <div class="admin-panel category-panel" id="adminCategoryPanel" style="display: none;">
+        <section class="admin-panel category-panel" id="adminCategoryPanel" style="display: none;">
             <h3 id="adminCategoryTitle">📁 แผงจัดการระบบหมวดหมู่สินค้า</h3>
             <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;">
                 <div style="display: flex; gap: 10px;">
@@ -108,11 +119,10 @@
                 <h4 style="margin: 0; color: var(--text-muted); font-size: 13px;">รายชื่อหมวดหมู่สินค้าปัจจุบัน:</h4>
                 <small style="color: var(--text-muted); font-size: 11px; background: var(--bg-main); padding: 2px 6px; border-radius: 4px;">💡 ลากขึ้น-ลงเพื่อจัดลำดับได้ทันที</small>
             </div>
-            <div id="adminCategoryList" style="max-height: 240px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);">
-            </div>
-        </div>
+            <div id="adminCategoryList" style="max-height: 240px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);"></div>
+        </section>
 
-        <div class="admin-panel widget-panel" id="adminWidgetPanel" style="display: none;">
+        <section class="admin-panel widget-panel" id="adminWidgetPanel" style="display: none;">
             <h3>🎁 แผงควบคุมหน้าต่างกิจกรรมรับโค้ดส่วนลด (กรอบล่าง)</h3>
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <div>
@@ -130,29 +140,25 @@
                 </div>
                 <button class="btn-submit-yellow" onclick="handleWidgetUpdate()">💾 บันทึกตั้งค่ากิจกรรมโค้ดส่วนลด</button>
             </div>
-        </div>
+        </section>
 
-        <!-- แผงจัดเรียงสินค้า NEW และ HOT แบบลากวางชื่อสินค้า เพิ่มใหม่ด้านล่างแผงควบคุมวิดเจ็ต -->
-        <div class="admin-panel drag-sort-panel" id="adminDragSortPanel" style="display: none;">
+        <section class="admin-panel drag-sort-panel" id="adminDragSortPanel" style="display: none;">
             <h3>🔥 จัดลำดับสินค้า NEW และ HOT</h3>
             <p style="color: var(--text-muted); font-size: 13px; margin: 0 0 10px 0;">ลากสลับตำแหน่งเพื่อเรียงลำดับสินค้าที่จะแสดงในแถบสไลด์ด้านซ้ายมือ (บนลงล่าง = ซ้ายไปขวา)</p>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <h4 style="margin: 0 0 8px 0; color: var(--admin-yellow); font-size: 14px;">🔥 ลำดับสินค้าแนะนำ (HOT)</h4>
-                    <div id="adminHotDragList" style="max-height: 300px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);">
-                    </div>
+                    <div id="adminHotDragList" style="max-height: 300px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);"></div>
                 </div>
-
                 <div>
                     <h4 style="margin: 0 0 8px 0; color: #00ff88; font-size: 14px;">🆕 ลำดับสินค้าใหม่ (NEW)</h4>
-                    <div id="adminNewDragList" style="max-height: 300px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);">
-                    </div>
+                    <div id="adminNewDragList" style="max-height: 300px; overflow-y: auto; background: var(--bg-deep); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);"></div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="category-header-wrapper">
+        <section class="category-header-wrapper">
             <div class="category-header-row">
                 <h2 id="categoryTitle">หมวดหมู่: ทั้งหมด</h2>
                 <div class="sort-wrapper">
@@ -167,13 +173,13 @@
             <div id="dragNotice" class="drag-notice-alert" style="display: none;">
                 💡 <b>โหมดผู้ดูแลระบบ:</b> คุณสามารถลากวาง (Drag & Drop) สลับตำแหน่งกล่องสินค้าในตารางนี้เพื่อจัดอันดับความสำคัญได้โดยตรง!
             </div>
-        </div>
+        </section>
         
-        <div id="products" class="grid"></div>
+        <section id="products" class="grid"></section>
     </main>
 
     <aside class="sidebar-right">
-        <div class="right-box follow-box">
+        <section class="right-box follow-box">
             <h3>👥 ติดตามเรา</h3>
             <div class="follow-content">
                 <p>กดถูกใจและติดตามข่าวสารอัปเดตไอเทมใหม่ๆ โค้ดโปรโมชั่นก่อนใครได้ที่เพจหลักของเราด้านล่างนี้</p>
@@ -181,12 +187,12 @@
                     <svg width="18" height="18" fill="currentColor" style="margin-right:8px;" viewBox="0 0 16 16">
                         <path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z"/>
                     </svg>
-                    กดติดตาม Fanpage
+                    Public Fanpage
                 </a>
             </div>
-        </div>
+        </section>
 
-        <div class="right-box promo-box" id="shopeePromoWidget" style="display: none;">
+        <section class="right-box promo-box" id="shopeePromoWidget" style="display: none;">
             <h3>🎁 รับโค้ดส่วนลด Shopee</h3>
             <div class="promo-content">
                 <div class="gift-img-wrapper">
@@ -197,7 +203,7 @@
                     🎟️ ไปรับโค้ดเลย
                 </a>
             </div>
-        </div>
+        </section>
     </aside>
 
 </div>
@@ -209,13 +215,14 @@
 </button>
 
 <div class="auth-modal" id="authModal">
-    <div class="auth-box">
-        <button class="close-auth" id="closeAuthBtn">✕</button>
+    <form class="auth-box" onsubmit="event.preventDefault();">
+        <button type="button" class="close-auth" id="closeAuthBtn">✕</button>
         <h3 id="authTitle">🔒 เข้าสู่ระบบผู้ดูแล</h3>
-        <input type="email" id="authEmail" placeholder="อีเมลผู้ดูแลระบบ">
-        <input type="password" id="authPassword" placeholder="รหัสผ่าน">
-        <button id="authSubmitBtn">ยืนยันเข้าสู่ระบบ</button>
-    </div>
+        <input type="email" id="authEmail" placeholder="อีเมลผู้ดูแลระบบ" required>
+        <input type="password" id="authPassword" placeholder="รหัสผ่าน" required>
+        
+        <button type="submit" id="authSubmitBtn">ยืนยันเข้าสู่ระบบ</button>
+    </form>
 </div>
 
 <script type="module" src="app.js"></script>
