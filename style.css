@@ -1532,35 +1532,74 @@ main h2 {
 
 
 /* =========================================================
-📱 EXTRA SMALL MOBILE
+📱 MOBILE CATEGORY BAR
 ========================================================= */
 
-@media screen and (max-width: 420px) {
+@media screen and (max-width: 768px) {
 
-  .layout {
-    padding: 8px;
+  /* แสดง sidebar อีกครั้ง */
+  .sidebar {
+    display: block !important;
+    margin-bottom: 12px;
   }
 
-  .grid {
+  /* ซ่อนกล่อง HOT / NEW */
+  .hot-box,
+  .new-box {
+    display: none !important;
+  }
+
+  /* ซ่อน sidebar ขวา */
+  .sidebar-right {
+    display: none !important;
+  }
+
+  /* กล่องหมวดหมู่ */
+  .sidebar-box {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .sidebar-box h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  /* แถบหมวดหมู่แนวนอน */
+  #categories {
+    display: flex;
     gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    padding-bottom: 2px;
   }
 
-  .card img,
-  .card-img-link {
-    height: 150px;
+  #categories::-webkit-scrollbar {
+    display: none;
   }
 
-  .card .info {
-    padding: 8px;
+  .category {
+    margin-top: 0;
+    flex: 0 0 auto;
+    padding: 9px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
   }
 
-  .price {
-    font-size: 15px;
+  /* Layout มือถือ */
+  .layout {
+    display: block;
+    padding: 10px;
   }
 
-  .btn {
-    font-size: 11px;
-    padding: 7px;
+  /* Grid สินค้า 2 คอลัมน์ */
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
 }
