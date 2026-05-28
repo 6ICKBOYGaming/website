@@ -1,3 +1,6 @@
+/* =========================================================
+🎨 1. CORE VARIABLES & VARIABLES FOR THEMES
+========================================================= */
 :root {
   --bg-main: #0f0f0f;
   --bg-box: #181818;
@@ -35,6 +38,9 @@
   --price-green: #00aa5b;
 }
 
+/* =========================================================
+🏢 2. GLOBAL STYLES & LAYOUT BASE
+========================================================= */
 html, body {
   height: 100%;
 }
@@ -131,6 +137,9 @@ header {
   border-color: var(--border-focus);
 }
 
+/* =========================================================
+💻 3. PC SCREEN LAYOUT DESIGN (Desktop Standard)
+========================================================= */
 .layout {
   display: grid;
   grid-template-columns: 240px 1fr 290px; 
@@ -380,196 +389,9 @@ header {
   transform: translateY(-2px);
 }
 
-#backToTopBtn {
-  position: fixed;
-  bottom: 25px;
-  right: 25px;
-  z-index: 99;
-  width: 46px;
-  height: 46px;
-  background: var(--bg-box);
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.2s ease, background-color 0.3s ease;
-}
-
-#backToTopBtn.show {
-  opacity: 1;
-  visibility: visible;
-}
-
-#backToTopBtn:hover {
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  transform: translateY(-3px);
-}
-
-.admin-panel {
-  display: none;
-  flex-direction: column;
-  background: var(--bg-box);
-  padding: 20px;
-  border-radius: 15px;
-  margin-bottom: 20px;
-  border: 1px solid var(--border-color);
-  gap: 12px;
-}
-
-.admin-panel h3 {
-  margin-top: 0;
-  margin-bottom: 5px;
-  color: var(--text-main);
-  font-size: 18px;
-}
-
-.admin-panel input[type="text"],
-.admin-panel input:not([type="checkbox"]),
-.admin-panel select,
-.admin-panel textarea {
-  display: block;
-  width: 100%;
-  padding: 10px 14px;
-  background: var(--input-bg);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  border-radius: 10px;
-  box-sizing: border-box;
-  font-size: 14px;
-  outline: none;
-  font-family: inherit;
-  transition: border-color 0.2s ease;
-}
-
-.admin-panel input:not([type="checkbox"]):focus,
-.admin-panel select:focus,
-.admin-panel textarea:focus {
-  border-color: var(--border-focus);
-}
-
-.admin-panel textarea {
-  height: 80px;
-  resize: vertical;
-}
-
-.admin-panel label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--text-main);
-  margin-right: 15px;
-  user-select: none;
-}
-
-.admin-panel input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--text-main);
-  cursor: pointer;
-}
-
-.admin-panel button {
-  width: 100%;
-  padding: 12px;
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  border: none;
-  border-radius: 10px;
-  font-weight: bold;
-  font-size: 15px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  margin-top: 5px;
-}
-
-.admin-panel button:hover {
-  opacity: 0.8;
-}
-
-.btn-submit-yellow {
-  background: var(--admin-yellow) !important;
-  color: #000000 !important;
-  border: none !important;
-  font-weight: bold !important;
-}
-
-.btn-submit-yellow:hover {
-  background: var(--admin-yellow-hover) !important;
-  opacity: 1 !important;
-}
-
-.admin-cat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--input-bg);
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-bottom: 6px;
-  border: 1px solid var(--border-color);
-  gap: 10px;
-}
-
-.admin-cat-item span {
-  font-size: 14px;
-  color: var(--text-main);
-  flex-grow: 1;
-}
-
-.admin-cat-actions {
-  display: flex;
-  gap: 5px;
-}
-
-.admin-cat-item .btn-mini-edit {
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.admin-cat-item .btn-mini-delete {
-  background: #ff3333;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-  height: 16px;
-  width: 16px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888888'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
-  background-size: contain;
-  background-repeat: no-repeat;
-  cursor: pointer;
-  margin-right: 2px;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-input::-webkit-search-cancel-button:hover {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
-}
-
+/* =========================================================
+🛍️ 4. PRODUCT CARDS & ELEMENTS STYLES
+========================================================= */
 main {
   display: flex;
   flex-direction: column;
@@ -719,9 +541,6 @@ main h2 {
 .no-link-img {
   cursor: default !important;
 }
-.card.admin-draggable .card-img-link {
-  cursor: grab !important;
-}
 
 .card .info {
   padding: 14px;
@@ -833,23 +652,10 @@ main h2 {
   transition: all 0.2s ease;
 }
 
-.btn.shopee {
-  background: #ff5722;
-  color: #fff;
-}
-
-.btn.shopee:hover {
-  background: #f4511e;
-}
-
-.btn.lazada {
-  background: #000080;
-  color: #fff;
-}
-
-.btn.lazada:hover {
-  background: #000066;
-}
+.btn.shopee { background: #ff5722; color: #fff; }
+.btn.shopee:hover { background: #f4511e; }
+.btn.lazada { background: #000080; color: #fff; }
+.btn.lazada:hover { background: #000066; }
 
 .btn.disabled {
   background: var(--input-bg);
@@ -866,344 +672,237 @@ main h2 {
   pointer-events: none;
 }
 
-.admin-card-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-color);
-}
-
-.btn.edit {
-  background: #222;
-  color: #fff;
-  border: 1px solid var(--border-color);
-}
-
-.btn.edit:hover {
-  background: #333;
-  border-color: var(--border-focus);
-}
-
-.btn.delete {
-  background: #ff3333;
-  color: #fff;
-}
-
-.btn.delete:hover {
-  background: #cc0000;
-}
-
-.quick-admin-controls-wrapper {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.quick-price-box, .quick-flash-sale-box {
-  background: var(--bg-deep);
-  padding: 6px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  text-align: left;
-}
-
-.quick-price-box label, .quick-flash-sale-box label {
-  font-size: 11px;
-  color: var(--text-muted);
-  display: block;
-  margin-bottom: 4px;
-}
-
-.quick-price-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.quick-price-input, .quick-date-input {
-  flex: 1;
-  background: var(--input-bg) !important;
-  color: var(--text-main) !important;
-  border: 1px solid var(--border-color) !important;
-  padding: 4px 8px !important;
-  font-size: 12px !important;
-  border-radius: 4px !important;
-  height: 28px !important;
-  box-sizing: border-box;
-  outline: none;
-  font-family: inherit;
-}
-
-.quick-date-input::placeholder {
-  color: var(--text-muted);
-  font-size: 11px;
-  opacity: 0.6;
-}
-
-.quick-price-clear-btn {
-  background: #333;
-  color: #888;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  width: 24px;
-  height: 28px;
-  cursor: pointer;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: all 0.2s ease;
-}
-
-.quick-price-clear-btn:hover {
-  background: #ff3333;
-  color: #fff;
-  border-color: #ff3333;
-}
-
-.card.admin-draggable {
-  cursor: grab;
-}
-.card.admin-draggable:active {
-  cursor: grabbing;
-}
-.card.product-drag-over {
-  border: 2px dashed var(--price-green) !important;
-  transform: scale(0.98);
-  opacity: 0.7;
-}
-
-.cat-drag-over {
-  border: 1px dashed var(--price-green) !important;
-  background: var(--category-hover) !important;
-}
-
-.drag-sort-panel {
+/* =========================================================
+🛠️ 5. ADMIN UTILITIES CONTROLS (Common)
+========================================================= */
+.admin-panel {
   display: none;
   flex-direction: column;
+  background: var(--bg-box);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+  gap: 12px;
 }
 
-.admin-cat-item.cat-drag-over {
-  border: 2px dashed var(--admin-yellow) !important;
-  background: var(--bg-main) !important;
-  transform: scale(0.98);
-  transition: transform 0.15s ease, border-color 0.15s ease;
+.admin-panel h3 { margin: 0 0 5px 0; color: var(--text-main); font-size: 18px; }
+
+.admin-panel input[type="text"],
+.admin-panel input:not([type="checkbox"]),
+.admin-panel select,
+.admin-panel textarea {
+  display: block; width: 100%; padding: 10px 14px;
+  background: var(--input-bg); border: 1px solid var(--border-color);
+  color: var(--text-main); border-radius: 10px; box-sizing: border-box;
+  font-size: 14px; outline: none; font-family: inherit;
 }
+
+.admin-card-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px;
+  padding-top: 8px; border-top: 1px dashed var(--border-color);
+}
+
+.btn.edit { background: #222; color: #fff; border: 1px solid var(--border-color); }
+.btn.delete { background: #ff3333; color: #fff; }
+
+.quick-admin-controls-wrapper { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.quick-price-box, .quick-flash-sale-box { background: var(--bg-deep); padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); }
+.quick-price-row { display: flex; gap: 6px; align-items: center; }
+.quick-price-input, .quick-date-input { flex: 1; background: var(--input-bg) !important; color: var(--text-main) !important; border: 1px solid var(--border-color) !important; padding: 4px 8px !important; font-size: 12px !important; border-radius: 4px !important; height: 28px !important; box-sizing: border-box; }
 
 .auth-modal {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.85);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+  display: none; align-items: center; justify-content: center; z-index: 999;
 }
+.auth-box { background: var(--bg-box); border: 1px solid var(--border-color); padding: 28px; border-radius: 20px; width: 340px; position: relative; }
 
-.auth-box {
-  background: var(--bg-box);
-  border: 1px solid var(--border-color);
-  padding: 28px;
-  border-radius: 20px;
-  width: 340px;
-  position: relative;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  animation: authFade 0.25s ease;
+#backToTopBtn {
+  position: fixed; bottom: 25px; right: 25px; z-index: 99; width: 46px; height: 46px;
+  background: var(--bg-box); color: var(--text-main); border: 1px solid var(--border-color);
+  border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden; transition: all 0.3s ease;
 }
-
-@keyframes authFade {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.close-auth {
-  position: absolute;
-  top: 15px; right: 15px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.close-auth:hover { color: var(--text-main); }
-
-.auth-box h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; text-align: center; }
-
-.auth-box input {
-  display: block; width: 100%; padding: 12px;
-  background: var(--input-bg); border: 1px solid var(--border-color);
-  color: var(--text-main); border-radius: 10px; margin-bottom: 12px;
-  box-sizing: border-box; font-size: 14px; outline: none;
-}
-
-.auth-box input:focus { border-color: var(--border-focus); }
-
-.auth-box button {
-  width: 100%; padding: 12px; background: var(--btn-bg); color: var(--btn-text);
-  border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer;
-}
+#backToTopBtn.show { opacity: 1; visibility: visible; }
 
 /* =========================================================
-📱 LUXURY SHOPEE MOBILE RESPONSIVE (Max Width: 768px)
+📱 6. PURE MOBILE RESPONSIVE ENGINE (Max Width: 768px)
 ========================================================= */
 @media screen and (max-width: 768px) {
+  /* จัดการฟิกขอบเขตจอมือถือไม่ให้หลุดสไลด์มั่ว */
   body {
-    overflow-x: hidden;
+    overflow-x: hidden !important;
   }
 
   header {
-    padding: 10px 12px;
+    padding: 10px 12px !important;
   }
 
   .top-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
   }
 
   .logo-wrapper {
-    width: 100%;
-    gap: 8px;
+    width: 100% !important;
+    gap: 8px !important;
   }
 
   .web-logo {
-    width: 36px;
-    height: 36px;
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .top-bar h1 {
-    font-size: 20px;
+    font-size: 20px !important;
   }
 
   .top-buttons {
-    width: 100%;
-    display: flex;
-    gap: 8px;
+    width: 100% !important;
+    display: flex !important;
+    gap: 6px !important;
   }
 
   .top-buttons button {
-    flex: 1;
-    font-size: 12px;
-    padding: 8px;
+    flex: 1 !important;
+    font-size: 12px !important;
+    padding: 8px !important;
   }
 
   #search {
-    margin-top: 10px;
-    padding: 10px 12px;
-    font-size: 14px;
-    border-radius: 8px;
+    margin-top: 10px !important;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
   }
 
-  /* ปลดล็อค Layout ของ PC ทั้งหมด เพื่อจัดระเบียบตามรูปแบบ Shopee Mobile */
+  /* -------------------------------------------------------
+  ⚠️ ล้างรูปแบบหน้าจอ Grid ของ PC เพื่อตั้งค่ารูปแบบ Mobile ใหม่ทั้งหมด
+  ------------------------------------------------------- */
   .layout {
     display: block !important;
     padding: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   main {
     width: 100% !important;
+    display: block !important;
   }
 
-  /* 1. ย้ายแถบหมวดหมู่ขึ้นด้านบน และปรับดีไซน์เป็นสไลด์แนวนอนแบบเม็ดแคปซูล (Shopee Style) */
+  /* -------------------------------------------------------
+  ⭐ ITEM 1: ย้ายแถบหมวดหมู่สินค้าขึ้นบนสุด + ทำเป็นเม็ดแคปซูลสไลด์ซ้ายขวา (Shopee Style)
+  ------------------------------------------------------- */
   .sidebar {
     display: block !important;
     width: 100% !important;
     margin-bottom: 12px !important;
   }
 
+  /* เปลี่ยนกล่อง Sidebar เดิมให้กลายเป็นแถบใส ไร้กรอบ ปล่อยให้ปุ่มแคปซูลลอยอย่างเป็นอิสระ */
   .sidebar-box {
-    padding: 8px 6px !important;
-    border-radius: 10px !important;
-    background: transparent !important; /* นำพื้นหลังกล่องใหญ่ส่วนนี้ออกเพื่อให้แคปซูลลอยเด่น */
+    padding: 4px 0 !important;
+    background: transparent !important;
     border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
   }
 
-  /* ซ่อนหัวข้อคำว่า "หมวดหมู่สินค้า" บนมือถือเพื่อให้ประหยัดพื้นที่กระชับสายตา */
+  /* สั่งซ่อนหัวข้อคำว่า "หมวดหมู่สินค้า" บนมือถือตามมาตรฐานเว็บแอปสมัยใหม่เพื่อลดความเกะกะ */
   .sidebar-box h3 {
     display: none !important;
   }
 
-  /* ปรับแต่งกล่องรายชื่อหมวดหมู่ให้สไลด์ซ้าย-ขวาได้แบบไร้รอยต่อ */
+  /* จัดระเบียบชุดปุ่มให้อยู่แถวเดียวกัน สั่งเปิด Scrollbar แนวนอนเพื่อให้ใช้นิ้วปัดเลื่อนซ้าย-ขวาได้แบบ Shopee */
   #categories {
     display: flex !important;
     gap: 8px !important;
     overflow-x: auto !important;
     white-space: nowrap !important;
-    scrollbar-width: none !important; /* ซ่อนแถบสกอลสำหรับ Firefox */
-    padding: 4px 6px !important;
-    -webkit-overflow-scrolling: touch;
+    padding: 4px 4px 8px 4px !important;
+    scrollbar-width: none !important; /* สำหรับซ่อนเส้นใต้เลื่อนของ Firefox */
+    -webkit-overflow-scrolling: touch !important; /* ช่วยให้การสไลด์ด้วยนิ้วบน iPhone/Android ลื่นขึ้น */
   }
 
   #categories::-webkit-scrollbar {
-    display: none !important; /* ซ่อนแถบสกอลสำหรับ Chrome/Safari */
+    display: none !important; /* สำหรับซ่อนเส้นใต้เลื่อนของ Chrome / Safari / แอปทั่วไป */
   }
 
-  /* ปุ่มหมวดหมู่สไตล์แคปซูล Shopee */
+  /* แปลงดีไซน์ปุ่มเป็นรูปแคปซูลขอบมน สไตล์ Shopee */
   .category {
     margin-top: 0 !important;
     display: inline-block !important;
     flex: 0 0 auto !important;
-    padding: 6px 14px !important;
-    border-radius: 20px !important;
+    padding: 7px 16px !important;
+    border-radius: 25px !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     background: var(--bg-box) !important;
     border: 1px solid var(--border-color) !important;
     opacity: 1 !important;
+    color: var(--text-main) !important;
+    transition: none !important;
   }
 
+  /* ไฮไลท์ปุ่มหมวดหมู่ที่ถูกคลิกเลือกด้วยโทนสีส้มแบรนด์ Shopee สวยเด่น */
   .category.active {
-    background: #ff5722 !important; /* ใช้สีส้มไฮไลท์หมวดหมู่ที่ถูกเลือกแบบ Shopee */
+    background: #ff5722 !important;
     color: #ffffff !important;
     border-color: #ff5722 !important;
     font-weight: bold !important;
   }
 
-  /* 2. สั่งซ่อนหน้าต่างสินค้าแนะนำ สินค้าใหม่ และ Sidebar ขวาเฉพาะบนมือถือตามเงื่อนไข */
+  /* -------------------------------------------------------
+  ❌ ITEM 2: ซ่อนหน้าต่างสินค้าแนะนำ (Hot Box), สินค้าใหม่ (New Box) และแถบด้านขวาทั้งหมดบนมือถือ
+  ------------------------------------------------------- */
   .hot-box,
   .new-box,
-  .sidebar-box:has(.row), 
-  .sidebar-right {
+  .sidebar-box:has(.row),
+  .sidebar-right,
+  .drag-notice-alert {
     display: none !important;
   }
 
-  /* 3. ปรับแต่ง Grid สินค้าหลักให้เป็น 2 คอลัมน์เต็มพื้นที่แบบแอป Shopee อย่างสมบูรณ์ */
+  /* -------------------------------------------------------
+  📦 ITEM 3: ปรับแก้ช่องแสดงสินค้าหลักให้เป็น 2 คอลัมน์ ไซส์พอดีจอ (Shopee Mobile Grid)
+  ------------------------------------------------------- */
   .grid {
     display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
+    grid-template-columns: repeat(2, 1fr) !important; /* บังคับแบ่ง 2 คอลัมน์เท่ากันเป๊ะๆ */
+    gap: 8px !important; /* ระยะห่างระหว่างกล่องสินค้า */
     width: 100% !important;
+    box-sizing: border-box !important;
   }
 
+  /* ปรับแต่งดีไซน์ตัวการ์ดสินค้าให้เรียบเนียนสไตล์แอปสมาร์ทโฟน */
   .card {
     width: 100% !important;
     min-width: 0 !important;
     border-radius: 8px !important;
     background: var(--bg-box) !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
+    border: 1px solid var(--border-color) !important;
   }
 
   .card:hover {
-    transform: none !important; /* ยกเลิกเอฟเฟกต์ลอยบนมือถือเพื่อลดการกระตุก */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    transform: none !important; /* ปิดเอฟเฟกต์ยกตัวลอยขึ้นของ PC เพื่อไม่ให้จอมือถือกดแล้วสั่นกระตุก */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
+    border-color: var(--border-color) !important;
   }
 
-  /* ปรับความสูงรูปภาพให้เหมาะสมกับจอ 2 คอลัมน์ */
+  /* ฟิกขนาดความสูงของรูปภาพสินค้าบนมือถือให้สมดุลแบบสี่เหลี่ยมพอดี */
   .card img,
   .card-img-link {
     height: 145px !important;
+    border-radius: 8px 8px 0 0 !important;
   }
 
   .card .info {
-    padding: 8px !important;
+    padding: 8px !important; /* ลดความกว้างพื้นที่เว้นวรรคด้านในลงเพื่อให้จุข้อมูลได้มากขึ้น */
   }
 
-  /* บังคับชื่อสินค้าสูงเท่ากันและตัดคำเมื่อเกิน 2 บรรทัด */
+  /* ตัวหนังสือหัวข้อสินค้า บังคับล็อกความสูงเท่ากัน และสั่งตัดคำเป็นจุดไข่ปลา (...) เมื่อเกิน 2 บรรทัด */
   .card h4 {
     font-size: 13px !important;
     height: 36px !important;
@@ -1211,15 +910,15 @@ main h2 {
     margin-bottom: 4px !important;
   }
 
-  /* รายละเอียดสินค้าย่อย */
+  /* ย่อคำอธิบายสินค้าให้เหลือบรรทัดเดียวสั้นๆ ป้องกันกล่องสินค้าโย้เย้ไม่เท่ากัน */
   .card p {
     font-size: 11px !important;
     line-height: 1.3 !important;
-    -webkit-line-clamp: 1 !important; /* แสดงบรรทัดเดียวสั้นๆ เพื่อความสะอาดตา */
+    -webkit-line-clamp: 1 !important; 
     margin-bottom: 6px !important;
   }
 
-  /* กล่องและตัวเลขราคาสไตล์แอป Shopping */
+  /* ราคาปรับเป็นสีส้มสไตล์แอปช้อปปิ้งออนไลน์ชั้นนำ */
   .price-container {
     gap: 4px !important;
     margin-bottom: 6px !important;
@@ -1227,14 +926,14 @@ main h2 {
 
   .price {
     font-size: 15px !important;
-    color: #ff5722 !important; /* ปรับราคาสินค้าหลักเป็นสีส้ม Shopee */
+    color: #ff5722 !important; /* ปรับสีตัวเลขราคาหลักเป็นสีส้ม Shopee */
   }
 
   .old-price-slashed {
     font-size: 11px !important;
   }
 
-  /* ดีไซน์ Flash Sale ย่อขนาดลงเพื่อให้พอดิบพอดีกับกล่องสินค้าขนาดเล็ก */
+  /* ขนาดย่อกล่องจับเวลา Flash Sale ด้านบนการ์ดให้กะทัดรัดพอดีสายตา */
   .card-flash-sale-box {
     padding: 3px 5px !important;
     margin-bottom: 6px !important;
@@ -1250,7 +949,7 @@ main h2 {
     padding: 1px 4px !important;
   }
 
-  /* ปุ่มสั่งซื้อ จัดเรียงให้เรียบร้อยกะทัดรัด */
+  /* ปุ่มกดสไตล์มินิมอลพอดีบล็อก */
   .btns {
     gap: 4px !important;
   }
@@ -1261,15 +960,16 @@ main h2 {
     border-radius: 6px !important;
   }
 
-  /* ป้ายลดราคาและลำดับดาว */
+  /* ป้ายลดราคาหัวมุมขวา */
   .badge {
-    font-size: 10px !important;
-    padding: 2px 6px !important;
+    font-size: 9.5px !important;
+    padding: 2px 5px !important;
     top: 6px !important;
     right: 6px !important;
     border-radius: 4px !important;
   }
 
+  /* ป้ายไอคอนลำดับเหรียญทองเหรียญเงินหัวมุมซ้าย */
   .tier-badge {
     width: 24px !important;
     height: 24px !important;
@@ -1278,7 +978,7 @@ main h2 {
     left: 6px !important;
   }
 
-  /* ปรับแต่งส่วนหัวของหน้าแสดงสินค้าและตัวกรอง */
+  /* จัดระเบียบตัวกรองค้นหาด้านล่างเมนูหมวดหมู่ */
   .category-header-row {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -1296,7 +996,6 @@ main h2 {
 
   #sortProductsSelect {
     width: auto !important;
-    max-width: 60% !important;
     padding: 5px 10px !important;
   }
 
@@ -1305,13 +1004,9 @@ main h2 {
     border-radius: 10px !important;
   }
 
-  .admin-panel h3 {
-    font-size: 15px !important;
-  }
-
   #backToTopBtn {
-    width: 40px !important;
-    height: 40px !important;
+    width: 38px !important;
+    height: 38px !important;
     right: 12px !important;
     bottom: 12px !important;
   }
