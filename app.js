@@ -45,10 +45,11 @@ let currentSortMode = "tierlist";
 
 let draggedProductId = null;
 let draggedCategoryId = null;
-let draggedSortId = null;
+let draggedSortId = null; 
 
 let hotSlideInterval = null;
 let newSlideInterval = null;
+let globalFlashSaleTimerInterval = null; 
 
 const hotEl = document.getElementById("hotProducts");
 const newEl = document.getElementById("newProducts");
@@ -83,7 +84,7 @@ const shopeePromoWidget = document.getElementById("shopeePromoWidget");
 const widgetGiftImg = document.getElementById("widgetGiftImg");
 const widgetMainLink = document.getElementById("widgetMainLink");
 const adminWidgetPanel = document.getElementById("adminWidgetPanel");
-const adminDragSortPanel = document.getElementById("adminDragSortPanel");
+const adminDragSortPanel = document.getElementById("adminDragSortPanel"); 
 const widgetImageInput = document.getElementById("widgetImageInput");
 const widgetLinkInput = document.getElementById("widgetLinkInput");
 const widgetVisibleCheck = document.getElementById("widgetVisibleCheck");
@@ -161,6 +162,7 @@ function card(p, index){
   const canDrag = isAdmin && currentSortMode === "tierlist";
   const dragAttr = canDrag ? `draggable="true" data-id="${p.id}" class="card admin-draggable"` : `class="card"`;
   const currentQuickPriceVal = priceSale > 0 ? priceSale : (priceNormal > 0 ? priceNormal : "");
+  const currentFlashSaleTimeVal = p.flashSaleEndTime || "";
 
   let tierBadgeHtml = "";
   if (currentSortMode === "tierlist" && selectedCategory !== "ทั้งหมด" && index !== undefined && index >= 0 && index < 5) {
@@ -168,14 +170,34 @@ function card(p, index){
     tierBadgeHtml = `<div class="tier-badge rank-${displayRank}">${displayRank}</div>`;
   }
 
+  const imageLink = (!isProductComingSoon && (p.shopee1?.trim() || p.shopee2?.trim())) ? (p.shopee1?.trim() || p.shopee2?.trim()) : "";
+  let imageHtml = "";
+  if (imageLink) {
+    imageHtml = `<a href="${imageLink}" target="_blank" class="card-img-link"><img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}"></a>`;
+  } else {
+    imageHtml = `<img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}" class="no-link-img">`;
+  }
+
+  // ⚡ แถบแสดงเวลานับถอยหลัง Flash Sale ใต้ชื่อสินค้า
+  let flashSaleTimerHtml = "";
+  if (!isProductComingSoon && currentFlashSaleTimeVal) {
+    flashSaleTimerHtml = `
+      <div class="card-flash-sale-box">
+        <span class="flash-sale-badge-text">Flash Sale</span>
+        <div class="flash-sale-countdown-clock dynamic-countdown-timer" data-endtime="${currentFlashSaleTimeVal}">00h 00m 00s</div>
+      </div>
+    `;
+  }
+
   return `
   <div ${dragAttr}>
     ${tierBadgeHtml}
     ${p.isHot ? `<div class="badge hot">HOT</div>` : ""}
     ${p.isNew ? `<div class="badge">NEW</div>` : ""}
-    <img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}">
+    ${imageHtml}
     <div class="info">
       <h4>${p.name}</h4>
+      ${flashSaleTimerHtml}
       <div class="price-container">
         ${priceHtmlDisplay}
       </div>
@@ -187,15 +209,29 @@ function card(p, index){
             <button class="btn edit" onclick='editProduct("${p.id}")'>Edit</button>
             <button class="btn delete" onclick='deleteProduct("${p.id}")'>Delete</button>
           </div>
-          <div class="quick-price-box">
-            <label>⚡️ ราคาด่วน (Enter):</label>
-            <div class="quick-price-row">
-              <input type="text" class="quick-price-input" 
-                     value="${currentQuickPriceVal}" 
-                     placeholder="ระบุราคา..." 
-                     data-pid="${p.id}"
-                     onkeydown="handleQuickPriceKey(event, '${p.id}')">
-              <button class="quick-price-clear-btn" title="เคลียร์ค่าเป็น Coming Soon" onclick="clearQuickPrice('${p.id}')">✕</button>
+          
+          <div class="quick-admin-controls-wrapper">
+            <div class="quick-price-box">
+              <label>⚡️ ราคาด่วน (Enter):</label>
+              <div class="quick-price-row">
+                <input type="text" class="quick-price-input" 
+                       value="${currentQuickPriceVal}" 
+                       placeholder="ระบุราคา..." 
+                       onkeydown="handleQuickPriceKey(event, '${p.id}')">
+                <button class="quick-price-clear-btn" title="เคลียร์ค่าเป็น Coming Soon" onclick="clearQuickPrice('${p.id}')">✕</button>
+              </div>
+            </div>
+            
+            <div class="quick-flash-sale-box">
+              <label>⏰ ตั้งเวลา Flash Sale (เช่น 2 หรือ 45m) + Enter:</label>
+              <div class="quick-price-row">
+                <input type="text" class="quick-date-input" 
+                       value="" 
+                       placeholder="ระบุจำนวนชั่วโมง หรือ 45m..." 
+                       onkeydown="handleQuickFlashSaleKey(event, '${p.id}')">
+                <button class="quick-price-clear-btn" title="ลบเวลา Flash Sale ออก" onclick="clearQuickFlashSale('${p.id}')">✕</button>
+              </div>
+              ${currentFlashSaleTimeVal ? `<div style="font-size:11px; color:var(--price-green); margin-top:4px; font-weight:bold;">⏱️ มีการล็อกเวลานับถอยหลังอยู่</div>` : ""}
             </div>
           </div>
         ` : ""}
@@ -205,7 +241,7 @@ function card(p, index){
   `;
 }
 
-/* ================= 🎯 ระบบตั้งราคาด่วน ================= */
+/* ================= 🎯 ระบบตั้งค่าด่วนบน Card (ราคาด่วน / เวลา Flash Sale) ================= */
 window.handleQuickPriceKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault();
@@ -255,6 +291,104 @@ window.clearQuickPrice = async (productId) => {
     }
   }
 };
+
+// ⏰ ฟังก์ชันกด Enter เพื่อบันทึกเวลานับถอยหลังรายชิ้นทันที (คำนวณอัตโนมัติจากปัจจุบัน)
+window.handleQuickFlashSaleKey = async (event, productId) => {
+  if (event.key === "Enter" || event.keyCode === 13) {
+    event.preventDefault();
+    const inputVal = event.target.value.trim().toLowerCase();
+
+    if (!inputVal) {
+      alert("กรุณากรอกตัวเลขเวลาที่ต้องการนับถอยหลังก่อนครับ");
+      return;
+    }
+
+    let targetMs = 0;
+
+    // ตรวจสอบเงื่อนไขว่ากรอกเป็นนาที (m) หรือกรอกเป็นชั่วโมงตรงๆ
+    if (inputVal.endsWith("m")) {
+      const minutes = parseFloat(inputVal.replace("m", ""));
+      if (isNaN(minutes) || minutes <= 0) {
+        alert("กรุณากรอกจำนวนนาทีให้ถูกต้อง เช่น 30m หรือ 45m");
+        return;
+      }
+      targetMs = minutes * 60 * 1000;
+    } else {
+      const hours = parseFloat(inputVal);
+      if (isNaN(hours) || hours <= 0) {
+        alert("กรุณากรอกจำนวนชั่วโมงให้ถูกต้อง เช่น 2 หรือ 1.5");
+        return;
+      }
+      targetMs = hours * 60 * 60 * 1000;
+    }
+
+    // คำนวณวันหมดอายุโดยการนำเวลาปัจจุบันมาบวกมิลลิวินาทีที่กรอกเพิ่มเข้าไป
+    const nowTime = new Date().getTime();
+    const endTimeIsoString = new Date(nowTime + targetMs).toISOString();
+
+    try {
+      await updateDoc(doc(db, "products", productId), {
+        flashSaleEndTime: endTimeIsoString
+      });
+      alert("⏰ ตั้งเวลานับถอยหลังเรียบร้อยและเริ่มเปิดบอร์ดโปรโมชันทันที!");
+      event.target.value = ""; 
+      event.target.blur();
+    } catch (err) {
+      alert("เกิดข้อผิดพลาด: " + err.message);
+    }
+  }
+};
+
+// ✕ ฟังก์ชันกดปุ่มกากบาทเพื่อลบเวลา Flash Sale
+window.clearQuickFlashSale = async (productId) => {
+  try {
+    await updateDoc(doc(db, "products", productId), {
+      flashSaleEndTime: ""
+    });
+    alert("🗑️ ลบเวลา Flash Sale ของสินค้านี้ออกเรียบร้อย!");
+  } catch (err) {
+    alert("เกิดข้อผิดพลาด: " + err.message);
+  }
+};
+
+/* ================= ⏰ ฟังก์ชัน Loop ทำงานรันเวลานับถอยหลัง Real-time ================= */
+function startFlashSaleClockTicker() {
+  if (globalFlashSaleTimerInterval) clearInterval(globalFlashSaleTimerInterval);
+  
+  globalFlashSaleTimerInterval = setInterval(() => {
+    const timerElements = document.querySelectorAll(".dynamic-countdown-timer");
+    if (timerElements.length === 0) return;
+    
+    timerElements.forEach(el => {
+      const endTimeAttr = el.getAttribute("data-endtime");
+      if (!endTimeAttr) return;
+      
+      const targetTime = new Date(endTimeAttr).getTime();
+      const now = new Date().getTime();
+      const timeRemaining = targetTime - now;
+      
+      if (timeRemaining <= 0) {
+        el.innerHTML = "หมดเวลาแจกโปร";
+        el.style.color = "var(--text-muted)";
+      } else {
+        const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+        
+        const hDisplay = hours < 10 ? "0" + hours : hours;
+        const mDisplay = minutes < 10 ? "0" + minutes : minutes;
+        const sDisplay = seconds < 10 ? "0" + seconds : seconds;
+        
+        if (days > 0) {
+          el.innerHTML = `${days}d ${hDisplay}h ${mDisplay}m ${sDisplay}s`;
+        } else {
+          el.innerHTML = `${hDisplay}h ${mDisplay}m ${sDisplay}s`;
+        }
+      }
+    });
+  }, 1000);
+}
 
 /* ================= 📁 จัดการหมวดหมู่สินค้า ================= */
 function renderSidebarCategories() {
@@ -527,6 +661,8 @@ function render(){
   } else {
     if (dragNoticeEl) dragNoticeEl.style.display = "none";
   }
+
+  startFlashSaleClockTicker();
 }
 
 /* ================= 🎯 ระบบลากและวางสินค้าสำหรับแอดมิน ================= */
@@ -628,6 +764,7 @@ window.handleProductSubmit = async () => {
       const maxNewOrder = allProducts.reduce((max, p) => ((p.newOrder ?? 0) > max ? p.newOrder : max), 0);
       productData.hotOrder = maxHotOrder + 1;
       productData.newOrder = maxNewOrder + 1;
+      productData.flashSaleEndTime = ""; 
 
       await addDoc(productsRef, productData);
       alert("เพิ่มสินค้าใหม่สำเร็จ!");
@@ -729,7 +866,7 @@ onAuthStateChanged(auth, (user) => {
     if(adminPanel) adminPanel.style.display = "flex";
     if(adminCategoryPanel) adminCategoryPanel.style.display = "flex";
     if(adminWidgetPanel) adminWidgetPanel.style.display = "flex";
-    if(adminDragSortPanel) adminDragSortPanel.style.display = "flex";
+    if(adminDragSortPanel) adminDragSortPanel.style.display = "flex"; 
   } else {
     isAdmin = false;
     if(loginBtn) loginBtn.style.display = "inline-block";
@@ -737,7 +874,7 @@ onAuthStateChanged(auth, (user) => {
     if(adminPanel) adminPanel.style.display = "none";
     if(adminCategoryPanel) adminCategoryPanel.style.display = "none";
     if(adminWidgetPanel) adminWidgetPanel.style.display = "none";
-    if(adminDragSortPanel) adminDragSortPanel.style.display = "none";
+    if(adminDragSortPanel) adminDragSortPanel.style.display = "none"; 
   }
   
   if (user) {
@@ -766,7 +903,7 @@ onSnapshot(productsRef, (snapshot) => {
     allProducts.push({ id: docSnap.id, ...docSnap.data() });
   });
   render();
-  renderAdminDragSortLists();
+  renderAdminDragSortLists(); 
 });
 
 listenToWidgetSettings();
@@ -796,7 +933,7 @@ if (backToTopBtn) {
   });
 }
 
-/* ================= 🔄 ระบบสไลด์แบบปุ่มกดและ Auto-slide ================= */
+/* ================= 🔄 ระบบสไลด์แบบปุ่มกดและ Auto-slide เนียนตา ================= */
 window.scrollSlide = (elementId, direction) => {
   const el = document.getElementById(elementId);
   if (!el || el.children.length <= 1) return;

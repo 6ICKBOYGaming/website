@@ -14,7 +14,6 @@
   --category-hover: #333333;
   --price-green: #00ff88;
   
-  /* เพิ่มโทนสีเหลืองสำหรับแอดมิน */
   --admin-yellow: #ffd700;
   --admin-yellow-hover: #e6c200;
 }
@@ -105,7 +104,6 @@ header {
   color: var(--bg-main);
 }
 
-/* ปุ่มแอดมินสีเหลืองตรงส่วนหัวเว็บ */
 .top-buttons button.btn-admin-yellow {
   background: var(--admin-yellow) !important;
   color: #000000 !important;
@@ -498,7 +496,6 @@ header {
   opacity: 0.8;
 }
 
-/* สไตล์พิเศษสำหรับปุ่มจัดการสีเหลืองตัวหนังสือดำ */
 .btn-submit-yellow {
   background: var(--admin-yellow) !important;
   color: #000000 !important;
@@ -709,6 +706,23 @@ main h2 {
   transform: scale(1.03);
 }
 
+.card-img-link {
+  display: block;
+  width: 100%;
+  height: 180px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.card-img-link img {
+  height: 100% !important;
+}
+.no-link-img {
+  cursor: default !important;
+}
+.card.admin-draggable .card-img-link {
+  cursor: grab !important;
+}
+
 .card .info {
   padding: 14px;
   display: flex;
@@ -727,6 +741,39 @@ main h2 {
   -webkit-box-orient: vertical;
   overflow: hidden;
   height: 42px;
+}
+
+/* 🎨 ระบบดีไซน์แถบนับถอยหลัง Flash Sale ใต้ชื่อสินค้ารายตัว */
+.card-flash-sale-box {
+  background: rgba(255, 51, 51, 0.08);
+  border: 1px solid rgba(255, 51, 51, 0.25);
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+[data-theme="light"] .card-flash-sale-box {
+  background: rgba(255, 51, 51, 0.04);
+}
+
+.flash-sale-badge-text {
+  font-size: 11px;
+  font-weight: bold;
+  color: #ff3333;
+  letter-spacing: 0.2px;
+}
+
+.flash-sale-countdown-clock {
+  font-size: 12px;
+  font-family: monospace, Courier, monospace;
+  font-weight: bold;
+  color: #ff3333;
+  background: rgba(255, 51, 51, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .price-container {
@@ -849,8 +896,15 @@ main h2 {
   background: #cc0000;
 }
 
-.quick-price-box {
+/* ⚙️ สไตล์กล่องตั้งราคาด่วนและตั้งเวลาด่วนรายชิ้น */
+.quick-admin-controls-wrapper {
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-price-box, .quick-flash-sale-box {
   background: var(--bg-deep);
   padding: 6px;
   border-radius: 6px;
@@ -858,7 +912,7 @@ main h2 {
   text-align: left;
 }
 
-.quick-price-box label {
+.quick-price-box label, .quick-flash-sale-box label {
   font-size: 11px;
   color: var(--text-muted);
   display: block;
@@ -871,16 +925,25 @@ main h2 {
   align-items: center;
 }
 
-.quick-price-input {
+.quick-price-input, .quick-date-input {
   flex: 1;
   background: var(--input-bg) !important;
   color: var(--text-main) !important;
   border: 1px solid var(--border-color) !important;
   padding: 4px 8px !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
   border-radius: 4px !important;
   height: 28px !important;
   box-sizing: border-box;
+  outline: none;
+  font-family: inherit;
+}
+
+/* ตั้งค่าสีคำใบ้ (Placeholder) จางๆ ให้แอดมินเข้าใจง่ายขึ้น */
+.quick-date-input::placeholder {
+  color: var(--text-muted);
+  font-size: 11px;
+  opacity: 0.6;
 }
 
 .quick-price-clear-btn {
@@ -922,7 +985,6 @@ main h2 {
   background: var(--category-hover) !important;
 }
 
-/* เพิ่มเติมสไตล์สำหรับแผงเรียงลำดับ NEW / HOT */
 .drag-sort-panel {
   display: none;
   flex-direction: column;
@@ -1004,90 +1066,70 @@ main h2 {
     gap: 10px;
   }
 }
-/* =========================================================
-📱 MOBILE RESPONSIVE FULL FIX FOR 6ICKBOY
-========================================================= */
 
 @media screen and (max-width: 1024px){
-
   .layout{
     grid-template-columns: 1fr;
   }
-
   .sidebar,
   .sidebar-right{
     width:100%;
   }
-
 }
 
-
 @media screen and (max-width: 768px){
-
   html,
   body{
     width:100%;
     overflow-x:hidden;
   }
-
   body{
     min-width:100%;
   }
-
   header{
     padding:12px;
   }
-
   .top-bar{
     flex-direction:column;
     align-items:flex-start;
     gap:12px;
   }
-
   .logo-wrapper{
     width:100%;
   }
-
   .top-bar h1{
     font-size:22px;
   }
-
   .web-logo{
     width:42px;
     height:42px;
   }
-
   .top-buttons{
     width:100%;
     display:flex;
     gap:8px;
   }
-
   .top-buttons button{
     flex:1;
     font-size:13px;
     padding:10px;
   }
-
   #search{
     margin-top:12px;
     font-size:14px;
     padding:12px;
   }
-
   .layout{
     display:flex;
     flex-direction:column;
     gap:15px;
     padding:12px;
   }
-
   .sidebar,
   .sidebar-right,
   main{
     width:100%;
   }
-
   .sidebar-box,
   .right-box,
   .admin-panel{
@@ -1095,39 +1137,35 @@ main h2 {
     border-radius:14px;
     padding:14px;
   }
-
   .category{
     font-size:13px;
     padding:10px;
   }
-
   .sidebar-title-wrapper h2,
   .right-box h3,
   .sidebar-box h3{
     font-size:14px;
   }
-
   .grid{
     grid-template-columns:repeat(2, minmax(0,1fr));
     gap:10px;
   }
-
   .card{
     width:100%;
     min-width:0;
     border-radius:14px;
   }
-
-  .card img{
+  .card img {
     width:100%;
     height:150px;
     object-fit:cover;
   }
-
+  .card-img-link {
+    height: 150px !important;
+  }
   .card .info{
     padding:10px;
   }
-
   .card h4{
     font-size:13px;
     line-height:1.4;
@@ -1135,208 +1173,180 @@ main h2 {
     min-height:36px;
     margin-bottom:6px;
   }
+  
+  .card-flash-sale-box {
+    padding: 4px 6px;
+    margin-bottom: 6px;
+  }
+  .flash-sale-badge-text {
+    font-size: 10px;
+  }
+  .flash-sale-countdown-clock {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
 
   .price{
     font-size:15px;
   }
-
   .old-price-slashed{
     font-size:11px;
   }
-
   .card p{
     font-size:11px;
     line-height:1.4;
     -webkit-line-clamp:2;
     margin-bottom:10px;
   }
-
   .btn{
     font-size:11px;
     padding:8px;
     border-radius:8px;
   }
-
   .badge{
     font-size:10px;
     padding:4px 8px;
   }
-
   .tier-badge{
     width:28px;
     height:28px;
     font-size:13px;
   }
-
   .tier-badge.rank-1{
     width:32px;
     height:32px;
     font-size:14px;
   }
-
   .price-container{
     gap:6px;
   }
-
   .btns{
     gap:5px;
   }
-
   .category-header-row{
     flex-direction:column;
     align-items:flex-start;
   }
-
   .sort-wrapper{
     width:100%;
     flex-direction:column;
     align-items:flex-start;
     gap:6px;
   }
-
   #sortProductsSelect{
     width:100%;
     box-sizing:border-box;
   }
-
   .sidebar-box .card{
     min-width:100%;
     max-width:100%;
   }
-
   .sidebar-box .card img{
     height:180px;
   }
-
+  .sidebar-box .card-img-link {
+    height: 180px !important;
+  }
   .admin-panel{
     padding:14px;
   }
-
   .admin-panel h3{
     font-size:16px;
   }
-
   .admin-panel input,
   .admin-panel textarea,
   .admin-panel select{
     font-size:14px;
   }
-
   .admin-checkboxes{
     display:flex;
     flex-direction:column;
     gap:10px;
   }
-
   .category-header-wrapper{
     margin-bottom:12px;
   }
-
   .drag-notice-alert{
     font-size:12px;
   }
-
   .fb-follow-btn,
   .shopee-code-btn{
     font-size:13px;
   }
-
   .gift-img-wrapper{
     height:120px;
   }
-
   .row{
     gap:10px;
   }
-
   .slide-ctrl-btns button{
     width:26px;
     height:26px;
   }
-
   #backToTopBtn{
     width:44px;
     height:44px;
     right:15px;
     bottom:15px;
   }
-
 }
 
-
-/* =========================================================
-📱 SMALL MOBILE
-========================================================= */
-
 @media screen and (max-width: 480px){
-
   header{
     padding:10px;
   }
-
   .layout{
     padding:10px;
     gap:12px;
   }
-
   .grid{
     grid-template-columns:repeat(2, minmax(0,1fr));
     gap:8px;
   }
-
   .card img{
     height:125px;
   }
-
+  .card-img-link {
+    height: 125px !important;
+  }
   .card .info{
     padding:8px;
   }
-
   .card h4{
     font-size:12px;
     min-height:34px;
   }
-
   .price{
     font-size:14px;
   }
-
   .card p{
     font-size:10px;
   }
-
   .btn{
     font-size:10px;
     padding:7px;
   }
-
   .badge{
     font-size:9px;
     padding:3px 6px;
   }
-
   .sidebar-box,
   .right-box,
   .admin-panel{
     padding:12px;
   }
-
   .top-buttons button{
     font-size:12px;
     padding:9px;
   }
-
   .top-bar h1{
     font-size:20px;
   }
-
   .web-logo{
     width:38px;
     height:38px;
   }
-
   .gift-img-wrapper{
     height:100px;
   }
-
 }
