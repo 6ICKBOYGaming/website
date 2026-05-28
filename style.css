@@ -743,7 +743,6 @@ main h2 {
   height: 42px;
 }
 
-/* 🎨 ระบบดีไซน์แถบนับถอยหลัง Flash Sale ใต้ชื่อสินค้ารายตัว */
 .card-flash-sale-box {
   background: rgba(255, 51, 51, 0.08);
   border: 1px solid rgba(255, 51, 51, 0.25);
@@ -896,7 +895,6 @@ main h2 {
   background: #cc0000;
 }
 
-/* ⚙️ สไตล์กล่องตั้งราคาด่วนและตั้งเวลาด่วนรายชิ้น */
 .quick-admin-controls-wrapper {
   margin-top: 8px;
   display: flex;
@@ -939,7 +937,6 @@ main h2 {
   font-family: inherit;
 }
 
-/* ตั้งค่าสีคำใบ้ (Placeholder) จางๆ ให้แอดมินเข้าใจง่ายขึ้น */
 .quick-date-input::placeholder {
   color: var(--text-muted);
   font-size: 11px;
@@ -1051,311 +1048,10 @@ main h2 {
   border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer;
 }
 
-@media (max-width: 1200px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar, .sidebar-right {
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
-    gap: 10px;
-  }
-}
-
-@media screen and (max-width: 1024px){
-  .layout{
-    grid-template-columns: 1fr;
-  }
-  .sidebar,
-  .sidebar-right{
-    width:100%;
-  }
-}
-
-@media screen and (max-width: 768px){
-  html,
-  body{
-    width:100%;
-    overflow-x:hidden;
-  }
-  body{
-    min-width:100%;
-  }
-  header{
-    padding:12px;
-  }
-  .top-bar{
-    flex-direction:column;
-    align-items:flex-start;
-    gap:12px;
-  }
-  .logo-wrapper{
-    width:100%;
-  }
-  .top-bar h1{
-    font-size:22px;
-  }
-  .web-logo{
-    width:42px;
-    height:42px;
-  }
-  .top-buttons{
-    width:100%;
-    display:flex;
-    gap:8px;
-  }
-  .top-buttons button{
-    flex:1;
-    font-size:13px;
-    padding:10px;
-  }
-  #search{
-    margin-top:12px;
-    font-size:14px;
-    padding:12px;
-  }
-  .layout{
-    display:flex;
-    flex-direction:column;
-    gap:15px;
-    padding:12px;
-  }
-  .sidebar,
-  .sidebar-right,
-  main{
-    width:100%;
-  }
-  .sidebar-box,
-  .right-box,
-  .admin-panel{
-    width:100%;
-    border-radius:14px;
-    padding:14px;
-  }
-  .category{
-    font-size:13px;
-    padding:10px;
-  }
-  .sidebar-title-wrapper h2,
-  .right-box h3,
-  .sidebar-box h3{
-    font-size:14px;
-  }
-  .grid{
-    grid-template-columns:repeat(2, minmax(0,1fr));
-    gap:10px;
-  }
-  .card{
-    width:100%;
-    min-width:0;
-    border-radius:14px;
-  }
-  .card img {
-    width:100%;
-    height:150px;
-    object-fit:cover;
-  }
-  .card-img-link {
-    height: 150px !important;
-  }
-  .card .info{
-    padding:10px;
-  }
-  .card h4{
-    font-size:13px;
-    line-height:1.4;
-    height:auto;
-    min-height:36px;
-    margin-bottom:6px;
-  }
-  
-  .card-flash-sale-box {
-    padding: 4px 6px;
-    margin-bottom: 6px;
-  }
-  .flash-sale-badge-text {
-    font-size: 10px;
-  }
-  .flash-sale-countdown-clock {
-    font-size: 10px;
-    padding: 1px 4px;
-  }
-
-  .price{
-    font-size:15px;
-  }
-  .old-price-slashed{
-    font-size:11px;
-  }
-  .card p{
-    font-size:11px;
-    line-height:1.4;
-    -webkit-line-clamp:2;
-    margin-bottom:10px;
-  }
-  .btn{
-    font-size:11px;
-    padding:8px;
-    border-radius:8px;
-  }
-  .badge{
-    font-size:10px;
-    padding:4px 8px;
-  }
-  .tier-badge{
-    width:28px;
-    height:28px;
-    font-size:13px;
-  }
-  .tier-badge.rank-1{
-    width:32px;
-    height:32px;
-    font-size:14px;
-  }
-  .price-container{
-    gap:6px;
-  }
-  .btns{
-    gap:5px;
-  }
-  .category-header-row{
-    flex-direction:column;
-    align-items:flex-start;
-  }
-  .sort-wrapper{
-    width:100%;
-    flex-direction:column;
-    align-items:flex-start;
-    gap:6px;
-  }
-  #sortProductsSelect{
-    width:100%;
-    box-sizing:border-box;
-  }
-  .sidebar-box .card{
-    min-width:100%;
-    max-width:100%;
-  }
-  .sidebar-box .card img{
-    height:180px;
-  }
-  .sidebar-box .card-img-link {
-    height: 180px !important;
-  }
-  .admin-panel{
-    padding:14px;
-  }
-  .admin-panel h3{
-    font-size:16px;
-  }
-  .admin-panel input,
-  .admin-panel textarea,
-  .admin-panel select{
-    font-size:14px;
-  }
-  .admin-checkboxes{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-  }
-  .category-header-wrapper{
-    margin-bottom:12px;
-  }
-  .drag-notice-alert{
-    font-size:12px;
-  }
-  .fb-follow-btn,
-  .shopee-code-btn{
-    font-size:13px;
-  }
-  .gift-img-wrapper{
-    height:120px;
-  }
-  .row{
-    gap:10px;
-  }
-  .slide-ctrl-btns button{
-    width:26px;
-    height:26px;
-  }
-  #backToTopBtn{
-    width:44px;
-    height:44px;
-    right:15px;
-    bottom:15px;
-  }
-}
-
-@media screen and (max-width: 480px){
-  header{
-    padding:10px;
-  }
-  .layout{
-    padding:10px;
-    gap:12px;
-  }
-  .grid{
-    grid-template-columns:repeat(2, minmax(0,1fr));
-    gap:8px;
-  }
-  .card img{
-    height:125px;
-  }
-  .card-img-link {
-    height: 125px !important;
-  }
-  .card .info{
-    padding:8px;
-  }
-  .card h4{
-    font-size:12px;
-    min-height:34px;
-  }
-  .price{
-    font-size:14px;
-  }
-  .card p{
-    font-size:10px;
-  }
-  .btn{
-    font-size:10px;
-    padding:7px;
-  }
-  .badge{
-    font-size:9px;
-    padding:3px 6px;
-  }
-  .sidebar-box,
-  .right-box,
-  .admin-panel{
-    padding:12px;
-  }
-  .top-buttons button{
-    font-size:12px;
-    padding:9px;
-  }
-  .top-bar h1{
-    font-size:20px;
-  }
-  .web-logo{
-    width:38px;
-    height:38px;
-  }
-  .gift-img-wrapper{
-    height:100px;
-  }
-}
 /* =========================================================
-📱 MOBILE RESPONSIVE — 2 COLUMN LIKE SHOPEE
+📱 MOBILE RESPONSIVE DESIGN (Max Width: 768px)
 ========================================================= */
-
 @media screen and (max-width: 768px) {
-
   body {
     overflow-x: hidden;
   }
@@ -1365,10 +1061,13 @@ main h2 {
   }
 
   .top-bar {
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .logo-wrapper {
+    width: 100%;
     gap: 8px;
   }
 
@@ -1378,19 +1077,19 @@ main h2 {
   }
 
   .top-bar h1 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .top-buttons {
+    width: 100%;
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    gap: 8px;
   }
 
   .top-buttons button {
-    padding: 7px 10px;
+    flex: 1;
     font-size: 12px;
+    padding: 10px;
   }
 
   #search {
@@ -1399,15 +1098,9 @@ main h2 {
     font-size: 14px;
   }
 
-  /* ซ่อน sidebar ซ้าย/ขวา บนมือถือ */
-  .sidebar,
-  .sidebar-right {
-    display: none;
-  }
-
-  /* Layout เหลือเฉพาะสินค้า */
+  /* จัดการ Layout บนมือถือ */
   .layout {
-    display: block;
+    display: block; /* ยกเลิก Grid ของ PC */
     padding: 10px;
   }
 
@@ -1415,37 +1108,71 @@ main h2 {
     width: 100%;
   }
 
-  .category-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .sort-wrapper {
+  /* 1. แถบหมวดหมู่อยู่ด้านบนแบบสไลด์แนวนอน */
+  .sidebar {
+    display: block !important;
     width: 100%;
+    margin-bottom: 15px;
   }
 
-  #sortProductsSelect {
-    width: 100%;
+  .sidebar-box {
+    padding: 10px;
+    border-radius: 12px;
   }
 
-  /* =================================================
-     GRID 2 COLUMN แบบ Shopee
-  ================================================= */
+  .sidebar-box h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
 
+  #categories {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+
+  #categories::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category {
+    margin-top: 0;
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* 2. ซ่อนหน้าต่างสินค้าแนะนำ สินค้าใหม่ และ Sidebar ขวา */
+  .hot-box,
+  .new-box,
+  .sidebar-box:has(.row), /* ซ่อนกล่องสไลด์เดิม */
+  .sidebar-right {
+    display: none !important;
+  }
+
+  /* 3. แสดงสินค้าเป็น Grid 2 คอลัมน์ แบบ Shopee */
   .grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
   }
 
   .card {
+    width: 100%;
+    min-width: 0;
     border-radius: 12px;
   }
 
   .card img,
   .card-img-link {
-    height: 165px;
+    height: 150px !important;
   }
 
   .card .info {
@@ -1459,8 +1186,12 @@ main h2 {
     margin-bottom: 6px;
   }
 
+  .price-container {
+    gap: 6px;
+  }
+
   .price {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .old-price-slashed {
@@ -1473,10 +1204,14 @@ main h2 {
     margin-bottom: 10px;
   }
 
+  .btns {
+    gap: 5px;
+  }
+
   .btn {
     padding: 8px;
-    font-size: 12px;
-    border-radius: 7px;
+    font-size: 11px;
+    border-radius: 8px;
   }
 
   .badge {
@@ -1504,102 +1239,36 @@ main h2 {
     padding: 2px 5px;
   }
 
-  /* Admin Panel */
+  .category-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .sort-wrapper {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  #sortProductsSelect {
+    width: 100%;
+  }
+
   .admin-panel {
     padding: 14px;
+    border-radius: 14px;
   }
 
   .admin-panel h3 {
     font-size: 16px;
   }
 
-  .admin-panel input,
-  .admin-panel textarea,
-  .admin-panel select,
-  .admin-panel button {
-    font-size: 14px;
-  }
-
-  /* Back To Top */
   #backToTopBtn {
     width: 42px;
     height: 42px;
     right: 15px;
     bottom: 15px;
   }
-
-}
-
-
-/* =========================================================
-📱 MOBILE CATEGORY BAR
-========================================================= */
-
-@media screen and (max-width: 768px) {
-
-  /* แสดง sidebar อีกครั้ง */
-  .sidebar {
-    display: block !important;
-    margin-bottom: 12px;
-  }
-
-  /* ซ่อนกล่อง HOT / NEW */
-  .hot-box,
-  .new-box {
-    display: none !important;
-  }
-
-  /* ซ่อน sidebar ขวา */
-  .sidebar-right {
-    display: none !important;
-  }
-
-  /* กล่องหมวดหมู่ */
-  .sidebar-box {
-    padding: 10px;
-    border-radius: 12px;
-  }
-
-  .sidebar-box h3 {
-    font-size: 14px;
-    margin-bottom: 10px;
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-
-  /* แถบหมวดหมู่แนวนอน */
-  #categories {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    white-space: nowrap;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-
-  #categories::-webkit-scrollbar {
-    display: none;
-  }
-
-  .category {
-    margin-top: 0;
-    flex: 0 0 auto;
-    padding: 9px 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  /* Layout มือถือ */
-  .layout {
-    display: block;
-    padding: 10px;
-  }
-
-  /* Grid สินค้า 2 คอลัมน์ */
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-
 }
