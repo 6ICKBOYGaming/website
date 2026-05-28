@@ -729,7 +729,6 @@ main h2 {
 📱 6. PURE MOBILE RESPONSIVE ENGINE (Max Width: 768px)
 ========================================================= */
 @media screen and (max-width: 768px) {
-  /* จัดการฟิกขอบเขตจอมือถือไม่ให้หลุดสไลด์มั่ว */
   body {
     overflow-x: hidden !important;
   }
@@ -809,27 +808,30 @@ main h2 {
     overflow: visible !important;
   }
 
-  /* สั่งซ่อนหัวข้อคำว่า "หมวดหมู่สินค้า" บนมือถือตามมาตรฐานเว็บแอปสมัยใหม่เพื่อลดความเกะกะ */
-  .sidebar-box h3 {
+  /* สั่งซ่อนหัวข้อคำว่า "หมวดหมู่สินค้า" และปุ่มสไลด์บนมือถือเพื่อลดความเกะกะ */
+  .sidebar-box h3,
+  .sidebar-title-wrapper {
     display: none !important;
   }
 
   /* จัดระเบียบชุดปุ่มให้อยู่แถวเดียวกัน สั่งเปิด Scrollbar แนวนอนเพื่อให้ใช้นิ้วปัดเลื่อนซ้าย-ขวาได้แบบ Shopee */
-  #categories {
+  #categories,
+  .sidebar-box > div:not(.sidebar-title-wrapper) {
     display: flex !important;
     gap: 8px !important;
     overflow-x: auto !important;
     white-space: nowrap !important;
     padding: 4px 4px 8px 4px !important;
     scrollbar-width: none !important; /* สำหรับซ่อนเส้นใต้เลื่อนของ Firefox */
-    -webkit-overflow-scrolling: touch !important; /* ช่วยให้การสไลด์ด้วยนิ้วบน iPhone/Android ลื่นขึ้น */
+    -webkit-overflow-scrolling: touch !important; /* ช่วยให้การสไลด์ด้วยนิ้วบนสมาร์ทโฟนลื่นขึ้น */
   }
 
-  #categories::-webkit-scrollbar {
-    display: none !important; /* สำหรับซ่อนเส้นใต้เลื่อนของ Chrome / Safari / แอปทั่วไป */
+  #categories::-webkit-scrollbar,
+  .sidebar-box > div:not(.sidebar-title-wrapper)::-webkit-scrollbar {
+    display: none !important; /* สำหรับซ่อนเส้นใต้เลื่อนของ Chrome / Safari */
   }
 
-  /* แปลงดีไซน์ปุ่มเป็นรูปแคปซูลขอบมน สไตล์ Shopee */
+  /* แปลงดีไซน์ปุ่มหมวดหมู่เป็นรูปแคปซูลขอบมน สไตล์ Shopee */
   .category {
     margin-top: 0 !important;
     display: inline-block !important;
@@ -854,7 +856,7 @@ main h2 {
   }
 
   /* -------------------------------------------------------
-  ❌ ITEM 2: ซ่อนหน้าต่างสินค้าแนะนำ (Hot Box), สินค้าใหม่ (New Box) และแถบด้านขวาทั้งหมดบนมือถือ
+  ❌ ITEM 2: ซ่อนหน้าต่างสินค้าแนะนำ, สินค้าใหม่, แถบขวา และ Alert บนมือถืออย่างเด็ดขาด
   ------------------------------------------------------- */
   .hot-box,
   .new-box,
@@ -886,7 +888,7 @@ main h2 {
   }
 
   .card:hover {
-    transform: none !important; /* ปิดเอฟเฟกต์ยกตัวลอยขึ้นของ PC เพื่อไม่ให้จอมือถือกดแล้วสั่นกระตุก */
+    transform: none !important; /* ปิดเอฟเฟกต์ยกตัวลอยขึ้นของ PC เพื่อไม่ให้หน้าจอกดแล้วสั่นกระตุกบนมือถือ */
     box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
     border-color: var(--border-color) !important;
   }
@@ -899,10 +901,10 @@ main h2 {
   }
 
   .card .info {
-    padding: 8px !important; /* ลดความกว้างพื้นที่เว้นวรรคด้านในลงเพื่อให้จุข้อมูลได้มากขึ้น */
+    padding: 8px !important; /* ลด Padding เพื่อเพิ่มพื้นที่แสดงข้อมูล */
   }
 
-  /* ตัวหนังสือหัวข้อสินค้า บังคับล็อกความสูงเท่ากัน และสั่งตัดคำเป็นจุดไข่ปลา (...) เมื่อเกิน 2 บรรทัด */
+  /* ตัวหนังสือหัวข้อสินค้า บังคับล็อกความสูงเท่ากัน และตัดคำเป็นจุดไข่ปลา (...) เมื่อเกิน 2 บรรทัด */
   .card h4 {
     font-size: 13px !important;
     height: 36px !important;
@@ -910,7 +912,7 @@ main h2 {
     margin-bottom: 4px !important;
   }
 
-  /* ย่อคำอธิบายสินค้าให้เหลือบรรทัดเดียวสั้นๆ ป้องกันกล่องสินค้าโย้เย้ไม่เท่ากัน */
+  /* ย่อคำอธิบายสินค้าให้เหลือบรรทัดเดียวสั้นๆ เพื่อให้การ์ดสองฝั่งสูงเท่ากันเสมอ */
   .card p {
     font-size: 11px !important;
     line-height: 1.3 !important;
@@ -926,7 +928,7 @@ main h2 {
 
   .price {
     font-size: 15px !important;
-    color: #ff5722 !important; /* ปรับสีตัวเลขราคาหลักเป็นสีส้ม Shopee */
+    color: #ff5722 !important; /* เปลี่ยนสีตัวเลขราคาเป็นสีส้มเอกลักษณ์ของ Shopee */
   }
 
   .old-price-slashed {
