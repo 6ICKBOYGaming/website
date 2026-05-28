@@ -1095,12 +1095,6 @@ main h2 {
     gap:12px;
   }
   .logo-wrapper{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-decoration: none;
-    color: inherit;
-    cursor: pointer;
     width:100%;
   }
   .top-bar h1{

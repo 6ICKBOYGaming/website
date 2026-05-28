@@ -3,24 +3,27 @@
 <head>
     <meta charset="UTF-8">
     
-    <title>6ICKBOY</title>
+    <title>6ICKBOY รวมเกมมิ่งเกียร์</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header>
     <div class="top-bar">
-        <a href="index.html" class="logo-wrapper">
-            <img src="https://i.postimg.cc/MffGQXrG/image.png" alt="6ICKBOY Logo" class="web-logo">
-            <h1>6ICKBOY</h1>
-        </a>
-
+        <!-- ปรับตรงนี้ให้แสดงผลแบบ flex และกำหนดช่องว่างชิดกันพอดี (gap: 12px) -->
+        <div class="logo-wrapper" style="display: flex; align-items: center; gap: 12px;">
+            <a href="index.html" style="display: flex; align-items: center;">
+                <img src="https://i.postimg.cc/MffGQXrG/image.png" alt="6ICKBOY Logo" class="web-logo">
+            </a>
+            <!-- เอา margin ของ h1 ออกเพื่อไม่ให้มันดันระยะห่างเพี้ยน -->
+            <h1 style="margin: 0;"> 6ICK BOY</h1>
+        </div>
         <div class="top-buttons">
-            <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
+          <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
             <button id="loginBtn" class="btn-admin-yellow">🔒 ผู้ดูแล</button>
             <button id="logoutBtn" style="display: none;">Logout</button>
-        </div>
-    </div>
+      </div>
+  </div>
 
     <input id="search" placeholder="ค้นหาสินค้า...">
 </header>
