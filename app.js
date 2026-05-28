@@ -5,14 +5,15 @@ import {
   persistentMultipleTabManager,
   collection,
   addDoc,
-  getDocs,
   deleteDoc,
   updateDoc,
   doc,
   setDoc,
   getDoc,
   query,
-  orderBy
+  orderBy,
+  getDocs,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
@@ -34,12 +35,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// ⚡ [ระบบลด READ - ระดับ 1] เปิดใช้งาน Local Cache ในเครื่องลูกค้า ไม่ดึงข้อมูลซ้ำหากไม่มีการอัปเดต
+// ⚡ [ระบบลด READ - ระดับ 1] เปิดใช้งาน Local Cache ในเครื่องลูกค้า
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
+
+console.log("%c╠══ [Firebase]เปิดใช้งาน Local Cache สมบูรณ์ ⚡", "color: #2ecc71; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -120,38 +123,88 @@ if (themeToggleBtn) {
   };
 }
 
-/* ================= 📡 ฟังก์ชันโหลดข้อมูลครั้งเดียวจบ (ระบบลด READ - ระดับ 2) ================= */
-async function fetchCategoriesData() {
-  try {
-    const q = query(categoriesRef, orderBy("order"));
-    const snapshot = await getDocs(q); // ใช้ getDocs แทน onSnapshot เพื่อดาวน์โหลดรอบเดียวจบ ไม่แอบนับ Read ตลอดเวลา
-    dbCategories = [];
-    snapshot.forEach(docSnap => {
-      dbCategories.push({ id: docSnap.id, ...docSnap.data() });
-    });
-    updateCategoryDropdown();
-    render();
-  } catch (err) {
-    console.error("Error fetching categories:", err);
+/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (Real Zero-Read สำหรับคนมี Cache) ================= */
+
+// ฟังก์ชันแกะรายละเอียดและ Log ตรวจสอบสิทธิ์ Read
+function checkSnapshotMetadata(snapshot, typeName) {
+  const fromCache = snapshot.metadata.fromCache;
+  const hasPendingWrites = snapshot.metadata.hasPendingWrites;
+  
+  if (fromCache) {
+    console.log(`%c✔ [🟢 ${typeName} ดึงจาก CACHE ในเครื่อง] ดึงข้อมูลสำเร็จ! ไม่เสียสิทธิ์ Read (0 Read) -> จำนวน ${snapshot.size} รายการ`, "color: #2ecc71; font-weight: bold;");
+  } else {
+    console.log(`%c⚠ [🔵 ${typeName} อัปเดตจาก SERVER] มีการเปลี่ยนแปลงของข้อมูลบน Cloud หรือเพิ่งเปิดเว็บครั้งแรก -> เกิดการนับ Read จริงจำนวน ${snapshot.size} รายการ`, "color: #3498db; font-weight: bold;");
   }
 }
 
-async function fetchProductsData() {
+function processCategoriesSnapshot(snapshot) {
+  dbCategories = [];
+  snapshot.forEach(docSnap => {
+    dbCategories.push({ id: docSnap.id, ...docSnap.data() });
+  });
+  updateCategoryDropdown();
+  render();
+}
+
+// 📁 ระบบหมวดหมู่สินค้าแบบอัจฉริยะ
+async function listenCategoriesData() {
+  const q = query(categoriesRef, orderBy("order"));
+  
+  // 1. ดึงจาก Cache ขึ้นมาก่อนแบบด่วนพิเศษเพื่อให้หน้าเว็บไม่โล่ง
   try {
-    const snapshot = await getDocs(productsRef); // ลด Read มหาศาลให้กับกลุ่มลูกค้าที่เปิดหน้าเว็บทิ้งไว้
-    allProducts = [];
-    snapshot.forEach(docSnap => {
-      allProducts.push({ id: docSnap.id, ...docSnap.data() });
-    });
-    render();
-    renderAdminDragSortLists();
-  } catch (err) {
-    console.error("Error fetching products:", err);
+    const cacheSnap = await getDocs(q, { source: 'cache' });
+    if (!cacheSnap.empty) {
+      console.log("%c[ระบบเตรียมข้อมูล] พบข้อมูลหมวดหมู่เก่าในเครื่อง กำลังจัดเตรียมแสดงผล...", "color: #9b59b6;");
+      checkSnapshotMetadata(cacheSnap, "หมวดหมู่สินค้า");
+      processCategoriesSnapshot(cacheSnap);
+    }
+  } catch (e) {
+    console.log("[ระบบเตรียมข้อมูล] ยังไม่มี Cache หมวดหมู่ในเครื่องเครื่องนี้");
   }
+
+  // 2. ใช้ onSnapshot ตรวจสอบเซิร์ฟเวอร์แบบเรียลไทม์ (ถ้าข้อมูลในคลาวด์กับในเครื่องตรงกัน จะนับเป็น 0 Read)
+  onSnapshot(q, (snapshot) => {
+    checkSnapshotMetadata(snapshot, "หมวดหมู่สินค้า (Realtime Listener)");
+    processCategoriesSnapshot(snapshot);
+  }, (err) => console.error("Error listening categories:", err));
+}
+
+function processProductsSnapshot(snapshot) {
+  allProducts = [];
+  snapshot.forEach(docSnap => {
+    allProducts.push({ id: docSnap.id, ...docSnap.data() });
+  });
+  render();
+  renderAdminDragSortLists();
+}
+
+// 📦 ระบบสินค้าแบบอัจฉริยะ
+async function listenProductsData() {
+  // 1. ดึงข้อมูลสินค้าที่มีใน Cache มาเทใส่หน้าจอก่อนทันที (0 Read)
+  try {
+    const cacheSnap = await getDocs(productsRef, { source: 'cache' });
+    if (!cacheSnap.empty) {
+      console.log("%c[ระบบเตรียมข้อมูล] พบข้อมูลสินค้าเก่าในเครื่อง กำลังแสดงผลทันทีแบบ 0 Read...", "color: #9b59b6;");
+      checkSnapshotMetadata(cacheSnap, "ข้อมูลสินค้า");
+      processProductsSnapshot(cacheSnap);
+    }
+  } catch (e) {
+    console.log("[ระบบเตรียมข้อมูล] ยังไม่มี Cache สินค้าในเครื่องเครื่องนี้");
+  }
+
+  // 2. สมัครใจรับการเปลี่ยนแปลงจาก Server (ถ้าเปิดเว็บมาแล้วข้อมูลไม่เปลี่ยนเลย จะถูกนับเป็น 0 Read สบายใจได้)
+  onSnapshot(productsRef, (snapshot) => {
+    checkSnapshotMetadata(snapshot, "ข้อมูลสินค้า (Realtime Listener)");
+    processProductsSnapshot(snapshot);
+  }, (err) => console.error("Error listening products:", err));
 }
 
 function fetchWidgetSettings() {
-  getDoc(doc(db, "settings", "shopee_promo_widget")).then((docSnap) => {
+  // ใช้ระบบดึงข้อมูลแบบสแกน Cache อัตโนมัติสำหรับเอกสารเดี่ยว
+  onSnapshot(doc(db, "settings", "shopee_promo_widget"), (docSnap) => {
+    const fromCache = docSnap.metadata.fromCache;
+    console.log(`%c╠══ [🎁 วิดเจ็ตส่วนลด] ตรวจสอบข้อมูลสำเร็จผ่าน: ${fromCache ? "CACHE (0 Read)" : "SERVER (1 Read ถ้าข้อมูลอัปเดต)"}`, "color: #f1c40f;");
+
     if (docSnap.exists()) {
       const data = docSnap.data();
       currentWidgetState = {
@@ -169,7 +222,7 @@ function fetchWidgetSettings() {
       if (widgetLinkInput && document.activeElement !== widgetLinkInput) widgetLinkInput.value = currentWidgetState.buttonLink;
       if (widgetVisibleCheck) widgetVisibleCheck.checked = !!currentWidgetState.visible;
     }
-  }).catch(err => console.error(err));
+  });
 }
 
 /* ================= 📦 การจัดรูปสินค้า (Component Card) ================= */
@@ -297,7 +350,6 @@ window.handleQuickPriceKey = async (event, productId) => {
         await updateDoc(doc(db, "products", productId), updateData);
         alert("⚡️ ปรับเปลี่ยนราคาสินค้าด่วนสำเร็จ!");
         event.target.blur();
-        fetchProductsData();
       }
     } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
   }
@@ -308,7 +360,6 @@ window.clearQuickPrice = async (productId) => {
     try {
       await updateDoc(doc(db, "products", productId), { price: 0, salePrice: 0, comingSoon: true });
       alert("⚡️ เคลียร์ค่าสินค้าและตั้งเป็น Coming Soon สำเร็จแล้ว!");
-      fetchProductsData();
     } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
   }
 };
@@ -337,7 +388,6 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
       await updateDoc(doc(db, "products", productId), { flashSaleEndTime: endTimeIsoString });
       alert("⏰ ตั้งเวลานับถอยหลังเรียบร้อย!");
       event.target.value = ""; event.target.blur();
-      fetchProductsData();
     } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
   }
 };
@@ -346,7 +396,6 @@ window.clearQuickFlashSale = async (productId) => {
   try {
     await updateDoc(doc(db, "products", productId), { flashSaleEndTime: "" });
     alert("🗑️ ลบเวลา Flash Sale ของสินค้านี้ออกเรียบร้อย!");
-    fetchProductsData();
   } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
 };
 
@@ -441,7 +490,7 @@ window.handleCategorySubmit = async () => {
       await addDoc(categoriesRef, { name: name, order: maxOrder + 1 });
       alert("เพิ่มหมวดหมู่สำเร็จ!");
     }
-    clearCategoryForm(); fetchCategoriesData();
+    clearCategoryForm();
   } catch (error) { alert("เกิดข้อผิดพลาด: " + error.message); }
 };
 
@@ -451,7 +500,6 @@ window.deleteCategory = async (id, name) => {
       await deleteDoc(doc(db, "categories_list", id));
       if (selectedCategory === name) selectedCategory = "ทั้งหมด";
       if (currentEditCategoryId === id) clearCategoryForm();
-      fetchCategoriesData();
     } catch (error) { alert("ไม่สามารถลบหมวดหมู่ได้: " + error.message); }
   }
 };
@@ -476,6 +524,7 @@ function setupCategoryDragAndDrop() {
       dbCategories = currentCats; 
       renderAdminCategoryList();
       try {
+        console.log("[Drag-Category] กำลังบันทึกลำดับหมวดหมู่สินค้าใหม่บน Server...");
         for (let i = 0; i < currentCats.length; i++) {
           await updateDoc(doc(db, "categories_list", currentCats[i].id), { order: i });
         }
@@ -492,7 +541,6 @@ window.handleWidgetUpdate = async () => {
   try {
     await setDoc(doc(db, "settings", "shopee_promo_widget"), { imageUrl: imgUrlValue, buttonLink: linkValue, visible: isVisibleValue });
     alert("💾 อัปเดตข้อมูลกิจกรรมวิดเจ็ตสำเร็จ!");
-    fetchWidgetSettings();
   } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
 };
 
@@ -536,7 +584,6 @@ function render(){
   renderSidebarCategories();
   renderAdminCategoryList();
   
-  // ⚡ [ระบบลด WRITE - ระดับ 1] สลับตำแหน่งภายใน RAM ชั่วคราวก่อน แอดมินกดบันทึกทีเดียวลด Write 95%
   if (isAdmin && currentSortMode === "tierlist") {
     if (dragNoticeEl) {
       dragNoticeEl.innerHTML = `✨ <b>โหมดประหยัดพลังงาน:</b> คุณสามารถลากสลับลำดับสินค้าได้อิสระ เมื่อจัดเสร็จแล้วอย่าลืมกดปุ่ม <button class='btn edit' style='padding:4px 10px; font-size:11px;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้า</button> ด้านล่างด้วยครับ เพื่อลดการ Write คลาวด์`;
@@ -549,7 +596,7 @@ function render(){
   startFlashSaleClockTicker();
 }
 
-/* ================= 🎯 ระบบลากและวางสินค้าสำหรับแอดมิน (สลับโครงสร้างในหน่วยความจำเบราว์เซอร์) ================= */
+/* ================= 🎯 ระบบลากและวางสินค้าสำหรับแอดมิน ================= */
 function setupProductDragAndDrop(currentFilteredProducts) {
   const cards = document.querySelectorAll("#products .card.admin-draggable");
   cards.forEach(cardItem => {
@@ -569,7 +616,7 @@ function setupProductDragAndDrop(currentFilteredProducts) {
       const [removedProduct] = updatedList.splice(draggedIdx, 1);
       updatedList.splice(targetIdx, 0, removedProduct);
 
-      // อัปเดตเก็บสถานะลำดับใหม่ไว้ในอาร์เรย์กลางทันทีโดยยังไม่ยิงไป Server บน Firebase
+      console.log(`[Drag-Sort] สลับสินค้าใน RAM สำเร็จชั่วคราว (ยังไม่สั่งเซฟขึ้น Cloud)`);
       updatedList.forEach((prod, i) => {
         const found = allProducts.find(x => x.id === prod.id);
         if(found) found.order = i;
@@ -579,16 +626,15 @@ function setupProductDragAndDrop(currentFilteredProducts) {
   });
 }
 
-// 💾 [ระบบลด WRITE - ระดับ 2] ฟังก์ชันปุ่มกดเพื่อส่งข้อมูลลำดับใหม่ทับคลาวด์รวดเดียวทั้งหมด ประหยัดสิทธิ์การ Write 
 window.saveAllProductsOrderManually = async () => {
   if (confirm("ต้องการบันทึกลำดับและการจัดเรียงสินค้าใหม่ทั้งหมดนี้ลงสู่ระบบ Cloud ใช่ไหมครับ?")) {
     try {
+      console.log("[Manual-Write] แอดมินสั่งเซฟตำแหน่งสินค้าทั้งหมดลง Cloud...");
       alert("⏳ ระบบกำลังจัดส่งและอัปเดตตำแหน่งสินค้ากรุณารอสักครู่...");
       for (let i = 0; i < allProducts.length; i++) {
         await updateDoc(doc(db, "products", allProducts[i].id), { order: allProducts[i].order ?? i });
       }
       alert("💾 บันทึกลำดับตำแหน่งการ์ดสินค้าทั้งหมดเรียบร้อยแล้วครับ!");
-      fetchProductsData();
     } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่ง: " + err.message); }
   }
 };
@@ -609,9 +655,11 @@ window.handleProductSubmit = async () => {
 
   try {
     if (currentEditId) {
+      console.log(`[Form-Submit] อัปเดตสินค้าเดิมลงคลาวด์ ID: ${currentEditId}`);
       await updateDoc(doc(db, "products", currentEditId), productData);
       alert("แก้ไขข้อมูลสินค้าสำเร็จ!"); currentEditId = null; submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
     } else {
+      console.log(`[Form-Submit] เพิ่มสินค้าชิ้นใหม่ลงคลาวด์: ${name}`);
       productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
       productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
       productData.newOrder = allProducts.reduce((max, p) => ((p.newOrder ?? 0) > max ? p.newOrder : max), 0) + 1;
@@ -619,7 +667,7 @@ window.handleProductSubmit = async () => {
       await addDoc(productsRef, productData);
       alert("เพิ่มสินค้าใหม่สำเร็จ!");
     }
-    clearProductForm(); fetchProductsData();
+    clearProductForm();
   } catch (error) { alert("เกิดข้อผิดพลาด: " + error.message); }
 };
 
@@ -638,9 +686,10 @@ window.editProduct = async (id) => {
 };
 
 window.deleteProduct = async (id) => {
-  if (confirm("คุณแน่ใจใช่ไหมว่าจะลบสินค้ารายการนี้ออกจากระบบ?")) {
+  if (confirm("คุณแน่ใจใช่ไหมว่าจะลบสินค้ารากายนี้ออกจากระบบ?")) {
     try {
-      await deleteDoc(doc(db, "products", id)); alert("ลบสินค้าเรียบร้อยครับ"); fetchProductsData();
+      console.log(`[Delete-Action] สั่งลบสินค้า ID: ${id}`);
+      await deleteDoc(doc(db, "products", id)); alert("ลบสินค้าเรียบร้อยครับ");
     } catch (error) { alert("ไม่สามารถลบได้: " + error.message); }
   }
 };
@@ -686,9 +735,9 @@ onAuthStateChanged(auth, (user) => {
   render();
 });
 
-/* ================= 🛰️ เรียกดึงข้อมูลครั้งแรกแบบรอบเดียวจบ (One-time Fetch) ================= */
-fetchCategoriesData();
-fetchProductsData();
+/* ================= 🛰️ เรียกสมัครทำงานระบบสัญญาลด READ (onSnapshot Listening) ================= */
+listenCategoriesData();
+listenProductsData();
 fetchWidgetSettings();
 
 if(searchInput) searchInput.addEventListener("input", () => render());
@@ -756,6 +805,7 @@ function setupNewHotDragAndDrop() {
       render(); renderAdminDragSortLists();
 
       try {
+        console.log(`[Drag-Sort] กำลังอัปเดตตำแหน่งสินค้ากลุ่มพิเศษ (${listType}) บน Server...`);
         for (let i = 0; i < currentFilteredGroup.length; i++) {
           await updateDoc(doc(db, "products", currentFilteredGroup[i].id), listType === "hot" ? { hotOrder: i } : { newOrder: i });
         }
