@@ -296,7 +296,7 @@ window.clearQuickPrice = async (productId) => {
 window.handleQuickFlashSaleKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault();
-    const inputVal = event.target.value.trim().toLowerCase();
+    let inputVal = event.target.value.trim().toLowerCase();
 
     if (!inputVal) {
       alert("กรุณากรอกตัวเลขเวลาที่ต้องการนับถอยหลังก่อนครับ");
@@ -305,7 +305,7 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
 
     let targetMs = 0;
 
-    // ตรวจสอบเงื่อนไขว่ากรอกเป็นนาที (m) หรือกรอกเป็นชั่วโมงตรงๆ
+    // ตรวจสอบเงื่อนไขดั้งเดิม หากยังติดพิมพ์ลงท้ายด้วย m (นาที)
     if (inputVal.endsWith("m")) {
       const minutes = parseFloat(inputVal.replace("m", ""));
       if (isNaN(minutes) || minutes <= 0) {
@@ -313,7 +313,39 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
         return;
       }
       targetMs = minutes * 60 * 1000;
-    } else {
+    } 
+    // รองรับระบบจุดทศนิยมแยก ชั่วโมง.นาที.วินาที (เช่น 1.28 หรือ 1.28.49)
+    else if (inputVal.includes(".")) {
+      const timeParts = inputVal.split(".");
+      
+      let hours = 0;
+      let minutes = 0;
+      let seconds = 0;
+
+      if (timeParts.length === 2) {
+        // รูปแบบ X.Y -> X ชั่วโมง Y นาที (เช่น 1.28)
+        hours = parseFloat(timeParts[0]);
+        minutes = parseFloat(timeParts[1]);
+      } else if (timeParts.length === 3) {
+        // รูปแบบ X.Y.Z -> X ชั่วโมง Y นาที Z วินาที (เช่น 1.28.49)
+        hours = parseFloat(timeParts[0]);
+        minutes = parseFloat(timeParts[1]);
+        seconds = parseFloat(timeParts[2]);
+      } else {
+        alert("รูปแบบจุดไม่ถูกต้อง กรุณาใส่เป็น ชม.นาที หรือ ชม.นาที.วินาที เช่น 1.28 หรือ 1.28.49");
+        return;
+      }
+
+      if (isNaN(hours) || hours < 0 || isNaN(minutes) || minutes < 0 || isNaN(seconds) || seconds < 0) {
+        alert("กรุณากรอกตัวเลขเวลาให้ถูกต้องครับ");
+        return;
+      }
+
+      // แปลงเวลาทั้งหมดให้อยู่ในหน่วย มิลลิวินาที (Milliseconds)
+      targetMs = (hours * 60 * 60 * 1000) + (minutes * 60 * 1000) + (seconds * 1000);
+    } 
+    // หากพิมพ์ตัวเลขหลักเดียวตรงๆ (เช่น 2 หรือ 1.5) ให้คิดเป็นชั่วโมง
+    else {
       const hours = parseFloat(inputVal);
       if (isNaN(hours) || hours <= 0) {
         alert("กรุณากรอกจำนวนชั่วโมงให้ถูกต้อง เช่น 2 หรือ 1.5");
@@ -327,6 +359,7 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
     const endTimeIsoString = new Date(nowTime + targetMs).toISOString();
 
     try {
+      // ตรวจสอบว่ามีฟังก์ชัน updateDoc และ doc ที่นำมาจาก Firebase พร้อมใช้งาน
       await updateDoc(doc(db, "products", productId), {
         flashSaleEndTime: endTimeIsoString
       });
