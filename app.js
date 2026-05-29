@@ -36,7 +36,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// ⚡ [SUPER READ SAVER] เปิดใช้งาน Local Cache แบบถาวรข้ามแท็บ ไม่เสียโควตา Read ซ้ำซ้อน
+// ⚡ [SUPER READ SAVER - CROSS PLATFORM OPTIMIZATION] 
+// เปิดใช้งาน Local Cache ถาวรข้ามแท็บ ทั้งบน PC และมือถือ ประหยัดโควตา Read 100% สำหรับข้อมูลที่ไม่มีการเปลี่ยนแปลง
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
@@ -128,18 +129,15 @@ if (themeToggleBtn) {
 
 /* ================= 📊 ระบบนับยอดคลิกแบบดองส่งเป็นแพ็กเกจ (เซฟโควตา Write ขั้นสุด) ================= */
 
-// ฟังก์ชันดึงยอดคลิกสะสมค้างซิงค์จาก LocalStorage
 function getLocalPendingClicks() {
   const data = localStorage.getItem("pending_clicks");
   return data ? JSON.parse(data) : {};
 }
 
-// ฟังก์ชันเซฟยอดคลิกสะสมลงเครื่องชั่วคราว
 function saveLocalPendingClicks(clicks) {
   localStorage.setItem("pending_clicks", JSON.stringify(clicks));
 }
 
-// ฟังก์ชันมัดรวมยอดคลิกทั้งหมดที่ดองไว้ แล้วยิงขึ้น Cloud ทีเดียว (Batch Update)
 async function syncPendingClicksToCloud() {
   const pendingClicks = getLocalPendingClicks();
   const productIds = Object.keys(pendingClicks);
@@ -155,7 +153,6 @@ async function syncPendingClicksToCloud() {
       const addedClicks = pendingClicks[productId];
       if (addedClicks > 0) {
         const foundProd = allProducts.find(p => p.id === productId);
-        // อิงค่าจากเซิร์ฟเวอร์ล่าสุด ( snapshot ) + ยอดสะสมที่พึ่งกดเพิ่มเข้ามาในเครื่อง
         const currentCloudCount = foundProd ? (foundProd.clickCount || 0) : 0;
         
         batch.update(doc(db, "products", productId), {
@@ -168,7 +165,7 @@ async function syncPendingClicksToCloud() {
     if (hasUpdates) {
       await batch.commit();
       localStorage.setItem("last_click_sync_time", Date.now().toString());
-      saveLocalPendingClicks({}); // เคลียร์ตะกร้าค้างส่งเมื่อซิงค์สำเร็จ
+      saveLocalPendingClicks({}); 
       console.log("%c✅ [Firebase Saver] มัดรวมยอดคลิกสะสมส่งขึ้น Cloud สำเร็จ! ประหยัดจำนวน Write ไปได้อย่างมหาศาล", "color: #2ecc71; font-weight: bold;");
     }
   } catch (err) {
@@ -176,10 +173,9 @@ async function syncPendingClicksToCloud() {
   }
 }
 
-// ฟังก์ชันเช็ครอบเวลา 4 ชั่วโมง
 function checkAndTriggerIntervalSync() {
   const lastSync = localStorage.getItem("last_click_sync_time");
-  const fourHoursMs = 4 * 60 * 60 * 1000; // 4 ชั่วโมง
+  const fourHoursMs = 4 * 60 * 60 * 1000; 
 
   if (!lastSync || (Date.now() - parseInt(lastSync)) >= fourHoursMs) {
     syncPendingClicksToCloud();
@@ -196,8 +192,6 @@ window.trackProductClick = async (productId) => {
 
   const pName = foundProd.name || "สินค้ารายการนี้";
 
-  // 1. อัปเดตในหน่วยความจำ (RAM) หน้าเว็บปัจจุบันทันที 
-  // ทำให้ไม่ว่าจะเป็น Admin หรือผู้ใช้ จะเห็นตัวเลขจำนวนคลิกบนหน้าจอขยับเรียลไทม์ทันทีโดยไม่ต้องรอ 4 ชั่วโมง
   if (foundProd.clickCount === undefined) foundProd.clickCount = 0;
   foundProd.clickCount += 1;
 
@@ -206,13 +200,11 @@ window.trackProductClick = async (productId) => {
     renderAdminDragSortLists();
   }
 
-  // 2. บันทึกสะสมยอด (+1) ลง LocalStorage ไว้ก่อนเสมือนเป็นตะกร้าพักข้อมูล
   console.log(`%c[Click Registered] สะสมยอดคลิกเข้าเครื่องชั่วคราว: ${pName}`, "color: #3498db;");
   const pending = getLocalPendingClicks();
   pending[productId] = (pending[productId] || 0) + 1;
   saveLocalPendingClicks(pending);
   
-  // 3. ตรวจสอบเงื่อนไขเวลา ถ้าเกิน 4 ชั่วโมงแล้วถึงจะยอมปล่อยปล่อยข้อมูลขึ้น Cloud
   checkAndTriggerIntervalSync();
 
   if (typeof gtag !== 'undefined') {
@@ -226,7 +218,6 @@ window.trackProductClick = async (productId) => {
 window.resetProductClick = async (productId) => {
   if (confirm("คุณแน่ใจใช่ไหมว่าต้องการล้างจำนวนคลิกเข้าชมของสินค้ารายการนี้ให้เริ่มต้นเป็น 0 ครั้งใหม่บนคลาวด์?")) {
     try {
-      // เคลียร์ยอดค้างส่งใน LocalStorage ของสินค้านี้ออกด้วยป้องกันข้อมูลทับซ้อน
       const pending = getLocalPendingClicks();
       delete pending[productId];
       saveLocalPendingClicks(pending);
@@ -251,18 +242,15 @@ window.resetAllProductsClick = async () => {
   try {
     alert("⏳ ระบบกำลังรีเซ็ตค่าคลิกของสินค้าทั้งหมดลง Cloud และเครื่อง โปรดรอสักครู่...");
     
-    // 🔥 [LOCALSTORAGE NUKE] ล้างข้อมูลที่ดองค้างอยู่ใน LocalStorage ของเครื่องนี้ทิ้งทั้งหมดแบบ 100%
     localStorage.setItem("pending_clicks", "{}"); 
     console.log("%c[Storage Nuked] ล้างฐานข้อมูลดองยอดคลิกทั้งหมดในเครื่องสำเร็จ", "color: #e74c3c; font-weight: bold;");
 
-    // อัปเดตค่าใน RAM ของสินค้าทุกตัวให้กลายเป็น 0 ทันที
     allProducts.forEach(prod => {
       prod.clickCount = 0;
     });
     render();
     renderAdminDragSortLists();
 
-    // มัดรวมสั่งเคลียร์ยอดคลิกสินค้าทุกชิ้นบน Cloud ให้เป็น 0 ในหนึ่ง Batch
     const batch = writeBatch(db);
     allProducts.forEach(prod => {
       batch.update(doc(db, "products", prod.id), { clickCount: 0 });
@@ -274,35 +262,27 @@ window.resetAllProductsClick = async () => {
   }
 };
 
-/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (อ่านจาก Cache ก่อนเสมอ 0 Read Cost) ================= */
+/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (อ่านจาก Cache ก่อนเสมอ ทั้ง PC และมือถือ) ================= */
 function checkSnapshotMetadata(snapshot, typeName) {
   const fromCache = snapshot.metadata.fromCache;
   if (fromCache) {
-    console.log(`%c✔ [🟢 ${typeName} 0 READ] โหลดจาก Cache ความจำเครื่องสำเร็จ! ไม่เสียสิทธิ์โควตาอ่าน -> ${snapshot.size} รายการ`, "color: #2ecc71; font-weight: bold;");
+    console.log(`%c✔ [🟢 ${typeName} 0 READ] โหลดจาก Cache บนบราวเซอร์สำเร็จ! ไม่เสียสิทธิ์โควตาอ่านคลาวด์ -> ${snapshot.size} รายการ`, "color: #2ecc71; font-weight: bold;");
   } else {
-    console.log(`%c⚠ [🔵 ${typeName} SERVER READ] โหลดจาก Server -> เสียโควตาการอ่านจริงจำนวน ${snapshot.size} รายการ`, "color: #3498db; font-weight: bold;");
+    console.log(`%c⚠ [🔵 ${typeName} SERVER READ] ข้อมูลอัปเดตใหม่ดึงจาก Server -> เสียโควตาอ่านคลาวด์จำนวน ${snapshot.size} รายการ`, "color: #3498db; font-weight: bold;");
   }
-}
-
-function processCategoriesSnapshot(snapshot) {
-  dbCategories = [];
-  snapshot.forEach(docSnap => {
-    dbCategories.push({ id: docSnap.id, ...docSnap.data() });
-  });
-  updateCategoryDropdown();
-  render();
 }
 
 async function listenCategoriesData() {
   const q = query(categoriesRef, orderBy("order"));
   try {
+    // บังคับเช็กข้อมูลจาก Cache ภายในเครื่องคอมพิวเตอร์/มือถือเป็นอันดับแรกเพื่อ 0 Read Cost
     const cacheSnap = await getDocs(q, { source: 'cache' });
     if (!cacheSnap.empty) {
       checkSnapshotMetadata(cacheSnap, "หมวดหมู่สินค้า");
       processCategoriesSnapshot(cacheSnap);
     }
   } catch (e) {
-    console.log("[ระบบเตรียมข้อมูล] ยังไม่มี Cache หมวดหมู่สินค้าในเครื่องเครื่องนี้");
+    console.log("[ระบบเตรียมข้อมูล] ยังไม่มีไฟล์ Cache หมวดหมู่บนอุปกรณ์นี้");
   }
 
   onSnapshot(q, (snapshot) => {
@@ -314,28 +294,25 @@ async function listenCategoriesData() {
   }, (err) => console.error("Error listening categories:", err));
 }
 
-function processProductsSnapshot(snapshot) {
-  allProducts = [];
+function processCategoriesSnapshot(snapshot) {
+  dbCategories = [];
   snapshot.forEach(docSnap => {
-    allProducts.push({ id: docSnap.id, ...docSnap.data() });
+    dbCategories.push({ id: docSnap.id, ...docSnap.data() });
   });
-  
-  // เช็คและเปิดทำงานการซิงค์ยอดสะสมทันทีเมื่อแอดมินหรือยูสเซอร์เปิดหน้าเว็บขึ้นมาใหม่
-  checkAndTriggerIntervalSync();
-  
+  updateCategoryDropdown();
   render();
-  renderAdminDragSortLists();
 }
 
 async function listenProductsData() {
   try {
+    // บังคับดึงสินค้าจาก Cache เพื่อประหยัดการ Read สูงสุดทั้งบนคอมและมือถือเวลาลูกค้ากด F5
     const cacheSnap = await getDocs(productsRef, { source: 'cache' });
     if (!cacheSnap.empty) {
       checkSnapshotMetadata(cacheSnap, "ข้อมูลสินค้า");
       processProductsSnapshot(cacheSnap);
     }
   } catch (e) {
-    console.log("[ระบบเตรียมข้อมูล] ยังไม่มี Cache สินค้าในเครื่องเครื่องนี้");
+    console.log("[ระบบเตรียมข้อมูล] ยังไม่มีไฟล์ Cache สินค้าบนอุปกรณ์นี้");
   }
 
   onSnapshot(productsRef, (snapshot) => {
@@ -345,6 +322,17 @@ async function listenProductsData() {
       processProductsSnapshot(snapshot);
     }
   }, (err) => console.error("Error listening products:", err));
+}
+
+function processProductsSnapshot(snapshot) {
+  allProducts = [];
+  snapshot.forEach(docSnap => {
+    allProducts.push({ id: docSnap.id, ...docSnap.data() });
+  });
+  
+  checkAndTriggerIntervalSync();
+  render();
+  renderAdminDragSortLists();
 }
 
 function fetchWidgetSettings() {
