@@ -13,7 +13,8 @@ import {
   query,
   orderBy,
   getDocs,
-  onSnapshot
+  onSnapshot,
+  writeBatch 
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
@@ -35,14 +36,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// ⚡ [ระบบลด READ - ระดับ 1] เปิดใช้งาน Local Cache ในเครื่องลูกค้า
+// ⚡ [SUPER READ SAVER] เปิดใช้งาน Local Cache แบบถาวรข้ามแท็บ ไม่เสียโควตา Read ซ้ำซ้อน
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
 
-console.log("%c╠══ [Firebase]เปิดใช้งาน Local Cache สมบูรณ์ ⚡", "color: #2ecc71; font-weight: bold;");
+console.log("%c╠══ [Firebase Max-Saver V3] บล็อกระบบปรับราคาด่วน/Flash Sale ไว้ใน RAM แล้ว ⚡", "color: #2ecc71; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -63,6 +64,8 @@ let draggedSortId = null;
 let hotSlideInterval = null;
 let newSlideInterval = null;
 let globalFlashSaleTimerInterval = null; 
+
+let isOrderDirty = false;
 
 const hotEl = document.getElementById("hotProducts");
 const newEl = document.getElementById("newProducts");
@@ -123,17 +126,77 @@ if (themeToggleBtn) {
   };
 }
 
-/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (Real Zero-Read สำหรับคนมี Cache) ================= */
+/* ================= 📊 ระบบนับยอดคลิกตรงเข้า Cloud เรียบลื่นเรียลไทม์ ================= */
+window.trackProductClick = async (productId) => {
+  const foundProd = allProducts.find(p => p.id === productId);
+  if (!foundProd) return;
 
-// ฟังก์ชันแกะรายละเอียดและ Log ตรวจสอบสิทธิ์ Read
+  const pName = foundProd.name || "สินค้ารายการนี้";
+  console.log(`%c[Click Registered] มีการกดคลิกลิงก์: ${pName}`, "color: #f1c40f;");
+
+  if (foundProd.clickCount === undefined) foundProd.clickCount = 0;
+  foundProd.clickCount += 1;
+
+  if (isAdmin) {
+    render();
+    renderAdminDragSortLists();
+  }
+
+  try {
+    const productDocRef = doc(db, "products", productId);
+    await updateDoc(productDocRef, { clickCount: foundProd.clickCount });
+  } catch (err) {
+    console.error("Firebase Update Log Error:", err);
+  }
+
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'click_affiliate_link', {
+      'product_id': productId,
+      'product_name': pName
+    });
+  }
+};
+
+window.resetProductClick = async (productId) => {
+  if (confirm("คุณแน่ใจใช่ไหมว่าต้องการล้างจำนวนคลิกเข้าชมของสินค้ารายการนี้ให้เริ่มต้นเป็น 0 ครั้งใหม่บนคลาวด์?")) {
+    try {
+      const productDocRef = doc(db, "products", productId);
+      await updateDoc(productDocRef, { clickCount: 0 });
+      alert("🗑️ ล้างสถิติจนวนการคลิกของสินค้าชิ้นนี้เป็น 0 สำเร็จ!");
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการล้างจำนวนการคลิก: " + err.message);
+    }
+  }
+};
+
+window.resetAllProductsClick = async () => {
+  if (allProducts.length === 0) {
+    alert("ไม่พบสินค้าในระบบที่จะล้างสถิติครับ");
+    return;
+  }
+  const confirmFirst = confirm("🚨 [คำเตือนขั้นเด็ดขาด] คุณแน่ใจใช่ไหมว่าต้องการล้างยอดคลิกสะสมของสินค้า 'ทุกชิ้นในระบบ' ให้กลับไปเป็น 0 ครั้งเหมือนกันทั้งหมด?");
+  if (!confirmFirst) return;
+
+  try {
+    alert("⏳ ระบบกำลังรีเซ็ตค่าคลิกของสินค้าทั้งหมดลง Cloud โปรดรอสักครู่...");
+    const batch = writeBatch(db);
+    allProducts.forEach(prod => {
+      batch.update(doc(db, "products", prod.id), { clickCount: 0 });
+    });
+    await batch.commit();
+    alert("✅ รีเซ็ตสถิติจำนวนการคลิกทั้งหมดกลับเป็น 0 สำเร็จเรียบร้อยแล้วครับ!");
+  } catch (err) {
+    alert("เกิดข้อผิดพลาด: " + err.message);
+  }
+};
+
+/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (อ่านจาก Cache ก่อนเสมอ 0 Read Cost) ================= */
 function checkSnapshotMetadata(snapshot, typeName) {
   const fromCache = snapshot.metadata.fromCache;
-  const hasPendingWrites = snapshot.metadata.hasPendingWrites;
-  
   if (fromCache) {
-    console.log(`%c✔ [🟢 ${typeName} ดึงจาก CACHE ในเครื่อง] ดึงข้อมูลสำเร็จ! ไม่เสียสิทธิ์ Read (0 Read) -> จำนวน ${snapshot.size} รายการ`, "color: #2ecc71; font-weight: bold;");
+    console.log(`%c✔ [🟢 ${typeName} 0 READ] โหลดจาก Cache ความจำเครื่องสำเร็จ! ไม่เสียสิทธิ์โควตาอ่าน -> ${snapshot.size} รายการ`, "color: #2ecc71; font-weight: bold;");
   } else {
-    console.log(`%c⚠ [🔵 ${typeName} อัปเดตจาก SERVER] มีการเปลี่ยนแปลงของข้อมูลบน Cloud หรือเพิ่งเปิดเว็บครั้งแรก -> เกิดการนับ Read จริงจำนวน ${snapshot.size} รายการ`, "color: #3498db; font-weight: bold;");
+    console.log(`%c⚠ [🔵 ${typeName} SERVER READ] โหลดจาก Server -> เสียโควตาการอ่านจริงจำนวน ${snapshot.size} รายการ`, "color: #3498db; font-weight: bold;");
   }
 }
 
@@ -146,26 +209,24 @@ function processCategoriesSnapshot(snapshot) {
   render();
 }
 
-// 📁 ระบบหมวดหมู่สินค้าแบบอัจฉริยะ
 async function listenCategoriesData() {
   const q = query(categoriesRef, orderBy("order"));
-  
-  // 1. ดึงจาก Cache ขึ้นมาก่อนแบบด่วนพิเศษเพื่อให้หน้าเว็บไม่โล่ง
   try {
     const cacheSnap = await getDocs(q, { source: 'cache' });
     if (!cacheSnap.empty) {
-      console.log("%c[ระบบเตรียมข้อมูล] พบข้อมูลหมวดหมู่เก่าในเครื่อง กำลังจัดเตรียมแสดงผล...", "color: #9b59b6;");
       checkSnapshotMetadata(cacheSnap, "หมวดหมู่สินค้า");
       processCategoriesSnapshot(cacheSnap);
     }
   } catch (e) {
-    console.log("[ระบบเตรียมข้อมูล] ยังไม่มี Cache หมวดหมู่ในเครื่องเครื่องนี้");
+    console.log("[ระบบเตรียมข้อมูล] ยังไม่มี Cache หมวดหมู่สินค้าในเครื่องเครื่องนี้");
   }
 
-  // 2. ใช้ onSnapshot ตรวจสอบเซิร์ฟเวอร์แบบเรียลไทม์ (ถ้าข้อมูลในคลาวด์กับในเครื่องตรงกัน จะนับเป็น 0 Read)
   onSnapshot(q, (snapshot) => {
-    checkSnapshotMetadata(snapshot, "หมวดหมู่สินค้า (Realtime Listener)");
-    processCategoriesSnapshot(snapshot);
+    const fromCache = snapshot.metadata.fromCache;
+    if (!fromCache) {
+      checkSnapshotMetadata(snapshot, "หมวดหมู่สินค้า (Realtime)");
+      processCategoriesSnapshot(snapshot);
+    }
   }, (err) => console.error("Error listening categories:", err));
 }
 
@@ -178,13 +239,10 @@ function processProductsSnapshot(snapshot) {
   renderAdminDragSortLists();
 }
 
-// 📦 ระบบสินค้าแบบอัจฉริยะ
 async function listenProductsData() {
-  // 1. ดึงข้อมูลสินค้าที่มีใน Cache มาเทใส่หน้าจอก่อนทันที (0 Read)
   try {
     const cacheSnap = await getDocs(productsRef, { source: 'cache' });
     if (!cacheSnap.empty) {
-      console.log("%c[ระบบเตรียมข้อมูล] พบข้อมูลสินค้าเก่าในเครื่อง กำลังแสดงผลทันทีแบบ 0 Read...", "color: #9b59b6;");
       checkSnapshotMetadata(cacheSnap, "ข้อมูลสินค้า");
       processProductsSnapshot(cacheSnap);
     }
@@ -192,19 +250,17 @@ async function listenProductsData() {
     console.log("[ระบบเตรียมข้อมูล] ยังไม่มี Cache สินค้าในเครื่องเครื่องนี้");
   }
 
-  // 2. สมัครใจรับการเปลี่ยนแปลงจาก Server (ถ้าเปิดเว็บมาแล้วข้อมูลไม่เปลี่ยนเลย จะถูกนับเป็น 0 Read สบายใจได้)
   onSnapshot(productsRef, (snapshot) => {
-    checkSnapshotMetadata(snapshot, "ข้อมูลสินค้า (Realtime Listener)");
-    processProductsSnapshot(snapshot);
+    const fromCache = snapshot.metadata.fromCache;
+    if (!fromCache) {
+      checkSnapshotMetadata(snapshot, "ข้อมูลสินค้า (Realtime)");
+      processProductsSnapshot(snapshot);
+    }
   }, (err) => console.error("Error listening products:", err));
 }
 
 function fetchWidgetSettings() {
-  // ใช้ระบบดึงข้อมูลแบบสแกน Cache อัตโนมัติสำหรับเอกสารเดี่ยว
   onSnapshot(doc(db, "settings", "shopee_promo_widget"), (docSnap) => {
-    const fromCache = docSnap.metadata.fromCache;
-    console.log(`%c╠══ [🎁 วิดเจ็ตส่วนลด] ตรวจสอบข้อมูลสำเร็จผ่าน: ${fromCache ? "CACHE (0 Read)" : "SERVER (1 Read ถ้าข้อมูลอัปเดต)"}`, "color: #f1c40f;");
-
     if (docSnap.exists()) {
       const data = docSnap.data();
       currentWidgetState = {
@@ -254,15 +310,16 @@ function card(p, index){
     const link1 = p.shopee1 ? p.shopee1.trim() : "";
     const link2 = p.shopee2 ? p.shopee2.trim() : "";
     let shopeeBtns = "";
+    
     if (link1 && link2) {
-      shopeeBtns += `<a class="btn shopee" href="${link1}" target="_blank">Shopee 1</a>`;
-      shopeeBtns += `<a class="btn shopee" href="${link2}" target="_blank">Shopee 2</a>`;
+      shopeeBtns += `<a class="btn shopee" href="${link1}" target="_blank" onclick="trackProductClick('${p.id}')">Shopee 1</a>`;
+      shopeeBtns += `<a class="btn shopee" href="${link2}" target="_blank" onclick="trackProductClick('${p.id}')">Shopee 2</a>`;
     } else if (link1 || link2) {
-      shopeeBtns += `<a class="btn shopee" href="${link1 || link2}" target="_blank">Shopee</a>`;
+      shopeeBtns += `<a class="btn shopee" href="${link1 || link2}" target="_blank" onclick="trackProductClick('${p.id}')">Shopee</a>`;
     } else {
       shopeeBtns += `<a class="btn disabled" href="javascript:void(0);">Shopee</a>`;
     }
-    const lazadaBtn = p.lazada?.trim() ? `<a class="btn lazada" href="${p.lazada.trim()}" target="_blank">Lazada</a>` : `<a class="btn disabled" href="javascript:void(0);">Lazada</a>`;
+    const lazadaBtn = p.lazada?.trim() ? `<a class="btn lazada" href="${p.lazada.trim()}" target="_blank" onclick="trackProductClick('${p.id}')">Lazada</a>` : `<a class="btn disabled" href="javascript:void(0);">Lazada</a>`;
     btnsContent = shopeeBtns + lazadaBtn;
   }
 
@@ -280,7 +337,7 @@ function card(p, index){
   }
 
   const imageLink = (!isProductComingSoon && (p.shopee1?.trim() || p.shopee2?.trim())) ? (p.shopee1?.trim() || p.shopee2?.trim()) : "";
-  const imageHtml = imageLink ? `<a href="${imageLink}" target="_blank" class="card-img-link"><img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}"></a>` : `<img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}" class="no-link-img">`;
+  const imageHtml = imageLink ? `<a href="${imageLink}" target="_blank" class="card-img-link" onclick="trackProductClick('${p.id}')"><img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}"></a>` : `<img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}" class="no-link-img">`;
 
   let flashSaleTimerHtml = "";
   if (!isProductComingSoon && currentFlashSaleTimeVal) {
@@ -306,25 +363,35 @@ function card(p, index){
       <div class="btns">
         ${btnsContent}
         ${isAdmin ? `
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed var(--admin-yellow); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; color: var(--admin-yellow); width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <span>📊 ยอดคลิกสะสมคลาวด์:</span>
+              <strong>${p.clickCount || 0} ครั้ง</strong>
+            </div>
+            <button class="btn-reset-clicks" onclick="resetProductClick('${p.id}')" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s; width: 100%; text-align: center;">
+              🗑️ ล้างจำนวนสถิติคลิกชิ้นนี้
+            </button>
+          </div>
+
           <div class="admin-card-actions">
             <button class="btn edit" onclick='editProduct("${p.id}")'>Edit</button>
             <button class="btn delete" onclick='deleteProduct("${p.id}")'>Delete</button>
           </div>
           <div class="quick-admin-controls-wrapper">
             <div class="quick-price-box">
-              <label>⚡️ ราคาด่วน (Enter):</label>
+              <label>⚡️ ราคาด่วน (จำใน RAM):</label>
               <div class="quick-price-row">
                 <input type="text" class="quick-price-input" value="${currentQuickPriceVal}" placeholder="ระบุราคา..." onkeydown="handleQuickPriceKey(event, '${p.id}')">
                 <button class="quick-price-clear-btn" title="เคลียร์ค่าเป็น Coming Soon" onclick="clearQuickPrice('${p.id}')">✕</button>
               </div>
             </div>
             <div class="quick-flash-sale-box">
-              <label>⏰ ตั้งเวลา Flash Sale (เช่น 2 หรือ 45m) + Enter:</label>
+              <label>⏰ ตั้งเวลา Flash Sale (จำใน RAM):</label>
               <div class="quick-price-row">
-                <input type="text" class="quick-date-input" value="" placeholder="ระบุจำนวนชั่วโมง หรือ 45m..." onkeydown="handleQuickFlashSaleKey(event, '${p.id}')">
+                <input type="text" class="quick-date-input" value="" placeholder="เช่น 2 หรือ 45m..." onkeydown="handleQuickFlashSaleKey(event, '${p.id}')">
                 <button class="quick-price-clear-btn" title="ลบเวลา Flash Sale ออก" onclick="clearQuickFlashSale('${p.id}')">✕</button>
               </div>
-              ${currentFlashSaleTimeVal ? `<div style="font-size:11px; color:var(--price-green); margin-top:4px; font-weight:bold;">⏱️ มีการล็อกเวลานับถอยหลังอยู่</div>` : ""}
+              ${currentFlashSaleTimeVal ? `<div style="font-size:11px; color:var(--price-green); margin-top:4px; font-weight:bold;">⏱️ มีการล็อกเวลานับถอยหลังใน RAM</div>` : ""}
             </div>
           </div>
         ` : ""}
@@ -334,37 +401,43 @@ function card(p, index){
   `;
 }
 
-/* ================= 🎯 ระบบตั้งค่าด่วนบน Card (ราคาด่วน / เวลา Flash Sale) ================= */
-window.handleQuickPriceKey = async (event, productId) => {
+/* ================= 🎯 ระบบบันทึกด่วนลงชั่วคราวบน RAM (ไม่ยิง Cloud ทันที) ================= */
+window.handleQuickPriceKey = (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault();
     const inputVal = event.target.value.trim();
     if (!inputVal || isNaN(inputVal)) { alert("กรุณากรอกเฉพาะตัวเลขราคาที่ถูกต้องครับ"); return; }
     const newPriceNum = Number(inputVal);
-    try {
-      const pDoc = await getDoc(doc(db, "products", productId));
-      if (pDoc.exists()) {
-        const oldData = pDoc.data();
-        const oldPrice = oldData.price ? Number(oldData.price) : 0;
-        let updateData = (oldPrice > 0 && newPriceNum < oldPrice) ? { salePrice: newPriceNum, comingSoon: false } : { price: newPriceNum, salePrice: 0, comingSoon: false };
-        await updateDoc(doc(db, "products", productId), updateData);
-        alert("⚡️ ปรับเปลี่ยนราคาสินค้าด่วนสำเร็จ!");
-        event.target.blur();
+
+    const foundIdx = allProducts.findIndex(p => p.id === productId);
+    if (foundIdx !== -1) {
+      const oldPrice = allProducts[foundIdx].price ? Number(allProducts[foundIdx].price) : 0;
+      if (oldPrice > 0 && newPriceNum < oldPrice) {
+        allProducts[foundIdx].salePrice = newPriceNum;
+      } else {
+        allProducts[foundIdx].price = newPriceNum;
+        allProducts[foundIdx].salePrice = 0;
       }
-    } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
+      allProducts[foundIdx].comingSoon = false;
+      
+      console.log(`[RAM UPDATE] แก้ราคาด่วนชั่วคราวในเครื่องสำเร็จ:`, allProducts[foundIdx]);
+      event.target.blur();
+      render();
+    }
   }
 };
 
-window.clearQuickPrice = async (productId) => {
-  if (confirm("คุณต้องการล้างราคาสินค้านี้และตั้งเป็น Coming Soon ใช่หรือไม่?")) {
-    try {
-      await updateDoc(doc(db, "products", productId), { price: 0, salePrice: 0, comingSoon: true });
-      alert("⚡️ เคลียร์ค่าสินค้าและตั้งเป็น Coming Soon สำเร็จแล้ว!");
-    } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
+window.clearQuickPrice = (productId) => {
+  const foundIdx = allProducts.findIndex(p => p.id === productId);
+  if (foundIdx !== -1) {
+    allProducts[foundIdx].price = 0;
+    allProducts[foundIdx].salePrice = 0;
+    allProducts[foundIdx].comingSoon = true;
+    render();
   }
 };
 
-window.handleQuickFlashSaleKey = async (event, productId) => {
+window.handleQuickFlashSaleKey = (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault();
     let inputVal = event.target.value.trim().toLowerCase();
@@ -384,22 +457,27 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
       targetMs = hours * 60 * 60 * 1000;
     }
     const endTimeIsoString = new Date(new Date().getTime() + targetMs).toISOString();
-    try {
-      await updateDoc(doc(db, "products", productId), { flashSaleEndTime: endTimeIsoString });
-      alert("⏰ ตั้งเวลานับถอยหลังเรียบร้อย!");
-      event.target.value = ""; event.target.blur();
-    } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
+
+    const foundIdx = allProducts.findIndex(p => p.id === productId);
+    if (foundIdx !== -1) {
+      allProducts[foundIdx].flashSaleEndTime = endTimeIsoString;
+      console.log(`[RAM UPDATE] ล็อกเวลา Flash Sale ชั่วคราวสำเร็จ:`, allProducts[foundIdx]);
+      event.target.value = ""; 
+      event.target.blur();
+      render();
+    }
   }
 };
 
-window.clearQuickFlashSale = async (productId) => {
-  try {
-    await updateDoc(doc(db, "products", productId), { flashSaleEndTime: "" });
-    alert("🗑️ ลบเวลา Flash Sale ของสินค้านี้ออกเรียบร้อย!");
-  } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
+window.clearQuickFlashSale = (productId) => {
+  const foundIdx = allProducts.findIndex(p => p.id === productId);
+  if (foundIdx !== -1) {
+    allProducts[foundIdx].flashSaleEndTime = "";
+    render();
+  }
 };
 
-/* ================= ⏰ ฟังก์ชัน Loop ทำงานรันเวลานับถอยหลัง Real-time ================= */
+/* ================= ⏰ ฟังก์ชัน Loop รันเวลานับถอยหลัง Flash Sale ================= */
 function startFlashSaleClockTicker() {
   if (globalFlashSaleTimerInterval) clearInterval(globalFlashSaleTimerInterval);
   globalFlashSaleTimerInterval = setInterval(() => {
@@ -524,7 +602,6 @@ function setupCategoryDragAndDrop() {
       dbCategories = currentCats; 
       renderAdminCategoryList();
       try {
-        console.log("[Drag-Category] กำลังบันทึกลำดับหมวดหมู่สินค้าใหม่บน Server...");
         for (let i = 0; i < currentCats.length; i++) {
           await updateDoc(doc(db, "categories_list", currentCats[i].id), { order: i });
         }
@@ -586,7 +663,7 @@ function render(){
   
   if (isAdmin && currentSortMode === "tierlist") {
     if (dragNoticeEl) {
-      dragNoticeEl.innerHTML = `✨ <b>โหมดประหยัดพลังงาน:</b> คุณสามารถลากสลับลำดับสินค้าได้อิสระ เมื่อจัดเสร็จแล้วอย่าลืมกดปุ่ม <button class='btn edit' style='padding:4px 10px; font-size:11px;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้า</button> ด้านล่างด้วยครับ เพื่อลดการ Write คลาวด์`;
+      dragNoticeEl.innerHTML = `✨ <b>โหมดเซฟค่าด่วนในเครื่อง:</b> ลากสลับตำแหน่ง แก้ราคาด่วน หรือระบุ Flash sale ใน RAM ได้เต็มที่ เสร็จแล้วให้กดปุ่ม <button class='btn edit' style='padding:4px 10px; font-size:11px; background:#22c55e; color:#fff; border:none;' onclick='saveAllProductsOrderManually()'>💾 อัพเดตสินค้าทั้งหมด</button> เพื่อบันทึกโครงสร้างลง Cloud ในคลิกเดียวครับ`;
       dragNoticeEl.style.display = "block";
     }
     setupProductDragAndDrop(filtered);
@@ -596,7 +673,7 @@ function render(){
   startFlashSaleClockTicker();
 }
 
-/* ================= 🎯 ระบบลากและวางสินค้าสำหรับแอดมิน ================= */
+/* ================= 🔀 ระบบลากและวางสินค้าสำหรับแอดมิน (เซฟตำแหน่งชั่วคราวใน RAM) ================= */
 function setupProductDragAndDrop(currentFilteredProducts) {
   const cards = document.querySelectorAll("#products .card.admin-draggable");
   cards.forEach(cardItem => {
@@ -616,27 +693,37 @@ function setupProductDragAndDrop(currentFilteredProducts) {
       const [removedProduct] = updatedList.splice(draggedIdx, 1);
       updatedList.splice(targetIdx, 0, removedProduct);
 
-      console.log(`[Drag-Sort] สลับสินค้าใน RAM สำเร็จชั่วคราว (ยังไม่สั่งเซฟขึ้น Cloud)`);
       updatedList.forEach((prod, i) => {
         const found = allProducts.find(x => x.id === prod.id);
         if(found) found.order = i;
       });
+      isOrderDirty = true; 
       render();
     });
   });
 }
 
+/* ================= 💾 ปุ่มเดียวเบ็ดเสร็จ: อัพเดตสินค้าทั้งหมด (Batch Write รวม ลำดับ, ราคา, Flash Sale) ================= */
 window.saveAllProductsOrderManually = async () => {
-  if (confirm("ต้องการบันทึกลำดับและการจัดเรียงสินค้าใหม่ทั้งหมดนี้ลงสู่ระบบ Cloud ใช่ไหมครับ?")) {
-    try {
-      console.log("[Manual-Write] แอดมินสั่งเซฟตำแหน่งสินค้าทั้งหมดลง Cloud...");
-      alert("⏳ ระบบกำลังจัดส่งและอัปเดตตำแหน่งสินค้ากรุณารอสักครู่...");
-      for (let i = 0; i < allProducts.length; i++) {
-        await updateDoc(doc(db, "products", allProducts[i].id), { order: allProducts[i].order ?? i });
-      }
-      alert("💾 บันทึกลำดับตำแหน่งการ์ดสินค้าทั้งหมดเรียบร้อยแล้วครับ!");
-    } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่ง: " + err.message); }
-  }
+  try {
+    alert("⏳ ระบบกำลังมัดรวมข้อมูลทั้งหมด (ลำดับ, ราคาด่วน, เวลา Flash Sale) ส่งขึ้น Cloud...");
+    const batch = writeBatch(db);
+    
+    allProducts.forEach((prod, idx) => {
+      const productDocRef = doc(db, "products", prod.id);
+      batch.update(productDocRef, { 
+        order: prod.order ?? idx,
+        price: prod.price || 0,
+        salePrice: prod.salePrice || 0,
+        comingSoon: !!prod.comingSoon,
+        flashSaleEndTime: prod.flashSaleEndTime || ""
+      });
+    });
+    
+    await batch.commit();
+    isOrderDirty = false;
+    alert("💾 อัพเดตข้อมูลสินค้าและลำดับโครงสร้างทั้งหมดลง Cloud เรียบร้อยแล้วครับ!");
+  } catch (err) { alert("เกิดข้อผิดพลาดในการอัพเดตข้อมูลสินค้า: " + err.message); }
 };
 
 /* ================= 📝 บันทึกข้อมูลเพิ่ม/แก้ไขสินค้า ================= */
@@ -655,15 +742,14 @@ window.handleProductSubmit = async () => {
 
   try {
     if (currentEditId) {
-      console.log(`[Form-Submit] อัปเดตสินค้าเดิมลงคลาวด์ ID: ${currentEditId}`);
       await updateDoc(doc(db, "products", currentEditId), productData);
       alert("แก้ไขข้อมูลสินค้าสำเร็จ!"); currentEditId = null; submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
     } else {
-      console.log(`[Form-Submit] เพิ่มสินค้าชิ้นใหม่ลงคลาวด์: ${name}`);
       productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
       productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
       productData.newOrder = allProducts.reduce((max, p) => ((p.newOrder ?? 0) > max ? p.newOrder : max), 0) + 1;
       productData.flashSaleEndTime = ""; 
+      productData.clickCount = 0; 
       await addDoc(productsRef, productData);
       alert("เพิ่มสินค้าใหม่สำเร็จ!");
     }
@@ -688,7 +774,6 @@ window.editProduct = async (id) => {
 window.deleteProduct = async (id) => {
   if (confirm("คุณแน่ใจใช่ไหมว่าจะลบสินค้ารากายนี้ออกจากระบบ?")) {
     try {
-      console.log(`[Delete-Action] สั่งลบสินค้า ID: ${id}`);
       await deleteDoc(doc(db, "products", id)); alert("ลบสินค้าเรียบร้อยครับ");
     } catch (error) { alert("ไม่สามารถลบได้: " + error.message); }
   }
@@ -735,7 +820,7 @@ onAuthStateChanged(auth, (user) => {
   render();
 });
 
-/* ================= 🛰️ เรียกสมัครทำงานระบบสัญญาลด READ (onSnapshot Listening) ================= */
+/* ================= 🛰️ เรียกเปิดการทำงานระบบสัญญาทั้งหมด ================= */
 listenCategoriesData();
 listenProductsData();
 fetchWidgetSettings();
@@ -750,7 +835,7 @@ if (backToTopBtn) {
   backToTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 }
 
-/* ================= 🔄 ระบบสไลด์เนียนตา ================= */
+/* ================= 🔄 ระบบสไลด์สินค้าการ์ดเลื่อนอัตโนมัติ ================= */
 window.scrollSlide = (elementId, direction) => {
   const el = document.getElementById(elementId); if (!el || el.children.length <= 1) return;
   const cardWidth = el.children[0].offsetWidth + 10, maxScrollLeft = el.scrollWidth - el.clientWidth;
@@ -767,7 +852,7 @@ function initAutoSliders() {
   newSlideInterval = setInterval(() => window.scrollSlide("newProducts", "right"), 7000);
 }
 
-/* ================= 🔀 ระบบลากเรียงลำดับสินค้า HOT และ NEW ================= */
+/* ================= 🔀 เรียงลำดับสินค้ากลุ่มพิเศษ HOT และ NEW ใน RAM ================= */
 function renderAdminDragSortLists() {
   const adminHotDragList = document.getElementById("adminHotDragList"), adminNewDragList = document.getElementById("adminNewDragList");
   if (!adminHotDragList || !adminNewDragList) return;
@@ -786,7 +871,7 @@ function setupNewHotDragAndDrop() {
     item.addEventListener("dragstart", (e) => { draggedSortId = item.getAttribute("data-sortid"); e.dataTransfer.effectAllowed = "move"; });
     item.addEventListener("dragover", (e) => { e.preventDefault(); item.classList.add("cat-drag-over"); });
     item.addEventListener("dragleave", () => { item.classList.remove("cat-drag-over"); });
-    item.addEventListener("drop", async (e) => {
+    item.addEventListener("drop", (e) => {
       e.preventDefault(); item.classList.remove("cat-drag-over");
       const targetId = item.getAttribute("data-sortid"), listType = item.getAttribute("data-type");
       if (!draggedSortId || draggedSortId === targetId) return;
@@ -802,14 +887,25 @@ function setupNewHotDragAndDrop() {
         const f = allProducts.find(x => x.id === prod.id);
         if(f) { if(listType === "hot") f.hotOrder = idx; else f.newOrder = idx; }
       });
+      
       render(); renderAdminDragSortLists();
-
-      try {
-        console.log(`[Drag-Sort] กำลังอัปเดตตำแหน่งสินค้ากลุ่มพิเศษ (${listType}) บน Server...`);
-        for (let i = 0; i < currentFilteredGroup.length; i++) {
-          await updateDoc(doc(db, "products", currentFilteredGroup[i].id), listType === "hot" ? { hotOrder: i } : { newOrder: i });
-        }
-      } catch (err) { console.error(err); }
     });
   });
 }
+
+// บันทึกโครงสร้างตำแหน่งการสลับกลุ่ม HOT และ NEW ในปุ่มเซฟร่วมด้วย
+window.saveSpecialGroupOrdersManually = async () => {
+  try {
+    alert("⏳ กำลังบันทึกมัดรวมโครงสร้างลำดับกลุ่ม HOT และ NEW ขึ้นสู่ระบบ Cloud...");
+    const batch = writeBatch(db);
+    allProducts.forEach(prod => {
+      const productDocRef = doc(db, "products", prod.id);
+      batch.update(productDocRef, {
+        hotOrder: prod.hotOrder ?? 0,
+        newOrder: prod.newOrder ?? 0
+      });
+    });
+    await batch.commit();
+    alert("💾 บันทึกลำดับกลุ่มสินค้า HOT และ NEW ลง Cloud เรียบร้อยแล้ว!");
+  } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกกลุ่มพิเศษ: " + err.message); }
+};
