@@ -13,7 +13,6 @@ import {
   query,
   orderBy,
   getDocs,
-  onSnapshot,
   writeBatch 
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -262,13 +261,13 @@ window.resetAllProductsClick = async () => {
   }
 };
 
-/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (อ่านจาก Cache ก่อนเสมอ ทั้ง PC และมือถือ) ================= */
+/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (ดึงครั้งเดียวตอนโหลดหน้า/รีเฟรช ไม่วิ่งเอง) ================= */
 function checkSnapshotMetadata(snapshot, typeName) {
   const fromCache = snapshot.metadata.fromCache;
   if (fromCache) {
-    console.log(`%c✔ [🟢 ${typeName} 0 READ] โหลดจาก Cache บนบราวเซอร์สำเร็จ! ไม่เสียสิทธิ์โควตาอ่านคลาวด์ -> ${snapshot.size} รายการ`, "color: #2ecc71; font-weight: bold;");
+    console.log(`%c✔ [🟢 ${typeName} 0 READ] โหลดจาก Cache บนบราวเซอร์สำเร็จ! ไม่เสียสิทธิ์โควตาอ่านคลาวด์ -> ${snapshot.size || 1} รายการ`, "color: #2ecc71; font-weight: bold;");
   } else {
-    console.log(`%c⚠ [🔵 ${typeName} SERVER READ] ข้อมูลอัปเดตใหม่ดึงจาก Server -> เสียโควตาอ่านคลาวด์จำนวน ${snapshot.size} รายการ`, "color: #3498db; font-weight: bold;");
+    console.log(`%c⚠ [🔵 ${typeName} SERVER READ] ข้อมูลใหม่ดึงจาก Server -> เสียโควตาอ่านคลาวด์จำนวน ${snapshot.size || 1} รายการ`, "color: #3498db; font-weight: bold;");
   }
 }
 
@@ -280,18 +279,20 @@ async function listenCategoriesData() {
     if (!cacheSnap.empty) {
       checkSnapshotMetadata(cacheSnap, "หมวดหมู่สินค้า");
       processCategoriesSnapshot(cacheSnap);
+      return; 
     }
   } catch (e) {
     console.log("[ระบบเตรียมข้อมูล] ยังไม่มีไฟล์ Cache หมวดหมู่บนอุปกรณ์นี้");
   }
 
-  onSnapshot(q, (snapshot) => {
-    const fromCache = snapshot.metadata.fromCache;
-    if (!fromCache) {
-      checkSnapshotMetadata(snapshot, "หมวดหมู่สินค้า (Realtime)");
-      processCategoriesSnapshot(snapshot);
-    }
-  }, (err) => console.error("Error listening categories:", err));
+  // หากไม่มี Cache หรือต้องการดึงค่าล่าสุดจาก Server (ดึงครั้งเดียวจบ ไม่เปิดฟังสด)
+  try {
+    const serverSnap = await getDocs(q);
+    checkSnapshotMetadata(serverSnap, "หมวดหมู่สินค้า (Server)");
+    processCategoriesSnapshot(serverSnap);
+  } catch (err) {
+    console.error("Error fetching categories:", err);
+  }
 }
 
 function processCategoriesSnapshot(snapshot) {
@@ -305,23 +306,25 @@ function processCategoriesSnapshot(snapshot) {
 
 async function listenProductsData() {
   try {
-    // บังคับดึงสินค้าจาก Cache เพื่อประหยัดการ Read สูงสุดทั้งบนคอมและมือถือเวลาลูกค้ากด F5
+    // บังคับดึงสินค้าจาก Cache เพื่อประหยัดการ Read สูงสุดเวลาลูกค้ากด F5
     const cacheSnap = await getDocs(productsRef, { source: 'cache' });
     if (!cacheSnap.empty) {
       checkSnapshotMetadata(cacheSnap, "ข้อมูลสินค้า");
       processProductsSnapshot(cacheSnap);
+      return; 
     }
   } catch (e) {
     console.log("[ระบบเตรียมข้อมูล] ยังไม่มีไฟล์ Cache สินค้าบนอุปกรณ์นี้");
   }
 
-  onSnapshot(productsRef, (snapshot) => {
-    const fromCache = snapshot.metadata.fromCache;
-    if (!fromCache) {
-      checkSnapshotMetadata(snapshot, "ข้อมูลสินค้า (Realtime)");
-      processProductsSnapshot(snapshot);
-    }
-  }, (err) => console.error("Error listening products:", err));
+  // หากไม่มี Cache หรือต้องการดึงค่าล่าสุดจาก Server (ดึงครั้งเดียวจบ ไม่เปิดฟังสด)
+  try {
+    const serverSnap = await getDocs(productsRef);
+    checkSnapshotMetadata(serverSnap, "ข้อมูลสินค้า (Server)");
+    processProductsSnapshot(serverSnap);
+  } catch (err) {
+    console.error("Error fetching products:", err);
+  }
 }
 
 function processProductsSnapshot(snapshot) {
@@ -335,26 +338,47 @@ function processProductsSnapshot(snapshot) {
   renderAdminDragSortLists();
 }
 
-function fetchWidgetSettings() {
-  onSnapshot(doc(db, "settings", "shopee_promo_widget"), (docSnap) => {
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      currentWidgetState = {
-        imageUrl: data.imageUrl || "https://i.postimg.cc/9F4P0hX8/gift-box.png",
-        buttonLink: data.buttonLink || "https://s.shopee.co.th/1VwHRlinNy",
-        visible: data.visible !== undefined ? data.visible : true
-      };
+async function fetchWidgetSettings() {
+  const docRef = doc(db, "settings", "shopee_promo_widget");
+  
+  try {
+    // พยายามดึงจาก Cache ก่อน
+    const cacheSnap = await getDoc(docRef, { source: 'cache' });
+    if (cacheSnap.exists()) {
+      applyWidgetSettings(cacheSnap);
+      return;
     }
-    if (widgetGiftImg) widgetGiftImg.src = currentWidgetState.imageUrl;
-    if (widgetMainLink) widgetMainLink.href = currentWidgetState.buttonLink;
-    if (shopeePromoWidget) shopeePromoWidget.style.display = currentWidgetState.visible ? "block" : "none";
+  } catch (e) {
+    // ไม่มี cache ไม่เป็นไร เดี๋ยวไปดึงจาก Server ต่อ
+  }
 
-    if (isAdmin) {
-      if (widgetImageInput && document.activeElement !== widgetImageInput) widgetImageInput.value = currentWidgetState.imageUrl;
-      if (widgetLinkInput && document.activeElement !== widgetLinkInput) widgetLinkInput.value = currentWidgetState.buttonLink;
-      if (widgetVisibleCheck) widgetVisibleCheck.checked = !!currentWidgetState.visible;
-    }
-  });
+  // ดึงข้อมูลครั้งเดียวจาก Server (ไม่เปิดฟังสด)
+  try {
+    const serverSnap = await getDoc(docRef);
+    applyWidgetSettings(serverSnap);
+  } catch (err) {
+    console.error("Error fetching widget settings:", err);
+  }
+}
+
+function applyWidgetSettings(docSnap) {
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    currentWidgetState = {
+      imageUrl: data.imageUrl || "https://i.postimg.cc/9F4P0hX8/gift-box.png",
+      buttonLink: data.buttonLink || "https://s.shopee.co.th/1VwHRlinNy",
+      visible: data.visible !== undefined ? data.visible : true
+    };
+  }
+  if (widgetGiftImg) widgetGiftImg.src = currentWidgetState.imageUrl;
+  if (widgetMainLink) widgetMainLink.href = currentWidgetState.buttonLink;
+  if (shopeePromoWidget) shopeePromoWidget.style.display = currentWidgetState.visible ? "block" : "none";
+
+  if (isAdmin) {
+    if (widgetImageInput && document.activeElement !== widgetImageInput) widgetImageInput.value = currentWidgetState.imageUrl;
+    if (widgetLinkInput && document.activeElement !== widgetLinkInput) widgetLinkInput.value = currentWidgetState.buttonLink;
+    if (widgetVisibleCheck) widgetVisibleCheck.checked = !!currentWidgetState.visible;
+  }
 }
 
 /* ================= 📦 การจัดรูปสินค้า (Component Card) ================= */
@@ -504,6 +528,9 @@ window.handleQuickPriceKey = async (event, productId) => {
         const productDocRef = doc(db, "products", productId);
         await updateDoc(productDocRef, updateFields);
         console.log(`[CLOUD UPDATE] อัปเดตราคาด่วนลงฐานข้อมูลสำเร็จสำหรับ ID: ${productId}`);
+        // อัปเดต State ภายในแอปเบื้องต้นให้แสดงผลทันทีหลังแก้ไขโดยไม่ต้องบังคับ F5 สำหรับผู้แก้ไข
+        allProducts[foundIdx] = { ...allProducts[foundIdx], ...updateFields };
+        render();
       } catch (err) {
         alert("ไม่สามารถบันทึกราคาลง Cloud ได้: " + err.message);
       }
@@ -514,12 +541,14 @@ window.handleQuickPriceKey = async (event, productId) => {
 window.clearQuickPrice = async (productId) => {
   try {
     const productDocRef = doc(db, "products", productId);
-    await updateDoc(productDocRef, {
-      price: 0,
-      salePrice: 0,
-      comingSoon: true
-    });
+    const updateFields = { price: 0, salePrice: 0, comingSoon: true };
+    await updateDoc(productDocRef, updateFields);
     console.log(`[CLOUD UPDATE] เคลียร์ราคาเป็น Coming Soon สำเร็จ`);
+    const foundIdx = allProducts.findIndex(p => p.id === productId);
+    if (foundIdx !== -1) {
+      allProducts[foundIdx] = { ...allProducts[foundIdx], ...updateFields };
+      render();
+    }
   } catch (err) {
     alert("เกิดข้อผิดพลาดบน Cloud: " + err.message);
   }
@@ -552,6 +581,11 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
       const productDocRef = doc(db, "products", productId);
       await updateDoc(productDocRef, { flashSaleEndTime: endTimeIsoString });
       console.log(`[CLOUD UPDATE] ล็อกเวลา Flash Sale ลง Cloud สำเร็จสำหรับ ID: ${productId}`);
+      const foundIdx = allProducts.findIndex(p => p.id === productId);
+      if (foundIdx !== -1) {
+        allProducts[foundIdx].flashSaleEndTime = endTimeIsoString;
+        render();
+      }
     } catch (err) {
       alert("ไม่สามารถบันทึกเวลา Flash Sale ลง Cloud ได้: " + err.message);
     }
@@ -563,6 +597,11 @@ window.clearQuickFlashSale = async (productId) => {
     const productDocRef = doc(db, "products", productId);
     await updateDoc(productDocRef, { flashSaleEndTime: "" });
     console.log(`[CLOUD UPDATE] ลบเวลา Flash Sale สำเร็จ`);
+    const foundIdx = allProducts.findIndex(p => p.id === productId);
+    if (foundIdx !== -1) {
+      allProducts[foundIdx].flashSaleEndTime = "";
+      render();
+    }
   } catch (err) {
     alert("เกิดข้อผิดพลาดบน Cloud: " + err.message);
   }
@@ -659,11 +698,11 @@ window.handleCategorySubmit = async () => {
   try {
     if (currentEditCategoryId) {
       await updateDoc(doc(db, "categories_list", currentEditCategoryId), { name: name });
-      alert("แก้ไขชื่อหมวดหมู่เรียบร้อย!");
+      alert("แก้ไขชื่อหมวดหมู่เรียบร้อย! กรุณารีเฟรชหน้าเว็บเพื่อดูโครงสร้างล่าสุดบนหน้าแรก");
     } else {
       const maxOrder = dbCategories.reduce((max, c) => ((c.order ?? 0) > max ? c.order : max), 0);
       await addDoc(categoriesRef, { name: name, order: maxOrder + 1 });
-      alert("เพิ่มหมวดหมู่สำเร็จ!");
+      alert("เพิ่มหมวดหมู่สำเร็จ! กรุณารีเฟรชหน้าเว็บเพื่อดูโครงสร้างล่าสุดบนหน้าแรก");
     }
     clearCategoryForm();
   } catch (error) { alert("เกิดข้อผิดพลาด: " + error.message); }
@@ -675,6 +714,8 @@ window.deleteCategory = async (id, name) => {
       await deleteDoc(doc(db, "categories_list", id));
       if (selectedCategory === name) selectedCategory = "ทั้งหมด";
       if (currentEditCategoryId === id) clearCategoryForm();
+      dbCategories = dbCategories.filter(c => c.id !== id);
+      render();
     } catch (error) { alert("ไม่สามารถลบหมวดหมู่ได้: " + error.message); }
   }
 };
@@ -836,7 +877,12 @@ window.handleProductSubmit = async () => {
   try {
     if (currentEditId) {
       await updateDoc(doc(db, "products", currentEditId), productData);
-      alert("แก้ไขข้อมูลสินค้าสำเร็จ!"); currentEditId = null; submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
+      alert("แก้ไขข้อมูลสินค้าสำเร็จ! กรุณารีเฟรชหน้าเว็บเพื่ออัปเดตผลลัพธ์บนหน้าร้าน"); 
+      const foundIdx = allProducts.findIndex(p => p.id === currentEditId);
+      if (foundIdx !== -1) {
+        allProducts[foundIdx] = { ...allProducts[foundIdx], ...productData };
+      }
+      currentEditId = null; submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
     } else {
       productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
       productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
@@ -844,9 +890,10 @@ window.handleProductSubmit = async () => {
       productData.flashSaleEndTime = ""; 
       productData.clickCount = 0; 
       await addDoc(productsRef, productData);
-      alert("เพิ่มสินค้าใหม่สำเร็จ!");
+      alert("เพิ่มสินค้าใหม่สำเร็จ! กรุณารีเฟรชหน้าเว็บเพื่อดึงข้อมูลเวอร์ชันล่าสุดขึ้นหน้าร้าน");
     }
     clearProductForm();
+    render();
   } catch (error) { alert("เกิดข้อผิดพลาด: " + error.message); }
 };
 
@@ -867,7 +914,10 @@ window.editProduct = async (id) => {
 window.deleteProduct = async (id) => {
   if (confirm("คุณแน่ใจใช่ไหมว่าจะลบสินค้ารากายนี้ออกจากระบบ?")) {
     try {
-      await deleteDoc(doc(db, "products", id)); alert("ลบสินค้าเรียบร้อยครับ");
+      await deleteDoc(doc(db, "products", id)); 
+      alert("ลบสินค้าเรียบร้อยครับ");
+      allProducts = allProducts.filter(p => p.id !== id);
+      render();
     } catch (error) { alert("ไม่สามารถลบได้: " + error.message); }
   }
 };
