@@ -43,7 +43,7 @@ const db = initializeFirestore(app, {
   })
 });
 
-console.log("%c╠══ [Firebase Max-Saver V3] บล็อกระบบปรับราคาด่วน/Flash Sale ไว้ใน RAM แล้ว ⚡", "color: #2ecc71; font-weight: bold;");
+console.log("%c╠══ [Firebase Max-Saver V5] ระบบล็อกดีเลย์ Write 4 ชั่วโมงสมบูรณ์แบบ (ทั้ง Admin และ User) 🔒", "color: #2ecc71; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -126,14 +126,78 @@ if (themeToggleBtn) {
   };
 }
 
-/* ================= 📊 ระบบนับยอดคลิกตรงเข้า Cloud เรียบลื่นเรียลไทม์ ================= */
+/* ================= 📊 ระบบนับยอดคลิกแบบดองส่งเป็นแพ็กเกจ (เซฟโควตา Write ขั้นสุด) ================= */
+
+// ฟังก์ชันดึงยอดคลิกสะสมค้างซิงค์จาก LocalStorage
+function getLocalPendingClicks() {
+  const data = localStorage.getItem("pending_clicks");
+  return data ? JSON.parse(data) : {};
+}
+
+// ฟังก์ชันเซฟยอดคลิกสะสมลงเครื่องชั่วคราว
+function saveLocalPendingClicks(clicks) {
+  localStorage.setItem("pending_clicks", JSON.stringify(clicks));
+}
+
+// ฟังก์ชันมัดรวมยอดคลิกทั้งหมดที่ดองไว้ แล้วยิงขึ้น Cloud ทีเดียว (Batch Update)
+async function syncPendingClicksToCloud() {
+  const pendingClicks = getLocalPendingClicks();
+  const productIds = Object.keys(pendingClicks);
+  
+  if (productIds.length === 0) return;
+
+  try {
+    console.log("%c⏳ [Firebase Saver] เริ่มทำการมัดรวมยอดคลิกสะสมทั้งหมดเพื่อซิงค์ขึ้น Cloud...", "color: #f39c12; font-weight: bold;");
+    const batch = writeBatch(db);
+    let hasUpdates = false;
+
+    productIds.forEach(productId => {
+      const addedClicks = pendingClicks[productId];
+      if (addedClicks > 0) {
+        const foundProd = allProducts.find(p => p.id === productId);
+        // อิงค่าจากเซิร์ฟเวอร์ล่าสุด ( snapshot ) + ยอดสะสมที่พึ่งกดเพิ่มเข้ามาในเครื่อง
+        const currentCloudCount = foundProd ? (foundProd.clickCount || 0) : 0;
+        
+        batch.update(doc(db, "products", productId), {
+          clickCount: currentCloudCount + addedClicks
+        });
+        hasUpdates = true;
+      }
+    });
+
+    if (hasUpdates) {
+      await batch.commit();
+      localStorage.setItem("last_click_sync_time", Date.now().toString());
+      saveLocalPendingClicks({}); // เคลียร์ตะกร้าค้างส่งเมื่อซิงค์สำเร็จ
+      console.log("%c✅ [Firebase Saver] มัดรวมยอดคลิกสะสมส่งขึ้น Cloud สำเร็จ! ประหยัดจำนวน Write ไปได้อย่างมหาศาล", "color: #2ecc71; font-weight: bold;");
+    }
+  } catch (err) {
+    console.error("เกิดข้อผิดพลาดในการซิงค์ยอดคลิกสะสม:", err);
+  }
+}
+
+// ฟังก์ชันเช็ครอบเวลา 4 ชั่วโมง
+function checkAndTriggerIntervalSync() {
+  const lastSync = localStorage.getItem("last_click_sync_time");
+  const fourHoursMs = 4 * 60 * 60 * 1000; // 4 ชั่วโมง
+
+  if (!lastSync || (Date.now() - parseInt(lastSync)) >= fourHoursMs) {
+    syncPendingClicksToCloud();
+  } else {
+    const timeRemaining = fourHoursMs - (Date.now() - parseInt(lastSync));
+    const minutesLeft = Math.round(timeRemaining / 60000);
+    console.log(`%c⏱️ [Firebase Saver] ระบบกำลังสะสมยอดคลิกในเครื่อง รอบซิงค์ถัดไปในอีก ${minutesLeft} นาที`, "color: #9b59b6;");
+  }
+}
+
 window.trackProductClick = async (productId) => {
   const foundProd = allProducts.find(p => p.id === productId);
   if (!foundProd) return;
 
   const pName = foundProd.name || "สินค้ารายการนี้";
-  console.log(`%c[Click Registered] มีการกดคลิกลิงก์: ${pName}`, "color: #f1c40f;");
 
+  // 1. อัปเดตในหน่วยความจำ (RAM) หน้าเว็บปัจจุบันทันที 
+  // ทำให้ไม่ว่าจะเป็น Admin หรือผู้ใช้ จะเห็นตัวเลขจำนวนคลิกบนหน้าจอขยับเรียลไทม์ทันทีโดยไม่ต้องรอ 4 ชั่วโมง
   if (foundProd.clickCount === undefined) foundProd.clickCount = 0;
   foundProd.clickCount += 1;
 
@@ -142,12 +206,14 @@ window.trackProductClick = async (productId) => {
     renderAdminDragSortLists();
   }
 
-  try {
-    const productDocRef = doc(db, "products", productId);
-    await updateDoc(productDocRef, { clickCount: foundProd.clickCount });
-  } catch (err) {
-    console.error("Firebase Update Log Error:", err);
-  }
+  // 2. บันทึกสะสมยอด (+1) ลง LocalStorage ไว้ก่อนเสมือนเป็นตะกร้าพักข้อมูล
+  console.log(`%c[Click Registered] สะสมยอดคลิกเข้าเครื่องชั่วคราว: ${pName}`, "color: #3498db;");
+  const pending = getLocalPendingClicks();
+  pending[productId] = (pending[productId] || 0) + 1;
+  saveLocalPendingClicks(pending);
+  
+  // 3. ตรวจสอบเงื่อนไขเวลา ถ้าเกิน 4 ชั่วโมงแล้วถึงจะยอมปล่อยปล่อยข้อมูลขึ้น Cloud
+  checkAndTriggerIntervalSync();
 
   if (typeof gtag !== 'undefined') {
     gtag('event', 'click_affiliate_link', {
@@ -160,6 +226,11 @@ window.trackProductClick = async (productId) => {
 window.resetProductClick = async (productId) => {
   if (confirm("คุณแน่ใจใช่ไหมว่าต้องการล้างจำนวนคลิกเข้าชมของสินค้ารายการนี้ให้เริ่มต้นเป็น 0 ครั้งใหม่บนคลาวด์?")) {
     try {
+      // เคลียร์ยอดค้างส่งใน LocalStorage ของสินค้านี้ออกด้วยป้องกันข้อมูลทับซ้อน
+      const pending = getLocalPendingClicks();
+      delete pending[productId];
+      saveLocalPendingClicks(pending);
+
       const productDocRef = doc(db, "products", productId);
       await updateDoc(productDocRef, { clickCount: 0 });
       alert("🗑️ ล้างสถิติจนวนการคลิกของสินค้าชิ้นนี้เป็น 0 สำเร็จ!");
@@ -178,13 +249,26 @@ window.resetAllProductsClick = async () => {
   if (!confirmFirst) return;
 
   try {
-    alert("⏳ ระบบกำลังรีเซ็ตค่าคลิกของสินค้าทั้งหมดลง Cloud โปรดรอสักครู่...");
+    alert("⏳ ระบบกำลังรีเซ็ตค่าคลิกของสินค้าทั้งหมดลง Cloud และเครื่อง โปรดรอสักครู่...");
+    
+    // 🔥 [LOCALSTORAGE NUKE] ล้างข้อมูลที่ดองค้างอยู่ใน LocalStorage ของเครื่องนี้ทิ้งทั้งหมดแบบ 100%
+    localStorage.setItem("pending_clicks", "{}"); 
+    console.log("%c[Storage Nuked] ล้างฐานข้อมูลดองยอดคลิกทั้งหมดในเครื่องสำเร็จ", "color: #e74c3c; font-weight: bold;");
+
+    // อัปเดตค่าใน RAM ของสินค้าทุกตัวให้กลายเป็น 0 ทันที
+    allProducts.forEach(prod => {
+      prod.clickCount = 0;
+    });
+    render();
+    renderAdminDragSortLists();
+
+    // มัดรวมสั่งเคลียร์ยอดคลิกสินค้าทุกชิ้นบน Cloud ให้เป็น 0 ในหนึ่ง Batch
     const batch = writeBatch(db);
     allProducts.forEach(prod => {
       batch.update(doc(db, "products", prod.id), { clickCount: 0 });
     });
     await batch.commit();
-    alert("✅ รีเซ็ตสถิติจำนวนการคลิกทั้งหมดกลับเป็น 0 สำเร็จเรียบร้อยแล้วครับ!");
+    alert("✅ รีเซ็ตสถิติจำนวนการคลิกทั้งหมดกลับเป็น 0 ทั้งบนหน้าจอ ในเครื่อง และบนคลาวด์ สำเร็จเรียบร้อยแล้วครับ!");
   } catch (err) {
     alert("เกิดข้อผิดพลาด: " + err.message);
   }
@@ -235,6 +319,10 @@ function processProductsSnapshot(snapshot) {
   snapshot.forEach(docSnap => {
     allProducts.push({ id: docSnap.id, ...docSnap.data() });
   });
+  
+  // เช็คและเปิดทำงานการซิงค์ยอดสะสมทันทีเมื่อแอดมินหรือยูสเซอร์เปิดหน้าเว็บขึ้นมาใหม่
+  checkAndTriggerIntervalSync();
+  
   render();
   renderAdminDragSortLists();
 }
@@ -340,11 +428,13 @@ function card(p, index){
   const imageHtml = imageLink ? `<a href="${imageLink}" target="_blank" class="card-img-link" onclick="trackProductClick('${p.id}')"><img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}"></a>` : `<img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}" class="no-link-img">`;
 
   let flashSaleTimerHtml = "";
-  if (!isProductComingSoon && currentFlashSaleTimeVal) {
+  const isFlashSaleActive = currentFlashSaleTimeVal ? (new Date(currentFlashSaleTimeVal).getTime() - new Date().getTime() > 0) : false;
+
+  if (!isProductComingSoon && currentFlashSaleTimeVal && isFlashSaleActive) {
     flashSaleTimerHtml = `
-      <div class="card-flash-sale-box">
+      <div class="card-flash-sale-box" id="flash-box-${p.id}">
         <span class="flash-sale-badge-text">Flash Sale</span>
-        <div class="flash-sale-countdown-clock dynamic-countdown-timer" data-endtime="${currentFlashSaleTimeVal}">00h 00m 00s</div>
+        <div class="flash-sale-countdown-clock dynamic-countdown-timer" data-id="${p.id}" data-endtime="${currentFlashSaleTimeVal}">00h 00m 00s</div>
       </div>
     `;
   }
@@ -379,19 +469,19 @@ function card(p, index){
           </div>
           <div class="quick-admin-controls-wrapper">
             <div class="quick-price-box">
-              <label>⚡️ ราคาด่วน (จำใน RAM):</label>
+              <label>⚡️ ราคาด่วน (ยิงตรง Cloud ทันที):</label>
               <div class="quick-price-row">
                 <input type="text" class="quick-price-input" value="${currentQuickPriceVal}" placeholder="ระบุราคา..." onkeydown="handleQuickPriceKey(event, '${p.id}')">
                 <button class="quick-price-clear-btn" title="เคลียร์ค่าเป็น Coming Soon" onclick="clearQuickPrice('${p.id}')">✕</button>
               </div>
             </div>
             <div class="quick-flash-sale-box">
-              <label>⏰ ตั้งเวลา Flash Sale (จำใน RAM):</label>
+              <label>⏰ ตั้งเวลา Flash Sale (ยิงตรง Cloud ทันที):</label>
               <div class="quick-price-row">
                 <input type="text" class="quick-date-input" value="" placeholder="เช่น 2 หรือ 45m..." onkeydown="handleQuickFlashSaleKey(event, '${p.id}')">
                 <button class="quick-price-clear-btn" title="ลบเวลา Flash Sale ออก" onclick="clearQuickFlashSale('${p.id}')">✕</button>
               </div>
-              ${currentFlashSaleTimeVal ? `<div style="font-size:11px; color:var(--price-green); margin-top:4px; font-weight:bold;">⏱️ มีการล็อกเวลานับถอยหลังใน RAM</div>` : ""}
+              ${currentFlashSaleTimeVal ? `<div style="font-size:11px; color:var(--price-green); margin-top:4px; font-weight:bold;">⏱️ เปิดใช้งานโปรโมชั่นอยู่บน Cloud</div>` : ""}
             </div>
           </div>
         ` : ""}
@@ -401,8 +491,8 @@ function card(p, index){
   `;
 }
 
-/* ================= 🎯 ระบบบันทึกด่วนลงชั่วคราวบน RAM (ไม่ยิง Cloud ทันที) ================= */
-window.handleQuickPriceKey = (event, productId) => {
+/* ================= 🎯 ระบบบันทึกด่วนและแก้ไขแบบเรียลไทม์ลง Cloud ทันที ================= */
+window.handleQuickPriceKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault();
     const inputVal = event.target.value.trim();
@@ -411,33 +501,43 @@ window.handleQuickPriceKey = (event, productId) => {
 
     const foundIdx = allProducts.findIndex(p => p.id === productId);
     if (foundIdx !== -1) {
+      let updateFields = { comingSoon: false };
       const oldPrice = allProducts[foundIdx].price ? Number(allProducts[foundIdx].price) : 0;
-      if (oldPrice > 0 && newPriceNum < oldPrice) {
-        allProducts[foundIdx].salePrice = newPriceNum;
-      } else {
-        allProducts[foundIdx].price = newPriceNum;
-        allProducts[foundIdx].salePrice = 0;
-      }
-      allProducts[foundIdx].comingSoon = false;
       
-      console.log(`[RAM UPDATE] แก้ราคาด่วนชั่วคราวในเครื่องสำเร็จ:`, allProducts[foundIdx]);
-      event.target.blur();
-      render();
+      if (oldPrice > 0 && newPriceNum < oldPrice) {
+        updateFields.salePrice = newPriceNum;
+      } else {
+        updateFields.price = newPriceNum;
+        updateFields.salePrice = 0;
+      }
+
+      try {
+        event.target.blur();
+        const productDocRef = doc(db, "products", productId);
+        await updateDoc(productDocRef, updateFields);
+        console.log(`[CLOUD UPDATE] อัปเดตราคาด่วนลงฐานข้อมูลสำเร็จสำหรับ ID: ${productId}`);
+      } catch (err) {
+        alert("ไม่สามารถบันทึกราคาลง Cloud ได้: " + err.message);
+      }
     }
   }
 };
 
-window.clearQuickPrice = (productId) => {
-  const foundIdx = allProducts.findIndex(p => p.id === productId);
-  if (foundIdx !== -1) {
-    allProducts[foundIdx].price = 0;
-    allProducts[foundIdx].salePrice = 0;
-    allProducts[foundIdx].comingSoon = true;
-    render();
+window.clearQuickPrice = async (productId) => {
+  try {
+    const productDocRef = doc(db, "products", productId);
+    await updateDoc(productDocRef, {
+      price: 0,
+      salePrice: 0,
+      comingSoon: true
+    });
+    console.log(`[CLOUD UPDATE] เคลียร์ราคาเป็น Coming Soon สำเร็จ`);
+  } catch (err) {
+    alert("เกิดข้อผิดพลาดบน Cloud: " + err.message);
   }
 };
 
-window.handleQuickFlashSaleKey = (event, productId) => {
+window.handleQuickFlashSaleKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault();
     let inputVal = event.target.value.trim().toLowerCase();
@@ -458,22 +558,25 @@ window.handleQuickFlashSaleKey = (event, productId) => {
     }
     const endTimeIsoString = new Date(new Date().getTime() + targetMs).toISOString();
 
-    const foundIdx = allProducts.findIndex(p => p.id === productId);
-    if (foundIdx !== -1) {
-      allProducts[foundIdx].flashSaleEndTime = endTimeIsoString;
-      console.log(`[RAM UPDATE] ล็อกเวลา Flash Sale ชั่วคราวสำเร็จ:`, allProducts[foundIdx]);
+    try {
       event.target.value = ""; 
       event.target.blur();
-      render();
+      const productDocRef = doc(db, "products", productId);
+      await updateDoc(productDocRef, { flashSaleEndTime: endTimeIsoString });
+      console.log(`[CLOUD UPDATE] ล็อกเวลา Flash Sale ลง Cloud สำเร็จสำหรับ ID: ${productId}`);
+    } catch (err) {
+      alert("ไม่สามารถบันทึกเวลา Flash Sale ลง Cloud ได้: " + err.message);
     }
   }
 };
 
-window.clearQuickFlashSale = (productId) => {
-  const foundIdx = allProducts.findIndex(p => p.id === productId);
-  if (foundIdx !== -1) {
-    allProducts[foundIdx].flashSaleEndTime = "";
-    render();
+window.clearQuickFlashSale = async (productId) => {
+  try {
+    const productDocRef = doc(db, "products", productId);
+    await updateDoc(productDocRef, { flashSaleEndTime: "" });
+    console.log(`[CLOUD UPDATE] ลบเวลา Flash Sale สำเร็จ`);
+  } catch (err) {
+    alert("เกิดข้อผิดพลาดบน Cloud: " + err.message);
   }
 };
 
@@ -485,10 +588,16 @@ function startFlashSaleClockTicker() {
     if (timerElements.length === 0) return;
     timerElements.forEach(el => {
       const endTimeAttr = el.getAttribute("data-endtime");
+      const pId = el.getAttribute("data-id");
       if (!endTimeAttr) return;
+      
       const timeRemaining = new Date(endTimeAttr).getTime() - new Date().getTime();
+      
       if (timeRemaining <= 0) {
-        el.innerHTML = "หมดเวลาแจกโปร"; el.style.color = "var(--text-muted)";
+        const flashBox = document.getElementById(`flash-box-${pId}`);
+        if (flashBox) {
+          flashBox.style.display = "none";
+        }
       } else {
         const days = Math.floor(timeRemaining / 86400000);
         const hours = Math.floor((timeRemaining % 86400000) / 3600000);
@@ -663,7 +772,7 @@ function render(){
   
   if (isAdmin && currentSortMode === "tierlist") {
     if (dragNoticeEl) {
-      dragNoticeEl.innerHTML = `✨ <b>โหมดเซฟค่าด่วนในเครื่อง:</b> ลากสลับตำแหน่ง แก้ราคาด่วน หรือระบุ Flash sale ใน RAM ได้เต็มที่ เสร็จแล้วให้กดปุ่ม <button class='btn edit' style='padding:4px 10px; font-size:11px; background:#22c55e; color:#fff; border:none;' onclick='saveAllProductsOrderManually()'>💾 อัพเดตสินค้าทั้งหมด</button> เพื่อบันทึกโครงสร้างลง Cloud ในคลิกเดียวครับ`;
+      dragNoticeEl.innerHTML = `✨ <b>โหมดเซฟโครงสร้าง:</b> ระบบราคาด่วนและ Flash Sale จะเซฟลง Cloud ทันทีเมื่อกด Enter ส่วนการลากสลับตำแหน่งสินค้าในเครื่องเสร็จแล้วให้กดปุ่ม <button class='btn edit' style='padding:4px 10px; font-size:11px; background:#22c55e; color:#fff; border:none;' onclick='saveAllProductsOrderManually()'>💾 อัพเดตลำดับสินค้าทั้งหมด</button> เพื่อบันทึกโครงสร้างตำแหน่งลง Cloud ครับ`;
       dragNoticeEl.style.display = "block";
     }
     setupProductDragAndDrop(filtered);
@@ -673,7 +782,7 @@ function render(){
   startFlashSaleClockTicker();
 }
 
-/* ================= 🔀 ระบบลากและวางสินค้าสำหรับแอดมิน (เซฟตำแหน่งชั่วคราวใน RAM) ================= */
+/* ================= 🔀 ระบบลากและวางสินค้าสำหรับแอดมิน ================= */
 function setupProductDragAndDrop(currentFilteredProducts) {
   const cards = document.querySelectorAll("#products .card.admin-draggable");
   cards.forEach(cardItem => {
@@ -703,27 +812,23 @@ function setupProductDragAndDrop(currentFilteredProducts) {
   });
 }
 
-/* ================= 💾 ปุ่มเดียวเบ็ดเสร็จ: อัพเดตสินค้าทั้งหมด (Batch Write รวม ลำดับ, ราคา, Flash Sale) ================= */
+/* ================= 💾 บันทึกเฉพาะลำดับโครงสร้างสินค้าลง Cloud ================= */
 window.saveAllProductsOrderManually = async () => {
   try {
-    alert("⏳ ระบบกำลังมัดรวมข้อมูลทั้งหมด (ลำดับ, ราคาด่วน, เวลา Flash Sale) ส่งขึ้น Cloud...");
+    alert("⏳ ระบบกำลังมัดรวมข้อมูลโครงสร้างลำดับจัดวาง (Order) ส่งขึ้น Cloud...");
     const batch = writeBatch(db);
     
     allProducts.forEach((prod, idx) => {
       const productDocRef = doc(db, "products", prod.id);
       batch.update(productDocRef, { 
-        order: prod.order ?? idx,
-        price: prod.price || 0,
-        salePrice: prod.salePrice || 0,
-        comingSoon: !!prod.comingSoon,
-        flashSaleEndTime: prod.flashSaleEndTime || ""
+        order: prod.order ?? idx
       });
     });
     
     await batch.commit();
     isOrderDirty = false;
-    alert("💾 อัพเดตข้อมูลสินค้าและลำดับโครงสร้างทั้งหมดลง Cloud เรียบร้อยแล้วครับ!");
-  } catch (err) { alert("เกิดข้อผิดพลาดในการอัพเดตข้อมูลสินค้า: " + err.message); }
+    alert("💾 อัพเดตลำดับจัดวางโครงสร้างทั้งหมดลง Cloud เรียบร้อยแล้วครับ!");
+  } catch (err) { alert("เกิดข้อผิดพลาดในการอัพเดตลำดับสินค้า: " + err.message); }
 };
 
 /* ================= 📝 บันทึกข้อมูลเพิ่ม/แก้ไขสินค้า ================= */
@@ -852,7 +957,7 @@ function initAutoSliders() {
   newSlideInterval = setInterval(() => window.scrollSlide("newProducts", "right"), 7000);
 }
 
-/* ================= 🔀 เรียงลำดับสินค้ากลุ่มพิเศษ HOT และ NEW ใน RAM ================= */
+/* ================= 🔀 เรียงลำดับสินค้ากลุ่มพิเศษ HOT และ NEW ================= */
 function renderAdminDragSortLists() {
   const adminHotDragList = document.getElementById("adminHotDragList"), adminNewDragList = document.getElementById("adminNewDragList");
   if (!adminHotDragList || !adminNewDragList) return;
@@ -893,7 +998,6 @@ function setupNewHotDragAndDrop() {
   });
 }
 
-// บันทึกโครงสร้างตำแหน่งการสลับกลุ่ม HOT และ NEW ในปุ่มเซฟร่วมด้วย
 window.saveSpecialGroupOrdersManually = async () => {
   try {
     alert("⏳ กำลังบันทึกมัดรวมโครงสร้างลำดับกลุ่ม HOT และ NEW ขึ้นสู่ระบบ Cloud...");
