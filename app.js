@@ -1051,3 +1051,13 @@ window.saveSpecialGroupOrdersManually = async () => {
     alert("💾 บันทึกลำดับกลุ่มสินค้า HOT และ NEW ลง Cloud เรียบร้อยแล้ว!");
   } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกกลุ่มพิเศษ: " + err.message); }
 };
+
+/* ================= 📱 ระบบปลุกหน้าเว็บเมื่อสลับแอปกลับมาบนมือถือ ================= */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    console.log("📱 ตื่นแล้ว! กำลังเช็กและดึงข้อมูลเวอร์ชันล่าสุด...");
+    listenCategoriesData();
+    listenProductsData();
+    fetchWidgetSettings();
+  }
+});
