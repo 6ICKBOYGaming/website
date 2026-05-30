@@ -1,4 +1,4 @@
-// 🟢 ใช้การเรียกผ่านจาวาสคริปต์โมดูล v10 ยิงตรงจากเครือข่ายความเร็วสูงของ gstatic 
+// 🟢 เรียกใช้งาน Firebase SDK ผ่านโครงข่าย CDN ความเร็วสูงในรูปแบบ Module
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   initializeFirestore,
@@ -21,7 +21,7 @@ const firebaseConfig = {
     measurementId: "G-3MGM3VH0PK"
 };
 
-// เริ่มระบบแบบ Direct Cloud (ไม่มีการเปิด localCache แย่งสิทธิ์กับหน้าหลัก)
+// เริ่มต้นระบบเชื่อมต่อฐานข้อมูลตรงเข้าสู่คลาวด์เซิร์ฟเวอร์ โดยไม่เปิดระบบแคชออฟไลน์ เพื่อไม่ให้ชนกับหน้าหลัก
 const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, {});
 
@@ -31,14 +31,14 @@ const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
 let trafficChart = null;
 
-console.log("%c╠══ [Firebase Modular-V10] เชื่อมต่อสถิติสดตรงจากคลาวด์เซิร์ฟเวอร์สำเร็จ", "color: #00ffff; font-weight: bold;");
+console.log("%c╠══ [Firebase Modular-V10.2] ระบบสถิติทำงานร่วมกับโฮสติ้งจริงสำเร็จ", "color: #00ffff; font-weight: bold;");
 
 initAnalyticsDashboard();
 
 async function initAnalyticsDashboard() {
   try {
     const analyticsRef = collection(db, "analytics");
-    // ดึงรายชื่อวันที่สถิติย้อนหลัง 30 วัน
+    // ดึงรายชื่อวันที่สถิติย้อนหลังสูงสุด 30 วัน
     const q = query(analyticsRef, orderBy("__name__", "desc"), limit(30));
     const snap = await getDocs(q);
 
@@ -55,10 +55,10 @@ async function initAnalyticsDashboard() {
     if (dateSelect) {
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
       
-      // ดึงและวาดกราฟของวันล่าสุดขึ้นมาก่อนเป็นอันดับแรก
+      // ดึงข้อมูลและวาดกราฟของวันล่าสุดขึ้นมาแสดงผลนำร่องก่อนทันที
       await loadDayData(dates[0]);
       
-      // อัปเดตกราฟทันทีเมื่อผู้ใช้เปลี่ยนตัวเลือกวันที่ใน Dropdown
+      // อัปเดตข้อมูลและกราฟอัตโนมัติเมื่อแอดมินเปลี่ยนตัวเลือกวันที่
       dateSelect.onchange = (e) => {
         if(e.target.value) loadDayData(e.target.value);
       };
@@ -78,6 +78,7 @@ async function loadDayData(dateString) {
 
     const data = docSnap.data();
 
+    // แสดงผลตัวเลขยอดรวมแบบมีคอมม่าคั่นหลักนับ
     if (txtPageViews) txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
     if (txtUniqueUsers) txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
 
@@ -85,7 +86,7 @@ async function loadDayData(dateString) {
     const chartLabels = [];
     const chartValues = [];
 
-    // วนลูปสร้างแกนสถิติเวลาให้ครบ 24 ชั่วโมง
+    // ประกอบโครงสร้างข้อมูลเวลาให้ครบถ้วน 24 ชั่วโมง (00:00 - 23:00)
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
       chartValues.push(hourlyData[h] || 0); 
@@ -103,6 +104,7 @@ function renderHourlyChart(labels, values) {
   if (!chartCanvas) return;
   const ctx = chartCanvas.getContext('2d');
   
+  // ล้างค่าและทำลายกราฟเก่าทิ้งก่อนวาดใหม่ เพื่อป้องกันอาการกราฟซ้อนกันเวลาสลับวัน
   if (trafficChart) {
     trafficChart.destroy();
   }
