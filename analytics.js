@@ -1,3 +1,16 @@
+// 🟢 ใช้การเรียกผ่านจาวาสคริปต์โมดูล v10 ยิงตรงจากเครือข่ายความเร็วสูงของ gstatic 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  initializeFirestore,
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  query,
+  orderBy,
+  limit
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 const firebaseConfig = {
     apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
     authDomain: "ickboy-store.firebaseapp.com",
@@ -8,42 +21,26 @@ const firebaseConfig = {
     measurementId: "G-3MGM3VH0PK"
 };
 
-let db = null;
-let trafficChart = null;
+// เริ่มระบบแบบ Direct Cloud (ไม่มีการเปิด localCache แย่งสิทธิ์กับหน้าหลัก)
+const app = initializeApp(firebaseConfig);
+const db = initializeFirestore(app, {});
 
 const dateSelect = document.getElementById("dateSelect");
 const txtPageViews = document.getElementById("txtPageViews");
 const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
-// 🟢 แก้ไขจุดสำคัญ: ห่อคำสั่งด้วย window.onload เพื่อรอให้ดาวน์โหลด Firebase SDK เสร็จสิ้นก่อนเริ่มรันโค้ด
-window.onload = function() {
-    try {
-        if (typeof firebase === "undefined") {
-            console.error("🚨 ไม่สามารถโหลดไลบรารี Firebase SDK ได้ กรุณาเช็กการเชื่อมต่ออินเทอร์เน็ต");
-            if(dateSelect) dateSelect.innerHTML = "<option>โหลดระบบฐานข้อมูลล้มเหลว</option>";
-            return;
-        }
+let trafficChart = null;
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        db = firebase.firestore();
-        
-        console.log("%c╠══ [Firebase Live-V10.0] โหลดคลาวด์ไลบรารีและเชื่อมต่อฐานข้อมูลตรงสำเร็จ", "color: #00ffff; font-weight: bold;");
-        
-        // เริ่มต้นทำงานดึงข้อมูลแดชบอร์ด
-        initAnalyticsDashboard();
+console.log("%c╠══ [Firebase Modular-V10] เชื่อมต่อสถิติสดตรงจากคลาวด์เซิร์ฟเวอร์สำเร็จ", "color: #00ffff; font-weight: bold;");
 
-    } catch (e) {
-        console.error("Firebase Init Crash:", e);
-    }
-};
+initAnalyticsDashboard();
 
 async function initAnalyticsDashboard() {
   try {
-    if(!db) return;
-    // ดึงข้อมูลสถิติ 30 วันย้อนหลังจากคลาวด์แบบ Direct
-    const snap = await db.collection("analytics").orderBy("__name__", "desc").limit(30).get();
+    const analyticsRef = collection(db, "analytics");
+    // ดึงรายชื่อวันที่สถิติย้อนหลัง 30 วัน
+    const q = query(analyticsRef, orderBy("__name__", "desc"), limit(30));
+    const snap = await getDocs(q);
 
     if (snap.empty) {
       if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ยังไม่มีข้อมูลสถิติบันทึกเข้ามา --</option>";
@@ -58,9 +55,10 @@ async function initAnalyticsDashboard() {
     if (dateSelect) {
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
       
-      // ดึงสถิติของวันล่าสุดขึ้นมาจัดแสดงและวาดกราฟเริ่มต้น
+      // ดึงและวาดกราฟของวันล่าสุดขึ้นมาก่อนเป็นอันดับแรก
       await loadDayData(dates[0]);
       
+      // อัปเดตกราฟทันทีเมื่อผู้ใช้เปลี่ยนตัวเลือกวันที่ใน Dropdown
       dateSelect.onchange = (e) => {
         if(e.target.value) loadDayData(e.target.value);
       };
@@ -74,9 +72,9 @@ async function initAnalyticsDashboard() {
 
 async function loadDayData(dateString) {
   try {
-    if(!db) return;
-    const docSnap = await db.collection("analytics").doc(dateString).get();
-    if (!docSnap.exists) return;
+    const docRef = doc(db, "analytics", dateString);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
 
     const data = docSnap.data();
 
@@ -87,6 +85,7 @@ async function loadDayData(dateString) {
     const chartLabels = [];
     const chartValues = [];
 
+    // วนลูปสร้างแกนสถิติเวลาให้ครบ 24 ชั่วโมง
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
       chartValues.push(hourlyData[h] || 0); 
