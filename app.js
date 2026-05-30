@@ -568,12 +568,25 @@ function card(p, index){
     tierBadgeHtml = `<div class="tier-badge rank-${displayRank}">${displayRank}</div>`;
   }
 
-  let adminLogoBadgeHtml = "";
+let adminLogoBadgeHtml = "";
   if (currentAdminRecommendState) {
     adminLogoBadgeHtml = `
-      <div class="admin-custom-logo-badge" style="position: absolute; top: 10px; left: 10px; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 10;">
-        <img src="${ADMIN_BADGE_LOGO_URL}" style="width: 100%; height: 100%; object-fit: cover;">
-      </div>
+      <div class="admin-custom-logo-badge" style="
+        position: absolute; 
+        top: 8px; 
+        left: 8px; 
+        width: 32px; 
+        height: 32px; 
+        border-radius: 50% !important; 
+        overflow: hidden !important;
+        border: 2px solid #ffffff !important; 
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3); 
+        z-index: 99 !important; 
+        background-image: url('${ADMIN_BADGE_LOGO_URL}') !important;
+        background-position: center center !important;
+        background-repeat: no-repeat !important;
+        background-size: cover !important;
+      "></div>
     `;
   }
 
