@@ -845,7 +845,7 @@ function renderAdminView() {
     dragNoticeEl.innerHTML = `
       <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:rgba(16, 185, 129, 0.1); border:1px solid #10b981; padding:12px; border-radius:8px; margin-bottom:15px; width:100%; box-sizing:border-box;">
         <span style="flex:1; font-size:13px; color:#10b981;">🟢 <b>ระบบออนไลน์ Realtime:</b> กำลังมีผู้เข้าชมขณะนี้ <strong id="realtimeUsersCountDisplay" style="font-size:18px; text-shadow: 0 0 8px #10b981;">0</strong> คน</span>
-        <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#a855f7; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;' onclick="window.open('analytics.html', '_blank')">📊 ดูข้อมูลเชิงลึก</button>
+        <a href="analytics.html" target="_blank" class="btn edit" style="display: inline-block; text-align: center; text-decoration: none; background: #a855f7; color: #fff;">📊 ดูข้อมูลเชิงลึก</a>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#eab308; color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:bold;' onclick='checkOnlineUsersCountManual()'>👁️ เช็กยอดผู้เข้าชมด่วน</button>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='forceSyncClicksToCloud()'>🔄 อัปเดตยอดคลิกสะสมขึ้นคลาวด์</button>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#10b981; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้าทั้งหมด</button>

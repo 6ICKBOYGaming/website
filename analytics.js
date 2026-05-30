@@ -1,15 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  initializeFirestore,
-  collection,
-  getDocs,
-  getDoc,
-  doc,
-  query,
-  orderBy,
-  limit
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 const firebaseConfig = {
     apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
     authDomain: "ickboy-store.firebaseapp.com",
@@ -20,11 +8,11 @@ const firebaseConfig = {
     measurementId: "G-3MGM3VH0PK"
 };
 
-// 1. เริ่มต้นการทำงานของ Firebase App
-const app = initializeApp(firebaseConfig);
-
-// 🟢 แก้ไขจุดสำคัญ: บังคับให้หน้าสถิติต่อตรงเข้าคลาวด์ ไม่ผ่าน Local Cache เพื่อแก้ปัญหาแท็บชนกันบนโฮสต์จริง
-const db = initializeFirestore(app, {});
+// 🟢 เริ่มต้นการทำงาน Firebase ในโหมด Direct-Cloud ไร้แรงเสียดทานแคชตีกระทบ
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
 
 const dateSelect = document.getElementById("dateSelect");
 const txtPageViews = document.getElementById("txtPageViews");
@@ -32,21 +20,17 @@ const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
 let trafficChart = null;
 
-console.log("%c╠══ [Firebase V8.0] หน้าจอ Analytics ทำงานผ่านระบบ Direct-Cloud เชื่อมต่อสำเร็จ", "color: #00ffff; font-weight: bold;");
+console.log("%c╠══ [Firebase Live-V9.0] เชื่อมต่อสถิติฐานข้อมูลเซิร์ฟเวอร์เสร็จสมบูรณ์", "color: #00ffff; font-weight: bold;");
 
-// เรียกฟังก์ชันเริ่มทำงานระบบแดชบอร์ด
 initAnalyticsDashboard();
 
 async function initAnalyticsDashboard() {
   try {
-    const analyticsRef = collection(db, "analytics");
-    // ทำการดึงข้อมูลสถิติย้อนหลังสูงสุด 30 วัน เรียงตามชื่อเอกสาร (วันที่) ล่าสุดลงไป
-    const q = query(analyticsRef, orderBy("__name__", "desc"), limit(30)); 
-    const snap = await getDocs(q);
+    // ดึงข้อมูลสถิติ 30 วันล่าสุดยิงตรงจาก Cloud
+    const snap = await db.collection("analytics").orderBy("__name__", "desc").limit(30).get();
 
     if (snap.empty) {
-      if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ยังไม่มีข้อมูลสถิติบันทึกเข้ามา --</option>";
-      console.log("📈 ไม่พบเอกสารประวัติสถิติใดๆ บนเซิร์ฟเวอร์ Cloud Firestore ขณะนี้");
+      if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ยังไม่มีข้อมูลสถิติบันทึกเข้ามาในระบบ --</option>";
       return;
     }
 
@@ -56,31 +40,29 @@ async function initAnalyticsDashboard() {
     });
 
     if (dateSelect) {
-      // เอาวันที่ทั้งหมดไปใส่ในตัวเลือก Dropdown บนหน้าเว็บ
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
       
-      // ดึงข้อมูลสถิติของวันล่าสุด (วันแรกในอาร์เรย์) มาวาดกราฟและแสดงผลเริ่มต้นทันที
+      // ดึงข้อมูลวันแรกสุดมาจัดแสดงและวาดโครงกราฟนำร่อง
       await loadDayData(dates[0]);
       
-      // ผูกกิจกรรมเมื่อแอดมินเลือกเปลี่ยนวันที่ดูสถิติ
       dateSelect.onchange = (e) => {
         if(e.target.value) loadDayData(e.target.value);
       };
     }
 
   } catch (error) {
-    console.error("เกิดข้อผิดพลาดในการโหลดแดชบอร์ดสถิติ:", error);
+    console.error("Dashboard Init Error:", error);
+    if(dateSelect) dateSelect.innerHTML = "<option value=''>เกิดข้อผิดพลาดในการโหลดข้อมูล</option>";
   }
 }
 
 async function loadDayData(dateString) {
   try {
-    const docSnap = await getDoc(doc(db, "analytics", dateString));
-    if (!docSnap.exists()) return;
+    const docSnap = await db.collection("analytics").doc(dateString).get();
+    if (!docSnap.exists) return;
 
     const data = docSnap.data();
 
-    // ทำการแสดงตัวเลขยอดรวมแบบมีคอมม่าคั่นค่านับ (เช่น 1,234 ครั้ง)
     if (txtPageViews) txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
     if (txtUniqueUsers) txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
 
@@ -88,17 +70,15 @@ async function loadDayData(dateString) {
     const chartLabels = [];
     const chartValues = [];
 
-    // ลูปประกอบโครงสร้างข้อมูลให้ครบถ้วนทั้ง 24 ชั่วโมง (00:00 - 23:00)
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
       chartValues.push(hourlyData[h] || 0); 
     }
 
-    // ส่งชุดข้อมูลพิกัดเวลาไปให้ระบบ Chart.js วาดกราฟเส้นสีนีออน
     renderHourlyChart(chartLabels, chartValues);
 
   } catch (err) {
-    console.error("เกิดข้อผิดพลาดในการดึงข้อมูลรายวัน:", err);
+    console.error("Load Day Data Error:", err);
   }
 }
 
@@ -107,15 +87,8 @@ function renderHourlyChart(labels, values) {
   if (!chartCanvas) return;
   const ctx = chartCanvas.getContext('2d');
   
-  // หากมีกราฟเก่าคาอยู่ให้ทำลายทิ้งก่อนเพื่อป้องกันกราฟเก่าซ้อนซ้ำเวลากดเปลี่ยนวัน
   if (trafficChart) {
     trafficChart.destroy();
-  }
-
-  // ตรวจสอบเช็กสถานะตัวแปรไลบรารี Chart.js ป้องกันตัวสคริปต์หยุดทำงานกลางคัน
-  if (typeof Chart === 'undefined') {
-    console.error("🚨 ไม่พบโครงข่ายไลบรารี Chart.js กรุณาเช็กการดึง Script ในหน้า HTML");
-    return;
   }
 
   trafficChart = new Chart(ctx, {
@@ -126,20 +99,19 @@ function renderHourlyChart(labels, values) {
         label: 'จำนวนการเข้าชมเว็บไซต์ (ครั้ง)',
         data: values,
         borderColor: '#00ffff',
-        backgroundColor: 'rgba(0, 255, 255, 0.04)',
+        backgroundColor: 'rgba(0, 255, 255, 0.03)',
         borderWidth: 3,
         tension: 0.3,
         fill: true,
         pointBackgroundColor: '#00ffff',
-        pointRadius: 4,
-        pointHoverRadius: 6
+        pointRadius: 4
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#94a3b8', font: { family: 'sans-serif' } } }
+        legend: { labels: { color: '#94a3b8' } }
       },
       scales: {
         x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
