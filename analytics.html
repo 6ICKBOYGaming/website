@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard สถิติข้อมูลเชิงลึก</title>
-    <link rel="stylesheet" href="style.css"> <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css"> 
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         body { padding: 30px; font-family: sans-serif; background-color: #0f172a; color: #f8fafc; }
         .dashboard-container { max-width: 1200px; margin: 0 auto; }
@@ -15,11 +18,19 @@
         .stat-card p { margin: 0; font-size: 36px; font-weight: bold; color: #38bdf8; }
         .chart-section { background: #1e293b; padding: 25px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 40px; }
         select { background: #0f172a; color: #fff; padding: 10px 15px; border-radius: 8px; border: 1px solid #475569; font-size: 16px; cursor: pointer; }
+        
+        /* 🟢 เพิ่มหน้าจอเตือนกรณีเกิด Error บล็อกสคริปต์บนโฮสต์จริง */
+        .error-overlay { display: none; background: rgba(239, 68, 68, 0.1); border: 1px dashed #ef4444; color: #f87171; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
+    
+    <div id="errorMonitorBox" class="error-overlay">
+        🚨 <b>แจ้งเตือนระบบบราวเซอร์ล็อกแคชหรือปฏิเสธสิทธิ์:</b> หากกราฟไม่ขึ้นหรือ Dropdown เลือกวันไม่แสดงผล กรุณากดปุ่ม <b>Ctrl + F5</b> (สำหรับ Windows) หรือ <b>Cmd + Shift + R</b> (สำหรับ Mac) เพื่อล้างแคชประวัติบราวเซอร์เก่าที่ค้างอยู่บนเซิร์ฟเวอร์ออกครับ
+    </div>
+
     <div class="header-panel">
         <div>
             <h1 style="color: #00ffff; margin: 0;">📊 แผงควบคุมสถิติข้อมูลเชิงลึก</h1>
@@ -28,7 +39,8 @@
         <div>
             <label for="dateSelect" style="margin-right: 10px; color: #cbd5e1;">เลือกดูรายวัน:</label>
             <select id="dateSelect">
-                </select>
+                <option value="">-- กำลังโหลดข้อมูลจาก Cloud... --</option>
+            </select>
         </div>
     </div>
 
@@ -51,6 +63,16 @@
     </div>
 </div>
 
-<script type="module" src="analytics.js"></script>
+<script type="module" src="./analytics.js"></script>
+
+<script>
+    // ระบบตรวจสอบความล้มเหลวในการเชื่อมต่อ Firebase บนโฮสต์จริง
+    window.addEventListener('error', function(e) {
+        const errorBox = document.getElementById('errorMonitorBox');
+        if (errorBox) {
+            errorBox.style.display = 'block';
+        }
+    }, true);
+</script>
 </body>
 </html>
