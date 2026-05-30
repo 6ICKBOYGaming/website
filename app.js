@@ -650,7 +650,6 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
     const hasUnit = /[hms]/.test(inputVal);
 
     if (hasUnit) {
-      // ดึงตัวเลขกลุ่มจุดทศนิยมร่วมกับตัวอักษรหน่วยเวลาออกจากกันอย่างสมบูรณ์ เช่น 1h, 1.5h, 40m, 30s
       const matches = inputVal.match(/(\d+(\.\d+)?)\s*([hms])/g);
       
       if (matches) {
@@ -668,7 +667,6 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
         return;
       }
     } else {
-      // Fallback: รองรับรูปแบบตัวเลขเพียวๆ ไม่มีหน่วยระบุแบบดั้งเดิม
       if (inputVal.includes(".")) {
         const parts = inputVal.split(".");
         const hours = parseInt(parts[0], 10) || 0;
@@ -767,6 +765,11 @@ function render() {
 }
 
 function renderMobileView() {
+  // 🔽 สั่งซ่อนหน้าต่างแถบแอดมินพาร์ทสถิติออกไปทั้งหมดเมื่ออยู่ในหน้า Index (User ทั่วไป)
+  if (dragNoticeEl) {
+    dragNoticeEl.style.display = "none";
+  }
+
   if (document.getElementById("categoryTitle")) document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + selectedCategory;
   let displayed = [...clientDisplayedProducts];
   if (selectedCategory !== "ทั้งหมด") displayed = displayed.filter(p => p.category === selectedCategory);
@@ -810,6 +813,7 @@ function renderAdminView() {
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#10b981; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้าทั้งหมด</button>
       </div>
     `;
+    // 🔼 จะเปิดแสดงผลเป็นบล็อกปกติเฉพาะตอนอยู่ในโหมดผู้ดูแลระบบเท่านั้น
     dragNoticeEl.style.display = "block";
   }
   setupProductDragAndDrop(filtered);
