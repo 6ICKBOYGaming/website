@@ -10,13 +10,16 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
+  onSnapshot,
   query,
   orderBy,
   limit,       // ⚡️ V6.6 ควบคุมการจำกัดปริมาณ Read จาก Server จริง
   startAfter,  // ⚡️ V6.6 พอยเตอร์กำหนดจุดตัดหน้าถัดไปของคลาวด์
-  getDocs,
   writeBatch,
-  increment    // ⚡️ ระบบสะสมยอดคลิกแบบลด Read Cost
+  increment,   // ⚡️ ระบบสะสมยอดคลิกแบบลด Read Cost
+  where,
+  deleteDoc as firestoreDeleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
@@ -50,6 +53,7 @@ console.log("%c╠══ [Firebase V6.6-Ultimate] ระบบเวกเตอ
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
 const categoriesRef = collection(db, "categories_list");
+const onlineUsersRef = collection(db, "online_users");
 
 let allProducts = []; 
 let dbCategories = [];
@@ -66,6 +70,8 @@ let draggedSortId = null;
 let hotSlideInterval = null;
 let newSlideInterval = null;
 let globalFlashSaleTimerInterval = null; 
+let realtimeUsersUnsubscribe = null;
+let userPresenceInterval = null;
 
 // 📱 [SERVER-SIDE PAGINATION CONFIG - V6.6]
 let itemsPerPage = 12;            
@@ -140,7 +146,7 @@ async function bumpCloudVersion() {
   } catch (err) { console.error(err); }
 }
 
-/* ================= 📊 ระบบนับยอดคลิกสะสมประหยัดค่าใช้จ่าย ================= */
+/* ================= 📊 ระบบนับยอดคลิกสะสมประหยัดค่าใช้จ่าย (Optimized Read/Write) ================= */
 function getLocalPendingClicks() {
   const data = localStorage.getItem("pending_clicks");
   return data ? JSON.parse(data) : {};
@@ -148,31 +154,66 @@ function getLocalPendingClicks() {
 function saveLocalPendingClicks(clicks) {
   localStorage.setItem("pending_clicks", JSON.stringify(clicks));
 }
+
 async function syncPendingClicksToCloud() {
   const pendingClicks = getLocalPendingClicks();
   const productIds = Object.keys(pendingClicks);
   if (productIds.length === 0) return;
+
+  // ตรวจสอบรอบเวลา 4 ชั่วโมง (4 * 60 * 60 * 1000 = 14400000 ms)
+  const lastSync = parseInt(localStorage.getItem("last_click_sync_time") || "0", 10);
+  const now = Date.now();
+  
+  if (now - lastSync >= 14400000) {
+    try {
+      const batch = writeBatch(db);
+      let hasUpdates = false;
+      productIds.forEach(productId => {
+        if (pendingClicks[productId] > 0) {
+          batch.update(doc(db, "products", productId), { clickCount: increment(pendingClicks[productId]) });
+          hasUpdates = true;
+        }
+      });
+      if (hasUpdates) {
+        await batch.commit();
+        localStorage.setItem("last_click_sync_time", now.toString());
+        saveLocalPendingClicks({});
+        console.log("🔄 [Auto Sync] ซิงค์ยอดคลิกสะสมรอบ 4 ชั่วโมงขึ้น Cloud สำเร็จแล้ว!");
+      }
+    } catch (err) { console.error("Auto Sync Error:", err); }
+  }
+}
+
+// ฟังก์ชันแอดมินกดสั่งซิงค์ยอดคลิกหน้าเว็บขึ้นคลาวด์แบบทันที (Manual Trigger)
+window.forceSyncClicksToCloud = async () => {
+  const pendingClicks = getLocalPendingClicks();
+  const productIds = Object.keys(pendingClicks);
+  if (productIds.length === 0) {
+    alert("ℹ️ ไม่มีข้อมูลยอดคลิกค้างสถิติใน LocalStorage ที่ต้องอัปเดตครับ");
+    return;
+  }
   try {
+    alert("⏳ กำลังนำส่งยอดคลิกสะสมที่ค้างอยู่ทั้งหมดขึ้นสู่ Cloud...");
     const batch = writeBatch(db);
-    let hasUpdates = false;
     productIds.forEach(productId => {
       if (pendingClicks[productId] > 0) {
         batch.update(doc(db, "products", productId), { clickCount: increment(pendingClicks[productId]) });
-        hasUpdates = true;
       }
     });
-    if (hasUpdates) {
-      await batch.commit();
-      localStorage.setItem("last_click_sync_time", Date.now().toString());
-      saveLocalPendingClicks({});
-    }
-  } catch (err) { console.error(err); }
-}
+    await batch.commit();
+    localStorage.setItem("last_click_sync_time", Date.now().toString());
+    saveLocalPendingClicks({});
+    alert("✅ อัปเดตข้อมูลคลิกสะสมขึ้น Cloud สำเร็จเสร็จสิ้น!");
+    loadMasterData();
+  } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
+};
 
 window.trackProductClick = async (productId) => {
   const pending = getLocalPendingClicks();
   pending[productId] = (pending[productId] || 0) + 1;
   saveLocalPendingClicks(pending);
+  
+  // เรียกตรวจสอบการ Auto Sync รอบ 4 ชั่วโมง (ทำงานเบื้องหลังไม่ขัดจังหวะผู้ใช้)
   syncPendingClicksToCloud();
   
   if (typeof gtag !== 'undefined') {
@@ -202,9 +243,77 @@ window.resetAllProductsClick = async () => {
   } catch (err) { alert(err.message); }
 };
 
+/* ================= 👥 ระบบติดตามจำนวนผู้เข้าชมแบบ Realtime Realtime Presence ================= */
+function initUserPresenceSystem() {
+  if (userPresenceInterval) clearInterval(userPresenceInterval);
+  
+  // สร้าง Session ID ประจำตัวเบราว์เซอร์แท็บนี้ (หายไปเมื่อปิดเบราว์เซอร์ถาวร)
+  let userSessionId = sessionStorage.getItem("user_presence_id");
+  if (!userSessionId) {
+    userSessionId = "user_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    sessionStorage.setItem("user_presence_id", userSessionId);
+  }
+  
+  const userPresenceDocRef = doc(db, "online_users", userSessionId);
+  
+  const reportOnlineStatus = async () => {
+    try {
+      await setDoc(userPresenceDocRef, { lastActive: Date.now(), isAdminStatus: isAdmin }, { merge: true });
+    } catch (e) { console.error("Presence Error", e); }
+  };
+
+  // ยิงสถานะรอบแรก และตั้งวนลูปส่งสัญญาณหัวใจบอกว่ายังอยู่ทุก 30 วินาที
+  reportOnlineStatus();
+  userPresenceInterval = setInterval(reportOnlineStatus, 30000);
+  
+  // สั่งลบข้อมูลออกจากฐานข้อมูลทันทีเมื่อกำลังปิดหรือสลับออกจากแท็บหน้านี้ไป
+  window.addEventListener("beforeunload", () => {
+    navigator.sendBeacon;
+    setDoc(userPresenceDocRef, { lastActive: Date.now() - 120000 }); // แกล้งทำเป็นหมดเวลาเผื่อกรณีสลายทันทีไม่ได้
+  });
+}
+
+function listenToRealtimeOnlineUsers() {
+  if (realtimeUsersUnsubscribe) realtimeUsersUnsubscribe();
+  
+  const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
+  if (!realtimeCounterDisplay) return;
+
+  // คอยดักสตรีมข้อมูลผู้เข้าชมทั้งหมดแบบ Realtime Snapshot
+  realtimeUsersUnsubscribe = onSnapshot(onlineUsersRef, async (snapshot) => {
+    const now = Date.now();
+    let onlineCount = 0;
+    let expiredUserIds = [];
+
+    snapshot.forEach(docSnap => {
+      const userData = docSnap.data();
+      // หากส่งสัญญาณครั้งล่าสุดไม่เกิน 1 นาที (60000ms) ถือว่ากำลังออนอยู่จริง
+      if (userData.lastActive && (now - userData.lastActive < 60000)) {
+        onlineCount++;
+      } else {
+        expiredUserIds.push(docSnap.id);
+      }
+    });
+
+    realtimeCounterDisplay.innerText = onlineCount;
+
+    // ระบบ Auto Clean-up ขยะออฟไลน์เคลียร์ข้อมูลประหยัดเนื้อที่เซิร์ฟเวอร์ (ทำงานเฉพาะแอดมินหลัก)
+    if (isAdmin && expiredUserIds.length > 0) {
+      const batch = writeBatch(db);
+      expiredUserIds.forEach(id => {
+        batch.delete(doc(db, "online_users", id));
+      });
+      try { await batch.commit(); } catch (err) { console.error("Clean expired users error:", err); }
+    }
+  });
+}
+
 /* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ ================= */
 async function loadMasterData() {
   try {
+    // รันตรวจสอบการอัปเดตยอดคลิกที่ค้างตามเงื่อนไขเวลา
+    syncPendingClicksToCloud();
+
     const remoteVersionSnap = await getDoc(doc(db, "settings", "version_control"));
     const remoteVersion = remoteVersionSnap.exists() ? remoteVersionSnap.data().lastUpdated || 0 : 0;
     const localVersion = localStorage.getItem("local_db_version") || "0";
@@ -241,7 +350,6 @@ async function loadMasterData() {
 
   } catch (err) {
     console.error("ระบบทำงานขัดข้อง:", err);
-    // กรณีที่ระบบ Firebase ขัดข้อง ก็ต้องสั่งซ่อนด้วยเช่นกัน เพื่อป้องกันหน้าจอค้าง
     hideLoadingScreen();
   }
 }
@@ -306,7 +414,7 @@ async function fetchNextMobilePageFromServer() {
     console.error("เกิดข้อผิดพลาดในการโหลดจัดทำโครงสร้าง Pagination:", err);
   } finally {
     isFetchingNextPage = false;
-    toggleInfiniteLoader(hasMoreItems); // ปิดแอนิเมชันหากไม่มีของให้ดึงแล้ว
+    toggleInfiniteLoader(hasMoreItems);
   }
 }
 
@@ -555,7 +663,7 @@ function renderMobileView() {
 
   if (allEl) allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
   renderSidebarCategories();
-  renderInfiniteScrollLoader(); // ตรวจสอบและฝังกล่องหมุนโหลดแบบอัตโนมัติแทนปุ่มกดเดิม
+  renderInfiniteScrollLoader();
   startFlashSaleClockTicker();
 }
 
@@ -579,15 +687,21 @@ function renderAdminView() {
   renderAdminCategoryList();
   renderAdminDragSortLists();
   
-  // โหมดแอดมินให้ซ่อน Loader เสมอ
   toggleInfiniteLoader(false);
 
   if (dragNoticeEl) {
-    dragNoticeEl.innerHTML = `✨ <b>โหมดแอดมิน:</b> ลากสลับตำแหน่งหน้าจอเสร็จแล้วให้กดปุ่ม <button class='btn edit' style='padding:4px 10px; font-size:11px; background:#22c55e; color:#fff; border:none;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้าทั้งหมด</button> เพื่อยิงบันทึกตำแหน่งลงคลาวด์ถาวรครับ`;
+    dragNoticeEl.innerHTML = `
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:rgba(16, 185, 129, 0.1); border:1px solid #10b981; padding:12px; border-radius:8px; margin-bottom:15px; width:100%; box-sizing:border-box;">
+        <span style="flex:1; font-size:13px; color:#10b981;">🟢 <b>ระบบออนไลน์ Realtime:</b> กำลังมีผู้เข้าชมขณะนี้ <strong id="realtimeUsersCountDisplay" style="font-size:18px; text-shadow: 0 0 8px #10b981;">0</strong> คน</span>
+        <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='forceSyncClicksToCloud()'>🔄 อัปเดตยอดคลิกสะสมขึ้นคลาวด์</button>
+        <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#10b981; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้าทั้งหมด</button>
+      </div>
+    `;
     dragNoticeEl.style.display = "block";
   }
   setupProductDragAndDrop(filtered);
   startFlashSaleClockTicker();
+  listenToRealtimeOnlineUsers();
 }
 
 window.filterCategory = (category) => { 
@@ -599,7 +713,6 @@ window.filterCategory = (category) => {
 function renderInfiniteScrollLoader() {
   let loaderContainer = document.getElementById("infiniteScrollLoaderContainer");
   
-  // เงื่อนไขการซ่อนองค์ประกอบ: โหมดแอดมิน, สินค้าหมดแล้ว หรือ มีการเลือกตัวกรองหมวดหมู่เฉพาะเจาะจง
   if (isAdmin || !hasMoreItems || selectedCategory !== "ทั้งหมด") {
     if (loaderContainer) loaderContainer.classList.remove("show");
     return;
@@ -616,12 +729,11 @@ function renderInfiniteScrollLoader() {
     loaderContainer.appendChild(spinner);
     allEl.parentNode.insertBefore(loaderContainer, allEl.nextSibling);
     
-    // ⚙️ ติดตั้ง IntersectionObserver ตรวจจับความเคลื่อนไหวเมื่อเลื่อนมาถึงกล่องหมุนโหลดนี้
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !isFetchingNextPage && hasMoreItems && selectedCategory === "ทั้งหมด") {
         fetchNextMobilePageFromServer();
       }
-    }, { rootMargin: "150px" }); // เติม margin ด้านล่างล่วงหน้า เพื่อให้เกิดการหมุนทำรอบได้นุ่มนวลขึ้น
+    }, { rootMargin: "150px" });
     
     observer.observe(loaderContainer);
   } else {
@@ -785,7 +897,10 @@ window.handleProductSubmit = async () => {
 
   try {
     if (currentEditId) {
-      await updateDoc(doc(db, "products", currentEditId), productData); currentEditId = null; submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
+      await updateDoc(doc(db, "products", currentEditId), productData); 
+      currentEditId = null; 
+      submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
+      removeProductCancelButton(); 
     } else {
       productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
       productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
@@ -803,17 +918,88 @@ function clearProductForm() {
   isNew.checked = false; isHot.checked = false; comingSoon.checked = false;
 }
 
+// 🛠️ แก้ไขฟังก์ชันรีเซ็ตปุ่ม: ลบเฉพาะตัวปุ่มยกเลิกทิ้ง และบังคับให้ปุ่มหลักขยายใหญ่เต็ม 100% ตามปกติ
+function removeProductCancelButton() {
+  const existingCancelBtn = document.getElementById("productCancelBtn");
+  if (existingCancelBtn) existingCancelBtn.remove();
+  
+  if (submitBtn) {
+    submitBtn.style.display = "block";
+    submitBtn.style.width = "100%"; // บังคับให้ขยายใหญ่เต็มความกว้างฟอร์ม 100%
+    submitBtn.style.margin = "15px 0 0 0";
+  }
+  
+  // คืนค่ารูปแบบ Container Wrapper ให้กลับเป็นค่าว่างปกติ
+  const wrapper = document.getElementById("submitBtnWrapper");
+  if (wrapper) {
+    wrapper.style.display = "block";
+    wrapper.style.gap = "0";
+    wrapper.style.marginTop = "0";
+  }
+}
+
+window.cancelProductEdit = () => {
+  currentEditId = null;
+  clearProductForm();
+  submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
+  removeProductCancelButton();
+};
+
 window.editProduct = (id) => {
   const p = allProducts.find(item => item.id === id); if (!p) return;
   currentEditId = id; productName.value = p.name || ""; productImage.value = p.image || ""; productPrice.value = p.price || ""; productSalePrice.value = p.salePrice || ""; productDescription.value = p.description || ""; productCategory.value = p.category || "";
   if(productTier) productTier.value = p.tier || ""; shopee1.value = p.shopee1 || ""; shopee2.value = p.shopee2 || ""; lazada.value = p.lazada || "";
   isNew.checked = !!p.isNew; isHot.checked = !!p.isHot; comingSoon.checked = !!p.comingSoon;
-  submitBtn.innerText = "บันทึกการแก้ไขสินค้า"; document.getElementById("adminPanel").scrollIntoView({ behavior: "smooth" });
+  
+  submitBtn.innerText = "บันทึกการแก้ไขสินค้า"; 
+  
+  // ⚡️ ตรวจสอบหาหรือสร้าง Container สำหรับจัดระเบียบปุ่มเฉพาะกิจ (ป้องกันสไตล์โครงสร้างอื่นพัง)
+  let wrapper = document.getElementById("submitBtnWrapper");
+  if (!wrapper) {
+    wrapper = document.createElement("div");
+    wrapper.id = "submitBtnWrapper";
+    submitBtn.parentNode.insertBefore(wrapper, submitBtn);
+    wrapper.appendChild(submitBtn);
+  }
+  
+  // สั่งแปลงสไตล์เฉพาะพื้นที่ของปุ่มให้เป็นแนวนอนตอนที่กำลัง Edit เพื่อใส่ปุ่มยกเลิกคู่กัน
+  wrapper.style.display = "flex";
+  wrapper.style.gap = "10px";
+  wrapper.style.width = "100%";
+  wrapper.style.marginTop = "15px";
+
+  submitBtn.style.width = "70%";
+  submitBtn.style.margin = "0";
+  
+  if (!document.getElementById("productCancelBtn")) {
+    const cancelBtn = document.createElement("button");
+    cancelBtn.id = "productCancelBtn";
+    cancelBtn.innerText = "ยกเลิก";
+    cancelBtn.className = "btn delete"; 
+    
+    cancelBtn.style.width = "30%";
+    cancelBtn.style.margin = "0";
+    cancelBtn.style.whiteSpace = "nowrap";
+    
+    cancelBtn.onclick = (e) => {
+      e.preventDefault();
+      window.cancelProductEdit();
+    };
+    
+    wrapper.appendChild(cancelBtn);
+  }
+  
+  document.getElementById("adminPanel").scrollIntoView({ behavior: "smooth" });
 };
 
 window.deleteProduct = async (id) => {
   if (confirm("ต้องการลบสินค้าถาวรออกจากฐานข้อมูลคลาวด์?")) {
-    try { await deleteDoc(doc(db, "products", id)); await bumpCloudVersion(); loadMasterData(); } catch (error) { alert(error.message); }
+    try { 
+      await deleteDoc(doc(db, "products", id)); 
+      if (currentEditId === id) window.cancelProductEdit();
+      await bumpCloudVersion(); 
+      loadMasterData(); 
+    } catch (error) { alert(error.message); }
   }
 };
 
@@ -835,7 +1021,7 @@ if(authSubmitBtn) {
     } catch (error) { alert("สิทธิ์เข้าใช้งานไม่ถูกต้อง!"); }
   };
 }
-if(logoutBtn) logoutBtn.onclick = () => { signOut(auth).then(() => alert("ออกจากแผงควบคุมแอดมินเรียบร้อยครับ")); };
+if(logoutBtn) logoutBtn.onclick = () => { signOut(auth).then(() => { alert("ออกจากแผงควบคุมแอดมินเรียบร้อยครับ"); window.cancelProductEdit(); }); };
 
 onAuthStateChanged(auth, (user) => {
   isAdmin = !!user;
@@ -846,6 +1032,13 @@ onAuthStateChanged(auth, (user) => {
   if(adminCategoryPanel) adminCategoryPanel.style.display = dStyle;
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
   if(adminDragSortPanel) adminDragSortPanel.style.display = dStyle;
+  if(!isAdmin) {
+    window.cancelProductEdit();
+    if (realtimeUsersUnsubscribe) { realtimeUsersUnsubscribe(); realtimeUsersUnsubscribe = null; }
+  }
+  
+  // เรียกใช้งานระบบติดตามสถานะผู้เข้าชมออนไลน์ทันทีที่มีการเปลี่ยนแปลงสิทธิ์
+  initUserPresenceSystem();
   loadMasterData();
 });
 
@@ -868,7 +1061,7 @@ function initAutoSliders() {
   newSlideInterval = setInterval(() => window.scrollSlide("newProducts", "right"), 7000);
 }
 
-/* ================= 🔀 ส่วนจัดการระบบลากสลับสินค้ากลุ่ม HOT / NEW ================= */
+/* ================= 👑 ส่วนจัดการระบบลากสลับสินค้ากลุ่ม HOT / NEW ================= */
 function renderAdminDragSortLists() {
   const adminHotDragList = document.getElementById("adminHotDragList"), adminNewDragList = document.getElementById("adminNewDragList");
   if (!adminHotDragList || !adminNewDragList) return;
@@ -905,9 +1098,3 @@ window.saveSpecialGroupOrdersManually = async () => {
     await batch.commit(); await bumpCloudVersion(); alert("💾 อัปเดตลำดับกลุ่มสิทธิพิเศษสำเร็จ!"); loadMasterData();
   } catch (err) { alert(err.message); }
 };
-
-/*document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    loadMasterData();
-  }
-});*/
