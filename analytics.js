@@ -8,7 +8,7 @@ const firebaseConfig = {
     measurementId: "G-3MGM3VH0PK"
 };
 
-// เริ่มต้นระบบ Firebase ในรูปแบบ Direct-Cloud ไม่พึ่งพา Local Cache เพื่อตัดปัญหา Session ชนกัน
+// เริ่มต้นเปิดระบบ Firebase ( Direct Cloud Connection )
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
@@ -20,13 +20,13 @@ const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
 let trafficChart = null;
 
-console.log("%c╠══ [Firebase Live-V9.5] เชื่อมต่อระบบสถิติสำเร็จแบบ Direct-Cloud", "color: #00ffff; font-weight: bold;");
+console.log("%c╠══ [Firebase Live-V9.9] ดึงข้อมูลสถิติสดตรงจากคลาวด์เซิร์ฟเวอร์", "color: #00ffff; font-weight: bold;");
 
 initAnalyticsDashboard();
 
 async function initAnalyticsDashboard() {
   try {
-    // ดึงข้อมูลรายชื่อวันที่บันทึกสถิติล่าสุด 30 วัน ยิงตรงไปคลาวด์
+    // ดึงข้อมูลรายชื่อวันสถิติย้อนหลัง 30 วันจากระบบ Cloud โดยตรง ไม่ผ่าน Cache
     const snap = await db.collection("analytics").orderBy("__name__", "desc").limit(30).get();
 
     if (snap.empty) {
@@ -42,9 +42,10 @@ async function initAnalyticsDashboard() {
     if (dateSelect) {
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
       
-      // ดึงสถิติของวันล่าสุดขึ้นมาจัดแสดงเป็นค่าเริ่มต้น
+      // แสดงข้อมูลและวาดกราฟของวันล่าสุดขึ้นมาเป็นค่าเริ่มต้น
       await loadDayData(dates[0]);
       
+      // อัปเดตกราฟอัตโนมัติเมื่อแอดมินเปลี่ยนตัวเลือกวันที่
       dateSelect.onchange = (e) => {
         if(e.target.value) loadDayData(e.target.value);
       };
@@ -52,7 +53,7 @@ async function initAnalyticsDashboard() {
 
   } catch (error) {
     console.error("Dashboard Init Error:", error);
-    if(dateSelect) dateSelect.innerHTML = "<option value=''>เกิดข้อผิดพลาดในการโหลดข้อมูล</option>";
+    if(dateSelect) dateSelect.innerHTML = "<option value=''>เกิดข้อผิดพลาดในการดึงข้อมูล</option>";
   }
 }
 
@@ -63,6 +64,7 @@ async function loadDayData(dateString) {
 
     const data = docSnap.data();
 
+    // แสดงตัวเลขแบบใส่คอมม่าคั่นหลัก (เช่น 1,500)
     if (txtPageViews) txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
     if (txtUniqueUsers) txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
 
@@ -70,7 +72,7 @@ async function loadDayData(dateString) {
     const chartLabels = [];
     const chartValues = [];
 
-    // วนลูปเตรียมแกนเวลา 24 ชั่วโมง
+    // เติมข้อมูลให้เต็มแกนเวลา 24 ชั่วโมง (00:00 - 23:00)
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
       chartValues.push(hourlyData[h] || 0); 
@@ -88,6 +90,7 @@ function renderHourlyChart(labels, values) {
   if (!chartCanvas) return;
   const ctx = chartCanvas.getContext('2d');
   
+  // ทำลายกราฟอันเก่าก่อนสร้างอันใหม่ เพื่อป้องกันข้อมูลซ้อนทับกัน
   if (trafficChart) {
     trafficChart.destroy();
   }
