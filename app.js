@@ -647,11 +647,12 @@ let adminLogoBadgeHtml = "";
                 <button class="quick-price-clear-btn" title="ลบเวลา" onclick="clearQuickFlashSale('${p.id}')">✕</button>
               </div>
             </div>
-            <div class="quick-recommend-badge-box" style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px; display: flex; align-items: center; justify-content: space-between; width:100%;">
-              <label style="font-size:11px; color:#a3a3a3; display:flex; align-items:center; gap:5px; cursor:pointer;">
-                <img src="${ADMIN_BADGE_LOGO_URL}" style="width:16px; height:16px; border-radius:50%;"> เปิดใช้ป้ายโลโก้แอดมิน:
+            <div class="quick-recommend-badge-box" style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box;">
+              <label style="font-size:12px; color:#a3a3a3; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1;">
+                <img src="${ADMIN_BADGE_LOGO_URL}" style="width:20px !important; height:20px !important; min-width:20px !important; min-height:20px !important; max-width:20px !important; max-height:20px !important; border-radius:50% !important; object-fit: cover !important; display: inline-block !important; vertical-align: middle;">
+                <span>เปิดใช้ป้ายโลโก้แอดมิน:</span>
               </label>
-              <input type="checkbox" ${currentAdminRecommendState ? "checked" : ""} onchange="toggleQuickAdminRecommend('${p.id}', this.checked)" style="width:16px; height:16px; cursor:pointer;">
+              <input type="checkbox" ${currentAdminRecommendState ? "checked" : ""} onchange="toggleQuickAdminRecommend('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0;">
             </div>
           </div>
         ` : ""}
