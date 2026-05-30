@@ -170,6 +170,41 @@ async function bumpCloudVersion() {
   } catch (err) { console.error(err); }
 }
 
+/* ================= 📉 ระบบบันทึกสถิติการเข้าชมรายวัน (Analytics) ================= */
+async function recordDailyTraffic() {
+  if (isAdmin) return; // ไม่บันทึกยอดสถิติเพิ่มภาระคลาวด์หากเป็นแอดมินทดสอบระบบเปิดหน้าเว็บเอง
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`; // จัดฟอร์แมตตัวแปร เช่น 2026-05-31
+  
+  const currentHour = now.getHours(); // ดึงช่วงเวลาปัจจุบันมาคัดแยกหน่วยชั่วโมง (0-23)
+  const analyticsDocRef = doc(db, "analytics", dateStr);
+
+  try {
+    const updateData = {
+      totalPageViews: increment(1) // นับแต้มยอดคลิกเข้าชมหน้าร้านแบบประหยัดรอบ Read/Write
+    };
+
+    // ตรวจสอบเช็ก Unique Session ประจำวันของผู้เข้าชมเพื่อความแม่นยำในการระบุลูกค้า
+    const activeSessionKey = `visited_${dateStr}`;
+    if (!sessionStorage.getItem(activeSessionKey)) {
+      updateData.uniqueUsers = increment(1);
+      sessionStorage.setItem(activeSessionKey, "true");
+    }
+
+    // เจาะลึกช่วงเวลาแยกรายชั่วโมงเพื่อนำส่งไปวาดกราฟสถิติเส้นวงกว้าง
+    updateData[`hourlyTraffic.${currentHour}`] = increment(1);
+
+    await setDoc(analyticsDocRef, updateData, { merge: true });
+    console.log(`📈 [Analytics] บันทึกข้อมูลพฤติกรรมลูกค้าประจำวันที่ ${dateStr} เรียบร้อย`);
+  } catch (err) {
+    console.error("Analytics Write Error:", err);
+  }
+}
+
 /* ================= 📊 ระบบนับยอดคลิกสะสมแบบประหยัด Read ================= */
 function getLocalPendingClicks() {
   const data = localStorage.getItem("pending_clicks");
@@ -370,6 +405,7 @@ async function loadMasterData() {
     } else {
       resetMobilePaginationState();
       await fetchNextMobilePageFromServer();
+      recordDailyTraffic(); // ลูกค้าเข้าดูหน้าร้านสำเร็จ ให้เรียกทำฟังก์ชันบันทึกจราจรเว็บทันที
     }
 
     hideLoadingScreen();
@@ -765,7 +801,6 @@ function render() {
 }
 
 function renderMobileView() {
-  // 🔽 สั่งซ่อนหน้าต่างแถบแอดมินพาร์ทสถิติออกไปทั้งหมดเมื่ออยู่ในหน้า Index (User ทั่วไป)
   if (dragNoticeEl) {
     dragNoticeEl.style.display = "none";
   }
@@ -808,12 +843,12 @@ function renderAdminView() {
     dragNoticeEl.innerHTML = `
       <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:rgba(16, 185, 129, 0.1); border:1px solid #10b981; padding:12px; border-radius:8px; margin-bottom:15px; width:100%; box-sizing:border-box;">
         <span style="flex:1; font-size:13px; color:#10b981;">🟢 <b>ระบบออนไลน์ Realtime:</b> กำลังมีผู้เข้าชมขณะนี้ <strong id="realtimeUsersCountDisplay" style="font-size:18px; text-shadow: 0 0 8px #10b981;">0</strong> คน</span>
+        <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#a855f7; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;' onclick="window.open('analytics.html', '_blank')">📊 ดูข้อมูลเชิงลึก</button>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#eab308; color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:bold;' onclick='checkOnlineUsersCountManual()'>👁️ เช็กยอดผู้เข้าชมด่วน</button>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='forceSyncClicksToCloud()'>🔄 อัปเดตยอดคลิกสะสมขึ้นคลาวด์</button>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#10b981; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้าทั้งหมด</button>
       </div>
     `;
-    // 🔼 จะเปิดแสดงผลเป็นบล็อกปกติเฉพาะตอนอยู่ในโหมดผู้ดูแลระบบเท่านั้น
     dragNoticeEl.style.display = "block";
   }
   setupProductDragAndDrop(filtered);
