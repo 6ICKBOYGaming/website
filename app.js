@@ -45,7 +45,7 @@ const db = initializeFirestore(app, {
   })
 });
 
-console.log("%c╠══ [Firebase V7.0-MaxReadSaver] อัปเกรดระบบประหยัดค่า Read เต็มประสิทธิภาพ 100% เรียบร้อย", "color: #00ff88; font-weight: bold;");
+console.log("%c╠══ [Firebase V7.3-UltraFlashSale] แก้ไข Syntax Error และปรับปรุง Parser เวลาสำเร็จ", "color: #00ffff; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -75,27 +75,22 @@ let hasMoreItems = true;
 let isFetchingNextPage = false; 
 let clientDisplayedProducts = [];  
 
-// โลโก้แอดมินทรงกลมเล็กๆ วางมุมซ้ายบนของภาพสินค้า
 const ADMIN_BADGE_LOGO_URL = "https://i.postimg.cc/brG5HJBR/123.jpg";
 
-// ระบบอ่านแบบประหยัด Read อัจฉริยะ (Smart Cache System)
 let allowCacheRead = false;
 
-// ตรวจสอบเวอร์ชันโครงสร้างเพื่อตัดสินใจดึงข้อมูลจาก Cache
 async function checkSmartCacheVersion() {
   if (isAdmin) {
     allowCacheRead = false;
     return false;
   }
   try {
-    // อ่านข้อมูลแผ่นควบคุมเวอร์ชันจากเซิร์ฟเวอร์โดยตรง (ใช้เพียง 1 Read เท่านั้น)
     const versionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'default' });
     if (versionSnap.exists()) {
       const cloudVersion = versionSnap.data().lastUpdated || 0;
       const localVersion = parseInt(localStorage.getItem("local_data_version") || "0", 10);
       
       if (cloudVersion > 0 && cloudVersion === localVersion) {
-        // หากเวอร์ชันตรงกัน ยืนยันให้อ่านข้อมูลสินค้าจาก Cache 100% ได้อย่างปลอดภัย
         allowCacheRead = true;
         return true;
       }
@@ -107,7 +102,6 @@ async function checkSmartCacheVersion() {
   return false;
 }
 
-// DOM Elements
 const hotEl = document.getElementById("hotProducts");
 const newEl = document.getElementById("newProducts");
 const allEl = document.getElementById("products");
@@ -166,7 +160,7 @@ if (themeToggleBtn) {
   };
 }
 
-/* ================= 🔄 ระบบจัดการเวอร์ชันข้อมูล (Version Control) ================= */
+/* ================= 🔄 ระบบจัดการเวอร์ชันข้อมูล ================= */
 async function bumpCloudVersion() {
   try {
     const nowTimestamp = Date.now();
@@ -176,7 +170,7 @@ async function bumpCloudVersion() {
   } catch (err) { console.error(err); }
 }
 
-/* ================= 📊 ระบบนับยอดคลิกสะสมประหยัดค่าใช้จ่าย ================= */
+/* ================= 📊 ระบบนับยอดคลิกสะสมแบบประหยัด Read ================= */
 function getLocalPendingClicks() {
   const data = localStorage.getItem("pending_clicks");
   return data ? JSON.parse(data) : {};
@@ -270,7 +264,7 @@ window.resetAllProductsClick = async () => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= 👥 ระบบติดตามจำนวนผู้เข้าชมแบบประหยัด Read มหาศาล ================= */
+/* ================= 👥 ระบบติดตามจำนวนผู้เข้าชมแบบประหยัด Read ================= */
 initUserPresenceSystem();
 function initUserPresenceSystem() {
   if (userPresenceInterval) clearInterval(userPresenceInterval);
@@ -297,7 +291,6 @@ function initUserPresenceSystem() {
   });
 }
 
-// ปรับปรุงจาก onSnapshot เป็นการดึงผ่านฟังก์ชันเพื่อประหยัดเงินสูงสุดเด็ดขาด
 async function checkOnlineUsersCountManual() {
   const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
   if (!realtimeCounterDisplay) return;
@@ -329,12 +322,11 @@ async function checkOnlineUsersCountManual() {
   }
 }
 
-// FIX loadMasterData เวอร์ชันประหยัดค่า Read สูงสุด 100% เต็มประสิทธิภาพอย่างแท้จริง
+/* ================= ⚙️ โหลดข้อมูลหลัก (Master Data Loader) ================= */
 async function loadMasterData() {
   try {
     syncPendingClicksToCloud();
 
-    // รันระบบสแกนตรวจสอบความสดใหม่ของเวอร์ชันในคลาวด์ก่อน
     if (!isAdmin) {
       await checkSmartCacheVersion();
     } else {
@@ -347,7 +339,6 @@ async function loadMasterData() {
     const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: useCache ? 'cache' : 'default' });
     const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: useCache ? 'cache' : 'default' });
 
-    // หากเป็นการโหลดข้อมูลสดจากเซิร์ฟเวอร์เรียบร้อย ให้ทำการอัปเดตเวอร์ชันลง Local เครื่องผู้ใช้ไว้ด้วย
     if (!useCache && !isAdmin && prodSnap.metadata.fromCache === false) {
       try {
         const versionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'cache' });
@@ -399,7 +390,6 @@ function resetMobilePaginationState() {
   if(allEl) allEl.innerHTML = "";
 }
 
-// FIX pagination โค้ดเสถียรดึงจากระบบ Smart Cache ประหยัดเงินเพิ่มขึ้นอย่างสมบูรณ์
 async function fetchNextMobilePageFromServer() {
   if (!hasMoreItems || isAdmin || isFetchingNextPage) return;
 
@@ -589,7 +579,7 @@ function card(p, index){
             <div class="quick-flash-sale-box">
               <label>⏰ ตั้งเวลา Flash Sale:</label>
               <div class="quick-price-row">
-                <input type="text" class="quick-date-input" value="" placeholder="เช่น 2 หรือ 45m..." onkeydown="handleQuickFlashSaleKey(event, '${p.id}')">
+                <input type="text" class="quick-date-input" value="" placeholder="เช่น 1h, 45m, 1h.20m.30s..." onkeydown="handleQuickFlashSaleKey(event, '${p.id}')">
                 <button class="quick-price-clear-btn" title="ลบเวลา" onclick="clearQuickFlashSale('${p.id}')">✕</button>
               </div>
             </div>
@@ -649,25 +639,59 @@ window.clearQuickPrice = async (productId) => {
   } catch (err) { alert(err.message); }
 };
 
+/* ================= ⚡️ ระบบสแกนและประมวลผลตัวอักษรหน่วยเวลาแบบอัจฉริยะ (h, m, s) ================= */
 window.handleQuickFlashSaleKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
-    event.preventDefault(); let inputVal = event.target.value.trim().toLowerCase();
-    if (!inputVal) { alert("กรุณาใส่เวลาตัวอย่างเลขชั่วโมงครับ"); return; }
-    let targetMs = 0;
-    if (inputVal.endsWith("m")) {
-      const minutes = parseFloat(inputVal.replace("m", "")); if (isNaN(minutes) || minutes <= 0) return;
-      targetMs = minutes * 60 * 1000;
+    event.preventDefault(); 
+    let inputVal = event.target.value.trim().toLowerCase();
+    if (!inputVal) { alert("กรุณากรอกระบุเวลาด้วยครับ"); return; }
+    
+    let totalMs = 0;
+    const hasUnit = /[hms]/.test(inputVal);
+
+    if (hasUnit) {
+      // ดึงตัวเลขกลุ่มจุดทศนิยมร่วมกับตัวอักษรหน่วยเวลาออกจากกันอย่างสมบูรณ์ เช่น 1h, 1.5h, 40m, 30s
+      const matches = inputVal.match(/(\d+(\.\d+)?)\s*([hms])/g);
+      
+      if (matches) {
+        matches.forEach(match => {
+          const part = match.trim();
+          const unit = part.slice(-1); 
+          const value = parseFloat(part.slice(0, -1)) || 0;
+
+          if (unit === 'h') totalMs += value * 60 * 60 * 1000;
+          if (unit === 'm') totalMs += value * 60 * 1000;
+          if (unit === 's') totalMs += value * 1000;
+        });
+      } else {
+        alert("รูปแบบหน่วยเวลาผิดพลาด! ตัวอย่างการพิมพ์: 1h, 40m, 30s หรือผสมหน่วยพ่วงจุด 1h.20m.30s");
+        return;
+      }
     } else {
-      const hours = parseFloat(inputVal); if (isNaN(hours) || hours <= 0) return;
-      targetMs = hours * 60 * 60 * 1000;
+      // Fallback: รองรับรูปแบบตัวเลขเพียวๆ ไม่มีหน่วยระบุแบบดั้งเดิม
+      if (inputVal.includes(".")) {
+        const parts = inputVal.split(".");
+        const hours = parseInt(parts[0], 10) || 0;
+        const minutes = parseInt(parts[1], 10) || 0;
+        totalMs = (hours * 60 * 60 * 1000) + (minutes * 60 * 1000);
+      } else {
+        const hours = parseFloat(inputVal);
+        if (isNaN(hours) || hours <= 0) { alert("กรุณาใส่เวลาที่ถูกต้องด้วยครับ"); return; }
+        totalMs = hours * 60 * 60 * 1000;
+      }
     }
-    const endTimeIsoString = new Date(new Date().getTime() + targetMs).toISOString();
+
+    if (totalMs <= 0) { alert("เวลาที่คำนวณได้ต้องมากกว่า 0 วินาทีครับ"); return; }
+    
+    const endTimeIsoString = new Date(new Date().getTime() + totalMs).toISOString();
     try {
-      event.target.value = ""; event.target.blur();
+      event.target.value = ""; 
+      event.target.blur();
       await updateDoc(doc(db, "products", productId), { flashSaleEndTime: endTimeIsoString });
       const foundIdx = allProducts.findIndex(p => p.id === productId);
       if (foundIdx !== -1) allProducts[foundIdx].flashSaleEndTime = endTimeIsoString;
-      await bumpCloudVersion(); loadMasterData();
+      await bumpCloudVersion(); 
+      loadMasterData();
     } catch (err) { alert(err.message); }
   }
 };
@@ -681,19 +705,53 @@ window.clearQuickFlashSale = async (productId) => {
   } catch (err) { alert(err.message); }
 };
 
+/* ================= ⏰ ตัวนับถอยหลังพร้อมระบบ Auto-Revert ================= */
 function startFlashSaleClockTicker() {
   if (globalFlashSaleTimerInterval) clearInterval(globalFlashSaleTimerInterval);
+  
   globalFlashSaleTimerInterval = setInterval(() => {
     const timerElements = document.querySelectorAll(".dynamic-countdown-timer");
     if (timerElements.length === 0) return;
-    timerElements.forEach(el => {
+    
+    timerElements.forEach(async (el) => {
       const endTimeAttr = el.getAttribute("data-endtime");
       const pId = el.getAttribute("data-id");
       if (!endTimeAttr) return;
+      
       const timeRemaining = new Date(endTimeAttr).getTime() - new Date().getTime();
+      
       if (timeRemaining <= 0) {
         const flashBox = document.getElementById(`flash-box-${pId}`);
         if (flashBox) flashBox.style.display = "none";
+        
+        const foundIdx = allProducts.findIndex(p => p.id === pId);
+        if (foundIdx !== -1 && allProducts[foundIdx].flashSaleEndTime !== "") {
+          allProducts[foundIdx].flashSaleEndTime = "";
+          
+          const cardEl = el.closest('.card');
+          if (cardEl) {
+            const priceContainer = cardEl.querySelector('.price-container');
+            const priceNormal = allProducts[foundIdx].price ? Number(allProducts[foundIdx].price) : 0;
+            
+            if (priceContainer) {
+              if (priceNormal === 0) {
+                priceContainer.innerHTML = `<div class="price coming-soon-text">Coming Soon...</div>`;
+              } else {
+                priceContainer.innerHTML = `<div class="price">${formatPrice(priceNormal)}</div>`;
+              }
+            }
+          }
+          
+          if (isAdmin) {
+            try {
+              await updateDoc(doc(db, "products", pId), { flashSaleEndTime: "" });
+              await bumpCloudVersion();
+              console.log(`⚡ [Flash Sale] ระบบล้างเวลาบน Cloud อัตโนมัติ ID: ${pId}`);
+            } catch (err) {
+              console.error(err);
+            }
+          }
+        }
       } else {
         const hours = Math.floor(timeRemaining / 3600000);
         const minutes = Math.floor((timeRemaining % 3600000) / 60000);
@@ -757,7 +815,6 @@ function renderAdminView() {
   setupProductDragAndDrop(filtered);
   startFlashSaleClockTicker();
   
-  // เรียกเช็กจำนวนออนไลน์เริ่มต้น 1 ครั้งตอนหน้าแอดมินโหลดทำงาน
   checkOnlineUsersCountManual();
 }
 
