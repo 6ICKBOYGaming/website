@@ -8,7 +8,7 @@ const firebaseConfig = {
     measurementId: "G-3MGM3VH0PK"
 };
 
-// 🟢 เริ่มต้นการทำงาน Firebase ในโหมด Direct-Cloud ไร้แรงเสียดทานแคชตีกระทบ
+// เริ่มต้นระบบ Firebase ในรูปแบบ Direct-Cloud ไม่พึ่งพา Local Cache เพื่อตัดปัญหา Session ชนกัน
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
@@ -20,17 +20,17 @@ const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
 let trafficChart = null;
 
-console.log("%c╠══ [Firebase Live-V9.0] เชื่อมต่อสถิติฐานข้อมูลเซิร์ฟเวอร์เสร็จสมบูรณ์", "color: #00ffff; font-weight: bold;");
+console.log("%c╠══ [Firebase Live-V9.5] เชื่อมต่อระบบสถิติสำเร็จแบบ Direct-Cloud", "color: #00ffff; font-weight: bold;");
 
 initAnalyticsDashboard();
 
 async function initAnalyticsDashboard() {
   try {
-    // ดึงข้อมูลสถิติ 30 วันล่าสุดยิงตรงจาก Cloud
+    // ดึงข้อมูลรายชื่อวันที่บันทึกสถิติล่าสุด 30 วัน ยิงตรงไปคลาวด์
     const snap = await db.collection("analytics").orderBy("__name__", "desc").limit(30).get();
 
     if (snap.empty) {
-      if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ยังไม่มีข้อมูลสถิติบันทึกเข้ามาในระบบ --</option>";
+      if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ยังไม่มีข้อมูลสถิติบันทึกเข้ามา --</option>";
       return;
     }
 
@@ -42,7 +42,7 @@ async function initAnalyticsDashboard() {
     if (dateSelect) {
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
       
-      // ดึงข้อมูลวันแรกสุดมาจัดแสดงและวาดโครงกราฟนำร่อง
+      // ดึงสถิติของวันล่าสุดขึ้นมาจัดแสดงเป็นค่าเริ่มต้น
       await loadDayData(dates[0]);
       
       dateSelect.onchange = (e) => {
@@ -70,6 +70,7 @@ async function loadDayData(dateString) {
     const chartLabels = [];
     const chartValues = [];
 
+    // วนลูปเตรียมแกนเวลา 24 ชั่วโมง
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
       chartValues.push(hourlyData[h] || 0); 
