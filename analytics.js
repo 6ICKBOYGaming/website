@@ -1,6 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection,
   getDocs,
   getDoc,
@@ -22,7 +24,13 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app);
+
+// ปรับปรุงการเปิดใช้งาน Firestore ให้รองรับการเปิดใช้งาน Multi-Tab Cache ร่วมกับหน้า app.js บนโฮสต์จริง
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 
 const dateSelect = document.getElementById("dateSelect");
 const txtPageViews = document.getElementById("txtPageViews");
@@ -41,7 +49,9 @@ async function initAnalyticsDashboard() {
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      alert("ไม่พบข้อมูลสถิติในระบบคลาวด์ขณะนี้");
+      // หากยังไม่มีลูกค้าเข้าเว็บเลยในวันนั้นๆ ระบบจะแจ้งเตือน
+      if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ไม่มีข้อมูลสถิติ --</option>";
+      console.log("📈 [Analytics] ยังไม่มีข้อมูลสถิติบันทึกอยู่ในระบบขณะนี้");
       return;
     }
 
@@ -50,16 +60,18 @@ async function initAnalyticsDashboard() {
       dates.push(d.id);
     });
 
-    // ใส่ตัวเลือกวันลงใน Select element
-    dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
-    
-    // โหลดข้อมูลของวันล่าสุดมาแสดงผลเป็นค่าเริ่มต้น
-    await loadDayData(dates[0]);
+    if (dateSelect) {
+      // ใส่ตัวเลือกวันลงใน Select element
+      dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
+      
+      // โหลดข้อมูลของวันล่าสุดมาแสดงผลเป็นค่าเริ่มต้น
+      await loadDayData(dates[0]);
 
-    // มัด Event Listener เมื่อแอดมินเปลี่ยนวันที่ต้องการดู
-    dateSelect.onchange = (e) => {
-      loadDayData(e.target.value);
-    };
+      // มัด Event Listener เมื่อแอดมินเปลี่ยนวันที่ต้องการดู
+      dateSelect.onchange = (e) => {
+        if(e.target.value) loadDayData(e.target.value);
+      };
+    }
 
   } catch (error) {
     console.error("Dashboard Init Error:", error);
@@ -75,8 +87,8 @@ async function loadDayData(dateString) {
     const data = docSnap.data();
 
     // แสดงผลตัวเลขหน้าการ์ดสรุปผล
-    txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
-    txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
+    if (txtPageViews) txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
+    if (txtUniqueUsers) txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
 
     // จัดระเบียบข้อมูลสถิติรายชั่วโมง (0น. - 23น.)
     const hourlyData = data.hourlyTraffic || {};
@@ -98,11 +110,20 @@ async function loadDayData(dateString) {
 
 // ฟังก์ชันประกอบโครงสร้างกราฟเส้นแสดงผลพฤติกรรมลูกค้า
 function renderHourlyChart(labels, values) {
-  const ctx = document.getElementById('hourlyTrafficChart').getContext('2d');
+  const chartCanvas = document.getElementById('hourlyTrafficChart');
+  if (!chartCanvas) return;
+  
+  const ctx = chartCanvas.getContext('2d');
   
   // ทำลายกราฟตัวเดิมก่อนวาดใหม่ (ป้องกันปัญหากราฟซ้อนทับกันเวลาเปลี่ยนวัน)
   if (trafficChart) {
     trafficChart.destroy();
+  }
+
+  // ตรวจสอบว่ามี Library Chart.js โหลดเข้ามาในหน้าเว็บเรียบร้อยแล้วหรือไม่
+  if (typeof Chart === 'undefined') {
+    console.error("❌ ไม่พบ Chart.js Library กรุณาตรวจสอบการเรียกสคริปต์ในหน้า HTML");
+    return;
   }
 
   trafficChart = new Chart(ctx, {
