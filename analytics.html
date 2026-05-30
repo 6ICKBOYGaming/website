@@ -8,6 +8,9 @@
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+    
     <style>
         body { padding: 30px; font-family: sans-serif; background-color: #0f172a; color: #f8fafc; }
         .dashboard-container { max-width: 1200px; margin: 0 auto; }
@@ -31,7 +34,7 @@
         <div>
             <label for="dateSelect" style="margin-right: 10px; color: #cbd5e1;">เลือกดูรายวัน:</label>
             <select id="dateSelect">
-                <option value="">-- กำลังเชื่อมต่อ Cloud Live Server... --</option>
+                <option value="">-- กำลังเชื่อมต่อฐานข้อมูลปลอดภัย... --</option>
             </select>
         </div>
     </div>
@@ -55,6 +58,6 @@
     </div>
 </div>
 
-<script type="module" src="analytics.js"></script>
+<script src="analytics.js"></script>
 </body>
 </html>

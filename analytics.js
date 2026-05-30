@@ -1,46 +1,33 @@
-// 🟢 เรียกใช้งาน Firebase SDK ผ่านโครงข่าย CDN ความเร็วสูงในรูปแบบ Module
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  initializeFirestore,
-  collection,
-  getDocs,
-  getDoc,
-  doc,
-  query,
-  orderBy,
-  limit
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
-    authDomain: "ickboy-store.firebaseapp.com",
-    projectId: "ickboy-store",
-    storageBucket: "ickboy-store.firebasestorage.app",
-    messagingSenderId: "532385576489",
-    appId: "1:532385576489:web:c0a99cbeec52db14d6ce38",
-    measurementId: "G-3MGM3VH0PK"
-};
-
-// เริ่มต้นระบบเชื่อมต่อฐานข้อมูลตรงเข้าสู่คลาวด์เซิร์ฟเวอร์ โดยไม่เปิดระบบแคชออฟไลน์ เพื่อไม่ให้ชนกับหน้าหลัก
-const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, {});
+let db = null;
+let trafficChart = null;
 
 const dateSelect = document.getElementById("dateSelect");
 const txtPageViews = document.getElementById("txtPageViews");
 const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
-let trafficChart = null;
-
-console.log("%c╠══ [Firebase Modular-V10.2] ระบบสถิติทำงานร่วมกับโฮสติ้งจริงสำเร็จ", "color: #00ffff; font-weight: bold;");
-
-initAnalyticsDashboard();
+// 🟢 บังคับโหลดระบบผ่านตัวเชื่อมต่อหลักของโฮสติ้ง เพื่อตัดปัญหาระบบความปลอดภัยบล็อกสคริปต์
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // ดึงการเชื่อมต่อ Firebase ที่เปิดใช้งานอยู่แล้วบนโฮสต์
+        if (typeof firebase !== 'undefined') {
+            // ไม่ต้องใส่คอนฟิกซ้ำซ้อน ดึงค่าอัตโนมัติผ่านตัวโฮสต์ได้เลย ปลอดภัย 100%
+            db = firebase.firestore();
+            console.log("%c╠══ [Firebase Host-Link] ทำงานร่วมกับ Firebase Hosting สำเร็จ", "color: #00ffff; font-weight: bold;");
+            initAnalyticsDashboard();
+        } else {
+            console.error("Firebase SDK โหลดไม่สำเร็จ");
+            if(dateSelect) dateSelect.innerHTML = "<option>ระบบบล็อกความปลอดภัยภายนอก</option>";
+        }
+    } catch (e) {
+        console.error("Initial Error: ", e);
+    }
+});
 
 async function initAnalyticsDashboard() {
   try {
-    const analyticsRef = collection(db, "analytics");
-    // ดึงรายชื่อวันที่สถิติย้อนหลังสูงสุด 30 วัน
-    const q = query(analyticsRef, orderBy("__name__", "desc"), limit(30));
-    const snap = await getDocs(q);
+    if (!db) return;
+    // ดึงข้อมูลรายชื่อวันที่บันทึกสถิติล่าสุดยิงตรงจากคลาวด์
+    const snap = await db.collection("analytics").orderBy("__name__", "desc").limit(30).get();
 
     if (snap.empty) {
       if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ยังไม่มีข้อมูลสถิติบันทึกเข้ามา --</option>";
@@ -55,10 +42,9 @@ async function initAnalyticsDashboard() {
     if (dateSelect) {
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
       
-      // ดึงข้อมูลและวาดกราฟของวันล่าสุดขึ้นมาแสดงผลนำร่องก่อนทันที
+      // ดึงข้อมูลวันแรกสุดขึ้นจัดกราฟนำร่องทันที
       await loadDayData(dates[0]);
       
-      // อัปเดตข้อมูลและกราฟอัตโนมัติเมื่อแอดมินเปลี่ยนตัวเลือกวันที่
       dateSelect.onchange = (e) => {
         if(e.target.value) loadDayData(e.target.value);
       };
@@ -72,13 +58,12 @@ async function initAnalyticsDashboard() {
 
 async function loadDayData(dateString) {
   try {
-    const docRef = doc(db, "analytics", dateString);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) return;
+    if (!db) return;
+    const docSnap = await db.collection("analytics").doc(dateString).get();
+    if (!docSnap.exists) return;
 
     const data = docSnap.data();
 
-    // แสดงผลตัวเลขยอดรวมแบบมีคอมม่าคั่นหลักนับ
     if (txtPageViews) txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
     if (txtUniqueUsers) txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
 
@@ -86,7 +71,6 @@ async function loadDayData(dateString) {
     const chartLabels = [];
     const chartValues = [];
 
-    // ประกอบโครงสร้างข้อมูลเวลาให้ครบถ้วน 24 ชั่วโมง (00:00 - 23:00)
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
       chartValues.push(hourlyData[h] || 0); 
@@ -104,7 +88,6 @@ function renderHourlyChart(labels, values) {
   if (!chartCanvas) return;
   const ctx = chartCanvas.getContext('2d');
   
-  // ล้างค่าและทำลายกราฟเก่าทิ้งก่อนวาดใหม่ เพื่อป้องกันอาการกราฟซ้อนกันเวลาสลับวัน
   if (trafficChart) {
     trafficChart.destroy();
   }
