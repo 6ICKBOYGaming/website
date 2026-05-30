@@ -8,25 +8,41 @@ const firebaseConfig = {
     measurementId: "G-3MGM3VH0PK"
 };
 
-// เริ่มต้นเปิดระบบ Firebase ( Direct Cloud Connection )
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-const db = firebase.firestore();
+let db = null;
+let trafficChart = null;
 
 const dateSelect = document.getElementById("dateSelect");
 const txtPageViews = document.getElementById("txtPageViews");
 const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
-let trafficChart = null;
+// 🟢 แก้ไขจุดสำคัญ: ห่อคำสั่งด้วย window.onload เพื่อรอให้ดาวน์โหลด Firebase SDK เสร็จสิ้นก่อนเริ่มรันโค้ด
+window.onload = function() {
+    try {
+        if (typeof firebase === "undefined") {
+            console.error("🚨 ไม่สามารถโหลดไลบรารี Firebase SDK ได้ กรุณาเช็กการเชื่อมต่ออินเทอร์เน็ต");
+            if(dateSelect) dateSelect.innerHTML = "<option>โหลดระบบฐานข้อมูลล้มเหลว</option>";
+            return;
+        }
 
-console.log("%c╠══ [Firebase Live-V9.9] ดึงข้อมูลสถิติสดตรงจากคลาวด์เซิร์ฟเวอร์", "color: #00ffff; font-weight: bold;");
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.firestore();
+        
+        console.log("%c╠══ [Firebase Live-V10.0] โหลดคลาวด์ไลบรารีและเชื่อมต่อฐานข้อมูลตรงสำเร็จ", "color: #00ffff; font-weight: bold;");
+        
+        // เริ่มต้นทำงานดึงข้อมูลแดชบอร์ด
+        initAnalyticsDashboard();
 
-initAnalyticsDashboard();
+    } catch (e) {
+        console.error("Firebase Init Crash:", e);
+    }
+};
 
 async function initAnalyticsDashboard() {
   try {
-    // ดึงข้อมูลรายชื่อวันสถิติย้อนหลัง 30 วันจากระบบ Cloud โดยตรง ไม่ผ่าน Cache
+    if(!db) return;
+    // ดึงข้อมูลสถิติ 30 วันย้อนหลังจากคลาวด์แบบ Direct
     const snap = await db.collection("analytics").orderBy("__name__", "desc").limit(30).get();
 
     if (snap.empty) {
@@ -42,10 +58,9 @@ async function initAnalyticsDashboard() {
     if (dateSelect) {
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
       
-      // แสดงข้อมูลและวาดกราฟของวันล่าสุดขึ้นมาเป็นค่าเริ่มต้น
+      // ดึงสถิติของวันล่าสุดขึ้นมาจัดแสดงและวาดกราฟเริ่มต้น
       await loadDayData(dates[0]);
       
-      // อัปเดตกราฟอัตโนมัติเมื่อแอดมินเปลี่ยนตัวเลือกวันที่
       dateSelect.onchange = (e) => {
         if(e.target.value) loadDayData(e.target.value);
       };
@@ -53,18 +68,18 @@ async function initAnalyticsDashboard() {
 
   } catch (error) {
     console.error("Dashboard Init Error:", error);
-    if(dateSelect) dateSelect.innerHTML = "<option value=''>เกิดข้อผิดพลาดในการดึงข้อมูล</option>";
+    if(dateSelect) dateSelect.innerHTML = "<option value=''>เกิดข้อผิดพลาดในการโหลดข้อมูล</option>";
   }
 }
 
 async function loadDayData(dateString) {
   try {
+    if(!db) return;
     const docSnap = await db.collection("analytics").doc(dateString).get();
     if (!docSnap.exists) return;
 
     const data = docSnap.data();
 
-    // แสดงตัวเลขแบบใส่คอมม่าคั่นหลัก (เช่น 1,500)
     if (txtPageViews) txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
     if (txtUniqueUsers) txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
 
@@ -72,7 +87,6 @@ async function loadDayData(dateString) {
     const chartLabels = [];
     const chartValues = [];
 
-    // เติมข้อมูลให้เต็มแกนเวลา 24 ชั่วโมง (00:00 - 23:00)
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
       chartValues.push(hourlyData[h] || 0); 
@@ -90,7 +104,6 @@ function renderHourlyChart(labels, values) {
   if (!chartCanvas) return;
   const ctx = chartCanvas.getContext('2d');
   
-  // ทำลายกราฟอันเก่าก่อนสร้างอันใหม่ เพื่อป้องกันข้อมูลซ้อนทับกัน
   if (trafficChart) {
     trafficChart.destroy();
   }
