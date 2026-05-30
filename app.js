@@ -170,38 +170,40 @@ async function bumpCloudVersion() {
   } catch (err) { console.error(err); }
 }
 
-/* ================= 📉 ระบบบันทึกสถิติการเข้าชมรายวัน (Analytics) ================= */
-async function recordDailyTraffic() {
-  if (isAdmin) return; // ไม่บันทึกยอดสถิติเพิ่มภาระคลาวด์หากเป็นแอดมินทดสอบระบบเปิดหน้าเว็บเอง
-
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const dateStr = `${year}-${month}-${day}`; // จัดฟอร์แมตตัวแปร เช่น 2026-05-31
+/* ================= 📈 ระบบบันทึกสถิติ PageViews รายชั่วโมงแบบประหยัด ================= */
+async function recordVisitorTraffic() {
+  if (isAdmin) return; // ถ้าเป็นแอดมินล็อกอินอยู่ ไม่นับสถิติ
   
-  const currentHour = now.getHours(); // ดึงช่วงเวลาปัจจุบันมาคัดแยกหน่วยชั่วโมง (0-23)
-  const analyticsDocRef = doc(db, "analytics", dateStr);
-
   try {
-    const updateData = {
-      totalPageViews: increment(1) // นับแต้มยอดคลิกเข้าชมหน้าร้านแบบประหยัดรอบ Read/Write
-    };
-
-    // ตรวจสอบเช็ก Unique Session ประจำวันของผู้เข้าชมเพื่อความแม่นยำในการระบุลูกค้า
-    const activeSessionKey = `visited_${dateStr}`;
-    if (!sessionStorage.getItem(activeSessionKey)) {
-      updateData.uniqueUsers = increment(1);
-      sessionStorage.setItem(activeSessionKey, "true");
+    // 1. จัดฟอร์แมตวันที่ปัจจุบันเป็นโซนประเทศไทย (เช่น 2026-05-31)
+    const now = new Date();
+    const tzOffset = 7 * 60 * 60 * 1000; // +7 ชั่วโมงสำหรับเวลาไทย
+    const localTime = new Date(now.getTime() + tzOffset);
+    const dateString = localTime.toISOString().split('T')[0]; 
+    
+    // 2. ดึงชั่วโมงปัจจุบัน (0-23)
+    const currentHour = localTime.getUTCHours();
+    
+    // 3. เตรียมโครงสร้างข้อมูลส่งขึ้น Cloud ไปที่คอลเลกชัน analytics
+    const analyticsDocRef = doc(db, "analytics", dateString);
+    
+    // ตรวจสอบว่าเป็นผู้ใช้งานใหม่ในเซสชันนี้หรือไม่ เพื่อใช้นับ Unique Users
+    const isNewSession = !sessionStorage.getItem("visited_today");
+    
+    let updateData = {};
+    updateData["totalPageViews"] = increment(1);         // บวกแต้มวิวรวมทั้งหมด
+    updateData[`hourlyTraffic.${currentHour}`] = increment(1); // บวกแต้มแยกตามชั่วโมงนั้นๆ
+    
+    if (isNewSession) {
+      updateData["uniqueUsers"] = increment(1); // หากมาครั้งแรกในรอบวัน บวกแต้มคนดูไม่ซ้ำหน้า
+      sessionStorage.setItem("visited_today", "true");
     }
 
-    // เจาะลึกช่วงเวลาแยกรายชั่วโมงเพื่อนำส่งไปวาดกราฟสถิติเส้นวงกว้าง
-    updateData[`hourlyTraffic.${currentHour}`] = increment(1);
-
+    // อัปเดตข้อมูลขึ้น Cloud ทันที (ถ้ายังไม่มีเอกสารของวันนั้น ระบบจะสร้างให้ใหม่โดยอัตโนมัติ)
     await setDoc(analyticsDocRef, updateData, { merge: true });
-    console.log(`📈 [Analytics] บันทึกข้อมูลพฤติกรรมลูกค้าประจำวันที่ ${dateStr} เรียบร้อย`);
-  } catch (err) {
-    console.error("Analytics Write Error:", err);
+    console.log(`📊 [Analytics] บันทึกยอดเข้าชมรอบชั่วโมงที่ ${currentHour} เรียบร้อยแล้ว`);
+  } catch (error) {
+    console.error("Failed to record traffic analytics:", error);
   }
 }
 
@@ -405,7 +407,7 @@ async function loadMasterData() {
     } else {
       resetMobilePaginationState();
       await fetchNextMobilePageFromServer();
-      recordDailyTraffic(); // ลูกค้าเข้าดูหน้าร้านสำเร็จ ให้เรียกทำฟังก์ชันบันทึกจราจรเว็บทันที
+      recordVisitorTraffic(); // เรียกใช้ฟังก์ชันบันทึกสถิติรายชั่วโมงเวอร์ชันใหม่เมื่อลูกค้าเข้าใช้งานหน้าร้านสำเร็จ
     }
 
     hideLoadingScreen();
@@ -668,7 +670,7 @@ window.handleQuickPriceKey = async (event, productId) => {
 window.clearQuickPrice = async (productId) => {
   try {
     const updateFields = { price: 0, salePrice: 0, comingSoon: true };
-    await updateDoc(doc(db, "products", productId), updateFields);
+    await updateDoc(doc(db, "products", productId), { updateFields });
     const foundIdx = allProducts.findIndex(p => p.id === productId);
     if (foundIdx !== -1) allProducts[foundIdx] = { ...allProducts[foundIdx], ...updateFields };
     await bumpCloudVersion(); loadMasterData();
