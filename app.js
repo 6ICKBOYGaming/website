@@ -14,12 +14,11 @@ import {
   onSnapshot,
   query,
   orderBy,
-  limit,       // ⚡️ V6.6 ควบคุมการจำกัดปริมาณ Read จาก Server จริง
-  startAfter,  // ⚡️ V6.6 พอยเตอร์กำหนดจุดตัดหน้าถัดไปของคลาวด์
+  limit,       
+  startAfter,  
   writeBatch,
-  increment,   // ⚡️ ระบบสะสมยอดคลิกแบบลด Read Cost
-  where,
-  deleteDoc as firestoreDeleteDoc
+  increment,   
+  where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
@@ -41,14 +40,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// ⚡️ เปิดใช้งาน Local Cache ส่วนกลางบนอุปกรณ์เบราว์เซอร์
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
 
-console.log("%c╠══ [Firebase V6.6-Ultimate] ระบบเวกเตอร์ไอคอนรถเข็นทำงานเสร็จสมบูรณ์", "color: #00ffcc; font-weight: bold;");
+console.log("%c╠══ [Firebase V6.6-Ultimate] ระบบประหยัด Read/Write และตรวจเช็คเวอร์ชันทำงานสมบูรณ์", "color: #00ffcc; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -73,11 +71,10 @@ let globalFlashSaleTimerInterval = null;
 let realtimeUsersUnsubscribe = null;
 let userPresenceInterval = null;
 
-// 📱 [SERVER-SIDE PAGINATION CONFIG - V6.6]
 let itemsPerPage = 12;            
 let lastVisibleDoc = null;         
 let hasMoreItems = true;          
-let isFetchingNextPage = false; // ⚡️ ป้องกันการยิงโหลดซ้อนตอนกำลังหมุนทำงาน
+let isFetchingNextPage = false; 
 let clientDisplayedProducts = [];  
 
 // DOM Elements
@@ -146,7 +143,7 @@ async function bumpCloudVersion() {
   } catch (err) { console.error(err); }
 }
 
-/* ================= 📊 ระบบนับยอดคลิกสะสมประหยัดค่าใช้จ่าย (Optimized Read/Write) ================= */
+/* ================= 📊 ระบบนับยอดคลิกสะสมประหยัดค่าใช้จ่าย ================= */
 function getLocalPendingClicks() {
   const data = localStorage.getItem("pending_clicks");
   return data ? JSON.parse(data) : {};
@@ -160,11 +157,10 @@ async function syncPendingClicksToCloud() {
   const productIds = Object.keys(pendingClicks);
   if (productIds.length === 0) return;
 
-  // ตรวจสอบรอบเวลา 4 ชั่วโมง (4 * 60 * 60 * 1000 = 14400000 ms)
   const lastSync = parseInt(localStorage.getItem("last_click_sync_time") || "0", 10);
   const now = Date.now();
   
-  if (now - lastSync >= 14400000) {
+  if (now - lastSync >= 14400000) { // ครบ 4 ชั่วโมง
     try {
       const batch = writeBatch(db);
       let hasUpdates = false;
@@ -184,7 +180,6 @@ async function syncPendingClicksToCloud() {
   }
 }
 
-// ฟังก์ชันแอดมินกดสั่งซิงค์ยอดคลิกหน้าเว็บขึ้นคลาวด์แบบทันที (Manual Trigger)
 window.forceSyncClicksToCloud = async () => {
   const pendingClicks = getLocalPendingClicks();
   const productIds = Object.keys(pendingClicks);
@@ -213,7 +208,6 @@ window.trackProductClick = async (productId) => {
   pending[productId] = (pending[productId] || 0) + 1;
   saveLocalPendingClicks(pending);
   
-  // เรียกตรวจสอบการ Auto Sync รอบ 4 ชั่วโมง (ทำงานเบื้องหลังไม่ขัดจังหวะผู้ใช้)
   syncPendingClicksToCloud();
   
   if (typeof gtag !== 'undefined') {
@@ -243,11 +237,10 @@ window.resetAllProductsClick = async () => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= 👥 ระบบติดตามจำนวนผู้เข้าชมแบบ Realtime Realtime Presence ================= */
+/* ================= 👥 ระบบติดตามจำนวนผู้เข้าชมแบบ Realtime ================= */
 function initUserPresenceSystem() {
   if (userPresenceInterval) clearInterval(userPresenceInterval);
   
-  // สร้าง Session ID ประจำตัวเบราว์เซอร์แท็บนี้ (หายไปเมื่อปิดเบราว์เซอร์ถาวร)
   let userSessionId = sessionStorage.getItem("user_presence_id");
   if (!userSessionId) {
     userSessionId = "user_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -262,14 +255,11 @@ function initUserPresenceSystem() {
     } catch (e) { console.error("Presence Error", e); }
   };
 
-  // ยิงสถานะรอบแรก และตั้งวนลูปส่งสัญญาณหัวใจบอกว่ายังอยู่ทุก 30 วินาที
   reportOnlineStatus();
   userPresenceInterval = setInterval(reportOnlineStatus, 30000);
   
-  // สั่งลบข้อมูลออกจากฐานข้อมูลทันทีเมื่อกำลังปิดหรือสลับออกจากแท็บหน้านี้ไป
   window.addEventListener("beforeunload", () => {
-    navigator.sendBeacon;
-    setDoc(userPresenceDocRef, { lastActive: Date.now() - 120000 }); // แกล้งทำเป็นหมดเวลาเผื่อกรณีสลายทันทีไม่ได้
+    setDoc(userPresenceDocRef, { lastActive: Date.now() - 120000 });
   });
 }
 
@@ -279,7 +269,6 @@ function listenToRealtimeOnlineUsers() {
   const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
   if (!realtimeCounterDisplay) return;
 
-  // คอยดักสตรีมข้อมูลผู้เข้าชมทั้งหมดแบบ Realtime Snapshot
   realtimeUsersUnsubscribe = onSnapshot(onlineUsersRef, async (snapshot) => {
     const now = Date.now();
     let onlineCount = 0;
@@ -287,7 +276,6 @@ function listenToRealtimeOnlineUsers() {
 
     snapshot.forEach(docSnap => {
       const userData = docSnap.data();
-      // หากส่งสัญญาณครั้งล่าสุดไม่เกิน 1 นาที (60000ms) ถือว่ากำลังออนอยู่จริง
       if (userData.lastActive && (now - userData.lastActive < 60000)) {
         onlineCount++;
       } else {
@@ -297,39 +285,47 @@ function listenToRealtimeOnlineUsers() {
 
     realtimeCounterDisplay.innerText = onlineCount;
 
-    // ระบบ Auto Clean-up ขยะออฟไลน์เคลียร์ข้อมูลประหยัดเนื้อที่เซิร์ฟเวอร์ (ทำงานเฉพาะแอดมินหลัก)
     if (isAdmin && expiredUserIds.length > 0) {
       const batch = writeBatch(db);
-      expiredUserIds.forEach(id => {
-        batch.delete(doc(db, "online_users", id));
-      });
-      try { await batch.commit(); } catch (err) { console.error("Clean expired users error:", err); }
+      expiredUserIds.forEach(id => { batch.delete(doc(db, "online_users", id)); });
+      try { await batch.commit(); } catch (err) { console.error(err); }
     }
   });
 }
 
-/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ ================= */
+/* ================= 📡 ฟังก์ชันโหลดข้อมูลอัจฉริยะ (ปรับปรุงระบบเช็คคลาวด์เฉพาะตอน Refresh) ================= */
 async function loadMasterData() {
   try {
-    // รันตรวจสอบการอัปเดตยอดคลิกที่ค้างตามเงื่อนไขเวลา
     syncPendingClicksToCloud();
 
-    const remoteVersionSnap = await getDoc(doc(db, "settings", "version_control"));
-    const remoteVersion = remoteVersionSnap.exists() ? remoteVersionSnap.data().lastUpdated || 0 : 0;
-    const localVersion = localStorage.getItem("local_db_version") || "0";
-    let useCache = !isAdmin && (remoteVersion.toString() === localVersion);
+    // ⚡️ ตรรกะใหม่: ตรวจสอบว่าเป็นการโหลดหน้าเว็บครั้งแรกในเซสชันนี้หรือไม่ (เบราว์เซอร์เปิดใหม่ หรือ กดรีเฟรชหน้าจอ)
+    // หากกด Refresh ตัว `sessionStorage` จะยังคงอยู่ แต่เราจะบังคับให้อัปเดตข้อมูลจาก Cloud ใหม่เพื่อให้แน่ใจว่าได้ข้อมูลล่าสุด
+    let useCache = false;
+    
+    if (!isAdmin) {
+      const sessionLoaded = sessionStorage.getItem("page_session_loaded");
+      if (sessionLoaded) {
+        // หากเคยโหลดไปแล้วในแท็บนี้ และผู้ใช้สลับหน้าหมวดหมู่เฉยๆ ไม่ได้กด Refresh ระบบจะดึงจาก Cache 100% ไม่เสียค่า Read ไปเซิร์ฟเวอร์
+        useCache = true;
+      } else {
+        // หากเป็นการเปิดหน้าเว็บเข้ามาใหม่ หรือเพิ่งกด Refresh ชัดๆ -> บังคับดึง Server และทำเครื่องหมายไว้
+        sessionStorage.setItem("page_session_loaded", "true");
+        useCache = false;
+      }
+    }
 
+    // ดึงข้อมูลสินค้าตามสถานะแคช
     const allProdSnap = await getDocs(productsRef, { source: useCache ? 'cache' : 'default' });
     allProducts = []; allProdSnap.forEach(d => allProducts.push({ id: d.id, ...d.data() }));
 
+    // ดึงข้อมูลหมวดหมู่ตามสถานะแคช
     const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: useCache ? 'cache' : 'default' });
     dbCategories = []; catSnap.forEach(d => dbCategories.push({ id: d.id, ...d.data() }));
     updateCategoryDropdown();
 
+    // ดึงข้อมูลวิดเจ็ตตามสถานะแคช
     const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: useCache ? 'cache' : 'default' });
     applyWidgetSettings(widgetSnap);
-
-    if (!useCache) localStorage.setItem("local_db_version", remoteVersion.toString());
 
     const hotProducts = allProducts.filter(p => p.isHot).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
     if(hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
@@ -345,28 +341,20 @@ async function loadMasterData() {
       await fetchNextMobilePageFromServer();
     }
 
-    // 🌀 [LOADING SCREEN] สั่งสลายหน้าจอหมุนโหลดเมื่อดึงข้อมูลชุดแรกเสร็จเรียบร้อย
     hideLoadingScreen();
-
   } catch (err) {
     console.error("ระบบทำงานขัดข้อง:", err);
     hideLoadingScreen();
   }
 }
 
-// 🌀 ฟังก์ชันสำหรับซ่อนหน้าต่าง Loading Screen ป้องกันการค้างบนจอ
 function hideLoadingScreen() {
   const loadingScreen = document.getElementById('loading-screen');
-  if (loadingScreen) {
-    loadingScreen.classList.add('fade-out');
-  }
+  if (loadingScreen) { loadingScreen.classList.add('fade-out'); }
 }
 
 function resetMobilePaginationState() {
-  clientDisplayedProducts = [];
-  lastVisibleDoc = null;
-  hasMoreItems = true;
-  isFetchingNextPage = false;
+  clientDisplayedProducts = []; lastVisibleDoc = null; hasMoreItems = true; isFetchingNextPage = false;
   if(allEl) allEl.innerHTML = "";
 }
 
@@ -374,31 +362,20 @@ async function fetchNextMobilePageFromServer() {
   if (!hasMoreItems || isAdmin || isFetchingNextPage) return;
   
   isFetchingNextPage = true;
-  toggleInfiniteLoader(true); // เปิดแอนิเมชันหมุนโหลด
+  toggleInfiniteLoader(true);
   
   try {
     let mobileQuery = productsRef;
-    
-    if (currentSortMode === "priceAsc") {
-      mobileQuery = query(mobileQuery, orderBy("price", "asc"));
-    } else if (currentSortMode === "priceDesc") {
-      mobileQuery = query(mobileQuery, orderBy("price", "desc"));
-    } else {
-      mobileQuery = query(mobileQuery, orderBy("order", "asc"));
-    }
+    if (currentSortMode === "priceAsc") { mobileQuery = query(mobileQuery, orderBy("price", "asc")); } 
+    else if (currentSortMode === "priceDesc") { mobileQuery = query(mobileQuery, orderBy("price", "desc")); } 
+    else { mobileQuery = query(mobileQuery, orderBy("order", "asc")); }
 
-    if (lastVisibleDoc) {
-      mobileQuery = query(mobileQuery, startAfter(lastVisibleDoc), limit(itemsPerPage));
-    } else {
-      mobileQuery = query(mobileQuery, limit(itemsPerPage));
-    }
+    if (lastVisibleDoc) { mobileQuery = query(mobileQuery, startAfter(lastVisibleDoc), limit(itemsPerPage)); } 
+    else { mobileQuery = query(mobileQuery, limit(itemsPerPage)); }
 
-    const snapshot = await getDocs(mobileQuery);
+    const snapshot = await getDocs(snapshot);
     if (snapshot.empty) {
-      hasMoreItems = false;
-      toggleInfiniteLoader(false);
-      isFetchingNextPage = false;
-      return;
+      hasMoreItems = false; toggleInfiniteLoader(false); isFetchingNextPage = false; return;
     }
 
     lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
@@ -406,15 +383,12 @@ async function fetchNextMobilePageFromServer() {
     snapshot.forEach(doc => { fetchedBatch.push({ id: doc.id, ...doc.data() }); });
 
     clientDisplayedProducts = clientDisplayedProducts.concat(fetchedBatch);
-    if (snapshot.docs.length < itemsPerPage) {
-      hasMoreItems = false;
-    }
+    if (snapshot.docs.length < itemsPerPage) { hasMoreItems = false; }
     renderMobileView();
   } catch (err) {
-    console.error("เกิดข้อผิดพลาดในการโหลดจัดทำโครงสร้าง Pagination:", err);
+    console.error(err);
   } finally {
-    isFetchingNextPage = false;
-    toggleInfiniteLoader(hasMoreItems);
+    isFetchingNextPage = false; toggleInfiniteLoader(hasMoreItems);
   }
 }
 
@@ -438,7 +412,7 @@ function applyWidgetSettings(docSnap) {
   }
 }
 
-/* ================= 📦 โครงสร้างการจัดวางการ์ดสินค้า (Vector Shopping Cart) ================= */
+/* ================= 📦 โครงสร้างการจัดวางการ์ดสินค้า ================= */
 function formatPrice(p){ if(p === undefined || p === null || p === "") return ""; return "฿" + Number(p).toLocaleString("th-TH"); }
 
 function card(p, index){
@@ -558,7 +532,6 @@ function card(p, index){
   `;
 }
 
-/* ================= ⚡️ ระบบอัปเดตข้อมูลของ Admin ================= */
 window.handleQuickPriceKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault(); const inputVal = event.target.value.trim();
@@ -621,7 +594,6 @@ window.clearQuickFlashSale = async (productId) => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= ⏰ ฟังก์ชัน Loop รันเวลานับถอยหลัง ================= */
 function startFlashSaleClockTicker() {
   if (globalFlashSaleTimerInterval) clearInterval(globalFlashSaleTimerInterval);
   globalFlashSaleTimerInterval = setInterval(() => {
@@ -645,13 +617,8 @@ function startFlashSaleClockTicker() {
   }, 1000);
 }
 
-/* ================= ⚡️ ระบบเรนเดอร์ร่วมกันระหว่างสองโหมด ================= */
 function render() {
-  if (isAdmin) {
-    renderAdminView();
-  } else {
-    renderMobileView();
-  }
+  if (isAdmin) { renderAdminView(); } else { renderMobileView(); }
 }
 
 function renderMobileView() {
@@ -709,32 +676,21 @@ window.filterCategory = (category) => {
   render();
 };
 
-/* ================= ⚡️ ระบบหมุนโหลดข้อมูลอัตโนมัติ (Infinite Scroll Loader) ================= */
 function renderInfiniteScrollLoader() {
   let loaderContainer = document.getElementById("infiniteScrollLoaderContainer");
-  
   if (isAdmin || !hasMoreItems || selectedCategory !== "ทั้งหมด") {
-    if (loaderContainer) loaderContainer.classList.remove("show");
-    return;
+    if (loaderContainer) loaderContainer.classList.remove("show"); return;
   }
-  
   if (!loaderContainer) {
-    loaderContainer = document.createElement("div");
-    loaderContainer.id = "infiniteScrollLoaderContainer";
-    loaderContainer.className = "infinite-scroll-loader show";
-    
-    const spinner = document.createElement("div");
-    spinner.className = "spinner-neon";
-    
-    loaderContainer.appendChild(spinner);
-    allEl.parentNode.insertBefore(loaderContainer, allEl.nextSibling);
+    loaderContainer = document.createElement("div"); loaderContainer.id = "infiniteScrollLoaderContainer"; loaderContainer.className = "infinite-scroll-loader show";
+    const spinner = document.createElement("div"); spinner.className = "spinner-neon";
+    loaderContainer.appendChild(spinner); allEl.parentNode.insertBefore(loaderContainer, allEl.nextSibling);
     
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !isFetchingNextPage && hasMoreItems && selectedCategory === "ทั้งหมด") {
         fetchNextMobilePageFromServer();
       }
     }, { rootMargin: "150px" });
-    
     observer.observe(loaderContainer);
   } else {
     loaderContainer.classList.add("show");
@@ -744,18 +700,14 @@ function renderInfiniteScrollLoader() {
 function toggleInfiniteLoader(visible) {
   const loaderContainer = document.getElementById("infiniteScrollLoaderContainer");
   if (loaderContainer) {
-    if (visible && !isAdmin && selectedCategory === "ทั้งหมด") {
-      loaderContainer.classList.add("show");
-    } else {
-      loaderContainer.classList.remove("show");
-    }
+    if (visible && !isAdmin && selectedCategory === "ทั้งหมด") { loaderContainer.classList.add("show"); } 
+    else { loaderContainer.classList.remove("show"); }
   }
 }
 
 if(searchInput) searchInput.addEventListener("input", () => { render(); });
 if(sortProductsSelect) sortProductsSelect.addEventListener("change", (e) => { currentSortMode = e.target.value; render(); });
 
-/* ================= 📁 จัดการหมวดหมู่สินค้า ================= */
 function renderSidebarCategories() {
   if (!categoriesEl) return;
   const totalCount = allProducts.length;
@@ -843,7 +795,6 @@ function setupCategoryDragAndDrop() {
   });
 }
 
-/* ================= 🎁 ระบบกรอบหน้าต่างแบนเนอร์กิจกรรม ================= */
 window.handleWidgetUpdate = async () => {
   try {
     await setDoc(doc(db, "settings", "shopee_promo_widget"), { imageUrl: widgetImageInput.value.trim(), buttonLink: widgetLinkInput.value.trim(), visible: widgetVisibleCheck.checked });
@@ -851,7 +802,6 @@ window.handleWidgetUpdate = async () => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= 🔀 ระบบลากและสลับตำแหน่งของแอดมินหลังบ้าน ================= */
 function setupProductDragAndDrop(currentFilteredProducts) {
   const cards = document.querySelectorAll("#products .card.admin-draggable");
   cards.forEach(cardItem => {
@@ -882,7 +832,6 @@ window.saveAllProductsOrderManually = async () => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= 📝 บันทึกข้อมูลเพิ่ม/แก้ไขรายชื่อสินค้า ================= */
 window.handleProductSubmit = async () => {
   const name = productName.value.trim(), image = productImage.value.trim();
   const price = Number(productPrice.value) || 0, salePrice = Number(productSalePrice.value) || 0;
@@ -897,10 +846,7 @@ window.handleProductSubmit = async () => {
 
   try {
     if (currentEditId) {
-      await updateDoc(doc(db, "products", currentEditId), productData); 
-      currentEditId = null; 
-      submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
-      removeProductCancelButton(); 
+      await updateDoc(doc(db, "products", currentEditId), productData); currentEditId = null; submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ"; removeProductCancelButton(); 
     } else {
       productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
       productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
@@ -914,102 +860,54 @@ window.handleProductSubmit = async () => {
 
 function clearProductForm() {
   productName.value = ""; productImage.value = ""; productPrice.value = ""; productSalePrice.value = ""; productDescription.value = "";
-  if(productTier) productTier.value = ""; shopee1.value = ""; shopee2.value = ""; lazada.value = "";
-  isNew.checked = false; isHot.checked = false; comingSoon.checked = false;
+  if(productTier) productTier.value = ""; shopee1.value = ""; shopee2.value = ""; lazada.value = ""; isNew.checked = false; isHot.checked = false; comingSoon.checked = false;
 }
 
-// 🛠️ แก้ไขฟังก์ชันรีเซ็ตปุ่ม: ลบเฉพาะตัวปุ่มยกเลิกทิ้ง และบังคับให้ปุ่มหลักขยายใหญ่เต็ม 100% ตามปกติ
 function removeProductCancelButton() {
   const existingCancelBtn = document.getElementById("productCancelBtn");
   if (existingCancelBtn) existingCancelBtn.remove();
-  
-  if (submitBtn) {
-    submitBtn.style.display = "block";
-    submitBtn.style.width = "100%"; // บังคับให้ขยายใหญ่เต็มความกว้างฟอร์ม 100%
-    submitBtn.style.margin = "15px 0 0 0";
-  }
-  
-  // คืนค่ารูปแบบ Container Wrapper ให้กลับเป็นค่าว่างปกติ
+  if (submitBtn) { submitBtn.style.display = "block"; submitBtn.style.width = "100%"; submitBtn.style.margin = "15px 0 0 0"; }
   const wrapper = document.getElementById("submitBtnWrapper");
-  if (wrapper) {
-    wrapper.style.display = "block";
-    wrapper.style.gap = "0";
-    wrapper.style.marginTop = "0";
-  }
+  if (wrapper) { wrapper.style.display = "block"; wrapper.style.gap = "0"; wrapper.style.marginTop = "0"; }
 }
 
 window.cancelProductEdit = () => {
-  currentEditId = null;
-  clearProductForm();
-  submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ";
-  removeProductCancelButton();
+  currentEditId = null; clearProductForm(); submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ"; removeProductCancelButton();
 };
 
 window.editProduct = (id) => {
   const p = allProducts.find(item => item.id === id); if (!p) return;
   currentEditId = id; productName.value = p.name || ""; productImage.value = p.image || ""; productPrice.value = p.price || ""; productSalePrice.value = p.salePrice || ""; productDescription.value = p.description || ""; productCategory.value = p.category || "";
-  if(productTier) productTier.value = p.tier || ""; shopee1.value = p.shopee1 || ""; shopee2.value = p.shopee2 || ""; lazada.value = p.lazada || "";
-  isNew.checked = !!p.isNew; isHot.checked = !!p.isHot; comingSoon.checked = !!p.comingSoon;
+  if(productTier) productTier.value = p.tier || ""; shopee1.value = p.shopee1 || ""; shopee2.value = p.shopee2 || ""; lazada.value = p.lazada || ""; isNew.checked = !!p.isNew; isHot.checked = !!p.isHot; comingSoon.checked = !!p.comingSoon;
   
   submitBtn.innerText = "บันทึกการแก้ไขสินค้า"; 
-  
-  // ⚡️ ตรวจสอบหาหรือสร้าง Container สำหรับจัดระเบียบปุ่มเฉพาะกิจ (ป้องกันสไตล์โครงสร้างอื่นพัง)
   let wrapper = document.getElementById("submitBtnWrapper");
   if (!wrapper) {
-    wrapper = document.createElement("div");
-    wrapper.id = "submitBtnWrapper";
-    submitBtn.parentNode.insertBefore(wrapper, submitBtn);
-    wrapper.appendChild(submitBtn);
+    wrapper = document.createElement("div"); wrapper.id = "submitBtnWrapper"; submitBtn.parentNode.insertBefore(wrapper, submitBtn); wrapper.appendChild(submitBtn);
   }
-  
-  // สั่งแปลงสไตล์เฉพาะพื้นที่ของปุ่มให้เป็นแนวนอนตอนที่กำลัง Edit เพื่อใส่ปุ่มยกเลิกคู่กัน
-  wrapper.style.display = "flex";
-  wrapper.style.gap = "10px";
-  wrapper.style.width = "100%";
-  wrapper.style.marginTop = "15px";
-
-  submitBtn.style.width = "70%";
-  submitBtn.style.margin = "0";
+  wrapper.style.display = "flex"; wrapper.style.gap = "10px"; wrapper.style.width = "100%"; wrapper.style.marginTop = "15px";
+  submitBtn.style.width = "70%"; submitBtn.style.margin = "0";
   
   if (!document.getElementById("productCancelBtn")) {
-    const cancelBtn = document.createElement("button");
-    cancelBtn.id = "productCancelBtn";
-    cancelBtn.innerText = "ยกเลิก";
-    cancelBtn.className = "btn delete"; 
-    
-    cancelBtn.style.width = "30%";
-    cancelBtn.style.margin = "0";
-    cancelBtn.style.whiteSpace = "nowrap";
-    
-    cancelBtn.onclick = (e) => {
-      e.preventDefault();
-      window.cancelProductEdit();
-    };
-    
+    const cancelBtn = document.createElement("button"); cancelBtn.id = "productCancelBtn"; cancelBtn.innerText = "ยกเลิก"; cancelBtn.className = "btn delete"; 
+    cancelBtn.style.width = "30%"; cancelBtn.style.margin = "0"; cancelBtn.style.whiteSpace = "nowrap";
+    cancelBtn.onclick = (e) => { e.preventDefault(); window.cancelProductEdit(); };
     wrapper.appendChild(cancelBtn);
   }
-  
   document.getElementById("adminPanel").scrollIntoView({ behavior: "smooth" });
 };
 
 window.deleteProduct = async (id) => {
   if (confirm("ต้องการลบสินค้าถาวรออกจากฐานข้อมูลคลาวด์?")) {
     try { 
-      await deleteDoc(doc(db, "products", id)); 
-      if (currentEditId === id) window.cancelProductEdit();
-      await bumpCloudVersion(); 
-      loadMasterData(); 
+      await deleteDoc(doc(db, "products", id)); if (currentEditId === id) window.cancelProductEdit();
+      await bumpCloudVersion(); loadMasterData(); 
     } catch (error) { alert(error.message); }
   }
 };
 
 /* ================= 🔒 ระบบดูแลสิทธิ์และเข้าสู่ระบบควบคุม ================= */
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const authModal = document.getElementById("authModal");
-const closeAuthBtn = document.getElementById("closeAuthBtn");
-const authSubmitBtn = document.getElementById("authSubmitBtn");
-const adminPanel = document.getElementById("adminPanel");
+const loginBtn = document.getElementById("loginBtn"); const logoutBtn = document.getElementById("logoutBtn"); const authModal = document.getElementById("authModal"); const closeAuthBtn = document.getElementById("closeAuthBtn"); const authSubmitBtn = document.getElementById("authSubmitBtn"); const adminPanel = document.getElementById("adminPanel");
 
 if(loginBtn) loginBtn.onclick = () => authModal.style.display = "flex";
 if(closeAuthBtn) closeAuthBtn.onclick = () => { authModal.style.display = "none"; };
@@ -1036,20 +934,16 @@ onAuthStateChanged(auth, (user) => {
     window.cancelProductEdit();
     if (realtimeUsersUnsubscribe) { realtimeUsersUnsubscribe(); realtimeUsersUnsubscribe = null; }
   }
-  
-  // เรียกใช้งานระบบติดตามสถานะผู้เข้าชมออนไลน์ทันทีที่มีการเปลี่ยนแปลงสิทธิ์
   initUserPresenceSystem();
   loadMasterData();
 });
 
-/* ================= 🚀 ระบบปุ่มเลื่อนขึ้นด้านบนสุดหน้ามือถือ ================= */
 const backToTopBtn = document.getElementById("backToTopBtn");
 if (backToTopBtn) {
   window.addEventListener("scroll", () => { if (window.scrollY > 300) backToTopBtn.classList.add("show"); else backToTopBtn.classList.remove("show"); });
   backToTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 }
 
-/* ================= 🔄 ระบบเลื่อนสไลด์กลุ่มไฮไลท์การ์ดอัตโนมัติ ================= */
 window.scrollSlide = (elementId, direction) => {
   const el = document.getElementById(elementId); if (!el || el.children.length <= 1) return;
   const cardWidth = el.children[0].offsetWidth + 10;
@@ -1061,7 +955,6 @@ function initAutoSliders() {
   newSlideInterval = setInterval(() => window.scrollSlide("newProducts", "right"), 7000);
 }
 
-/* ================= 👑 ส่วนจัดการระบบลากสลับสินค้ากลุ่ม HOT / NEW ================= */
 function renderAdminDragSortLists() {
   const adminHotDragList = document.getElementById("adminHotDragList"), adminNewDragList = document.getElementById("adminNewDragList");
   if (!adminHotDragList || !adminNewDragList) return;
