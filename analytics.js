@@ -12,7 +12,6 @@ import {
   limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ใช้ firebaseConfig ชุดเดียวกันกับใน app.js ของคุณ
 const firebaseConfig = {
     apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
     authDomain: "ickboy-store.firebaseapp.com",
@@ -25,7 +24,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// ปรับปรุงการเปิดใช้งาน Firestore ให้รองรับการเปิดใช้งาน Multi-Tab Cache ร่วมกับหน้า app.js บนโฮสต์จริง
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
@@ -38,20 +36,17 @@ const txtUniqueUsers = document.getElementById("txtUniqueUsers");
 
 let trafficChart = null;
 
-// เรียกทำงานเมื่อโหลดหน้าเว็บ
 initAnalyticsDashboard();
 
 async function initAnalyticsDashboard() {
   try {
-    // 1. ดึงรายชื่อวันทั้งหมดที่มีข้อมูลบันทึกไว้ในคลาวด์มาใส่ในตัวเลือก Select Dropdown
     const analyticsRef = collection(db, "analytics");
-    const q = query(analyticsRef, orderBy("__name__", "desc"), limit(30)); // ย้อนหลังสูงสุด 30 วัน
+    const q = query(analyticsRef, orderBy("__name__", "desc"), limit(30)); 
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      // หากยังไม่มีลูกค้าเข้าเว็บเลยในวันนั้นๆ ระบบจะแจ้งเตือน
-      if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ไม่มีข้อมูลสถิติ --</option>";
-      console.log("📈 [Analytics] ยังไม่มีข้อมูลสถิติบันทึกอยู่ในระบบขณะนี้");
+      if(dateSelect) dateSelect.innerHTML = "<option value=''>-- ยังไม่มีข้อมูลสถิติบันทึกเข้ามา --</option>";
+      console.log("📈 ยังไม่มีข้อมูลประวัติผู้ใช้งานบันทึกอยู่บนเซิร์ฟเวอร์คลาวด์ขณะนี้");
       return;
     }
 
@@ -61,13 +56,8 @@ async function initAnalyticsDashboard() {
     });
 
     if (dateSelect) {
-      // ใส่ตัวเลือกวันลงใน Select element
       dateSelect.innerHTML = dates.map(date => `<option value="${date}">${date}</option>`).join("");
-      
-      // โหลดข้อมูลของวันล่าสุดมาแสดงผลเป็นค่าเริ่มต้น
       await loadDayData(dates[0]);
-
-      // มัด Event Listener เมื่อแอดมินเปลี่ยนวันที่ต้องการดู
       dateSelect.onchange = (e) => {
         if(e.target.value) loadDayData(e.target.value);
       };
@@ -78,7 +68,6 @@ async function initAnalyticsDashboard() {
   }
 }
 
-// ฟังก์ชันดึงดาต้าของวันที่ระบุมาเรนเดอร์ลง UI และกราฟ
 async function loadDayData(dateString) {
   try {
     const docSnap = await getDoc(doc(db, "analytics", dateString));
@@ -86,21 +75,18 @@ async function loadDayData(dateString) {
 
     const data = docSnap.data();
 
-    // แสดงผลตัวเลขหน้าการ์ดสรุปผล
     if (txtPageViews) txtPageViews.innerText = (data.totalPageViews || 0).toLocaleString();
     if (txtUniqueUsers) txtUniqueUsers.innerText = (data.uniqueUsers || 0).toLocaleString();
 
-    // จัดระเบียบข้อมูลสถิติรายชั่วโมง (0น. - 23น.)
     const hourlyData = data.hourlyTraffic || {};
     const chartLabels = [];
     const chartValues = [];
 
     for (let h = 0; h < 24; h++) {
       chartLabels.push(`${String(h).padStart(2, '0')}:00`);
-      chartValues.push(hourlyData[h] || 0); // หากชั่วโมงไหนไม่มีคนเข้าให้ส่งค่าเป็น 0
+      chartValues.push(hourlyData[h] || 0); 
     }
 
-    // เรนเดอร์กราฟด้วย Chart.js
     renderHourlyChart(chartLabels, chartValues);
 
   } catch (err) {
@@ -108,21 +94,16 @@ async function loadDayData(dateString) {
   }
 }
 
-// ฟังก์ชันประกอบโครงสร้างกราฟเส้นแสดงผลพฤติกรรมลูกค้า
 function renderHourlyChart(labels, values) {
   const chartCanvas = document.getElementById('hourlyTrafficChart');
   if (!chartCanvas) return;
-  
   const ctx = chartCanvas.getContext('2d');
   
-  // ทำลายกราฟตัวเดิมก่อนวาดใหม่ (ป้องกันปัญหากราฟซ้อนทับกันเวลาเปลี่ยนวัน)
   if (trafficChart) {
     trafficChart.destroy();
   }
 
-  // ตรวจสอบว่ามี Library Chart.js โหลดเข้ามาในหน้าเว็บเรียบร้อยแล้วหรือไม่
   if (typeof Chart === 'undefined') {
-    console.error("❌ ไม่พบ Chart.js Library กรุณาตรวจสอบการเรียกสคริปต์ในหน้า HTML");
     return;
   }
 
@@ -136,7 +117,7 @@ function renderHourlyChart(labels, values) {
         borderColor: '#00ffff',
         backgroundColor: 'rgba(0, 255, 255, 0.05)',
         borderWidth: 3,
-        tension: 0.3, // ทำให้เส้นกราฟมีความโค้งมนสวยงาม
+        tension: 0.3,
         fill: true,
         pointBackgroundColor: '#00ffff',
         pointRadius: 4

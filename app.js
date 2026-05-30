@@ -8,7 +8,7 @@ import {
   deleteDoc,
   updateDoc,
   doc,
-  setDoc,
+  setDoc, // 🟢 เพิ่มตั๋วอนุญาตสั่งเซ็ตข้อมูลตรงนี้
   getDoc,
   getDocs,
   query,
@@ -45,7 +45,7 @@ const db = initializeFirestore(app, {
   })
 });
 
-console.log("%c╠══ [Firebase V7.3-UltraFlashSale] แก้ไข Syntax Error และปรับปรุง Parser เวลาสำเร็จ", "color: #00ffff; font-weight: bold;");
+console.log("%c╠══ [Firebase V7.4-UltraFlashSale] ซ่อมแซม Analytics SetDoc Module สำเร็จ", "color: #00ffff; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -407,7 +407,7 @@ async function loadMasterData() {
     } else {
       resetMobilePaginationState();
       await fetchNextMobilePageFromServer();
-      recordVisitorTraffic(); // เรียกใช้ฟังก์ชันบันทึกสถิติรายชั่วโมงเวอร์ชันใหม่เมื่อลูกค้าเข้าใช้งานหน้าร้านสำเร็จ
+      recordVisitorTraffic(); 
     }
 
     hideLoadingScreen();
