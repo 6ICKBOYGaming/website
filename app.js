@@ -327,7 +327,20 @@ function initUserPresenceSystem() {
     setDoc(userPresenceDocRef, { lastActive: Date.now() - 120000 });
   });
 }
+// ตัวรับสัญญาณเพื่อบันทึกสถิติ (PageView)
+window.addEventListener('storePageView', (e) => {
+    // ฟังก์ชันนี้ recordVisitorTraffic ต้องถูกนิยามไว้ใน app.js อยู่แล้ว
+    // หากยังไม่มี ให้เขียนฟังก์ชันนี้รอไว้ด้านบนของไฟล์นี้ด้วยครับ
+    recordVisitorTraffic(e.detail);
+});
 
+// ตัวรับสัญญาณเพื่อบันทึกยอดคลิกสินค้า (Product Click)
+window.addEventListener('storeProductClick', (e) => {
+    // ฟังก์ชันนี้ updateProductClickCount ต้องถูกนิยามไว้ใน app.js อยู่แล้ว
+    updateProductClickCount(e.detail.productId);
+});
+
+// --- จบการเพิ่ม Event Listener ---
 async function checkOnlineUsersCountManual() {
   const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
   if (!realtimeCounterDisplay) return;

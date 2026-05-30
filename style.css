@@ -122,10 +122,17 @@ header {
   border-color: var(--text-main);
 }
 
-.top-buttons button.btn-admin-yellow {
-  background: var(--admin-yellow) !important;
-  color: #ffffff !important;
-  border: none !important;
+.btn-admin-yellow {
+  background-color: var(--admin-yellow);
+  color: var(--btn-text);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.btn-admin-yellow:hover {
+  background-color: var(--admin-yellow-hover);
 }
 
 .top-buttons button.btn-admin-yellow:hover {
