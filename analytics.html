@@ -21,7 +21,7 @@
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto bg-gray-900 p-3 rounded-xl border border-gray-800">
                 <div class="flex items-center gap-2">
                     <span class="text-xl">📅</span>
-                    <label for="date-select" class="text-sm font-semibold text-gray-300 whitespace-nowrap">เลือกวันที่:</label>
+                    <label for="date-select" class="text-sm font-semibold text-gray-300 whitespace-nowrap">เลือกวันที่ดูภาพรวม:</label>
                 </div>
                 <input type="date" id="date-select" class="bg-gray-800 border border-gray-750 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 cursor-pointer">
                 
@@ -29,8 +29,8 @@
                     🔄 รีเฟรชหน้านี้ (F5)
                 </button>
 
-                <button onclick="clearAllAnalyticsCloudData()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md transition duration-200 text-sm whitespace-nowrap">
-                    🗑️ ล้างข้อมูลเริ่มใหม่
+                <button onclick="clearSelectedDateAnalyticsCloudData()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md transition duration-200 text-sm whitespace-nowrap">
+                    🗑️ ล้างข้อมูลวันที่เลือก
                 </button>
             </div>
         </div>
@@ -117,7 +117,7 @@
             <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850 lg:col-span-2">
                 <div class="mb-4">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-amber-500">👑</span> กราฟแสดง 10 อันดับสินค้าที่มียอดคลิกสูงสุดของวันนี้ (Top 10 Most Clicked)
+                        <span class="text-amber-500">👑</span> กราฟแสดง 10 อันดับสินค้าที่มียอดคลิกสูงสุดของวันตาราง (Top 10 Most Clicked)
                     </h3>
                 </div>
                 <div class="relative h-80 w-full">
@@ -126,12 +126,16 @@
             </div>
 
             <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850 overflow-hidden flex flex-col">
-                <div class="mb-4">
+                <div class="mb-4 flex flex-col gap-2 border-b border-gray-800 pb-3">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-emerald-500">📋</span> ตารางจัดอันดับของวัน (Leaderboard)
+                        <span class="text-emerald-500">📋</span> จัดอันดับของวัน (Leaderboard)
                     </h3>
+                    <div class="flex items-center gap-1.5 mt-1 bg-gray-950 p-2 rounded-lg border border-gray-800">
+                        <span class="text-sm text-gray-400 whitespace-nowrap">เลือกวันตาราง:</span>
+                        <input type="date" id="leaderboard-date-select" class="w-full bg-gray-800 border border-gray-700 text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-emerald-500 cursor-pointer">
+                    </div>
                 </div>
-                <div class="flex-1 overflow-y-auto max-h-80 custom-scrollbar pr-1">
+                <div class="flex-1 overflow-y-auto max-h-[260px] custom-scrollbar pr-1">
                     <table class="w-full text-left text-sm">
                         <thead>
                             <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase">
@@ -150,7 +154,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { initializeFirestore, collection, getDocs, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { initializeFirestore, collection, getDocs, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
@@ -169,10 +173,17 @@
         let weeklyChartInstance = null;
         let productsChartInstance = null;
 
+        // ตัวแปรเก็บจำนวนโควตา Realtime ของ "วันนี้"
         let currentQuota = {
             read: { current: 0, max: 50000 },
             write: { current: 0, max: 20000 }
         };
+
+        // ตัวแปรนับแต้มชั่วคราวเวลาเปลี่ยนไปกดดู "ประวัติวันอื่นๆ ในอดีต" (ให้เริ่มนับจาก 0 เสมอ)
+        let historySessionQuota = { read: 0, write: 0 };
+
+        let cachedProductsBase = [];
+        let internalCurrentDateKey = getThailandDateKey();
 
         function getThailandDateKey(dateObj = new Date()) {
             const options = { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' };
@@ -236,6 +247,7 @@
                 const selectedDateStr = document.getElementById('date-select').value;
                 const todayInputStr = getThailandDateKey();
                 
+                // ถ้ายืนยันว่ากำลังดู "วันนี้" อยู่ ให้ Sync โควตา Realtime ข้ามแท็บตามปกติ
                 if (selectedDateStr === todayInputStr && event.data.date === getThailandDateKey()) {
                     currentQuota.read.current = event.data.read || 0;
                     currentQuota.write.current = event.data.write || 0;
@@ -245,31 +257,66 @@
             }
         };
 
-        function setDefaultDate() {
+        function setDefaultDates() {
             const dateInput = document.getElementById('date-select');
+            const leaderboardDateInput = document.getElementById('leaderboard-date-select');
+            const todayStr = getThailandDateKey();
+            
             if (dateInput && !dateInput.value) {
-                dateInput.value = getThailandDateKey();
+                dateInput.value = todayStr;
             }
+            if (leaderboardDateInput && !leaderboardDateInput.value) {
+                leaderboardDateInput.value = todayStr;
+            }
+        }
+
+        function forceClearUIFieldsToZero(dateString, isLeaderboardOnly = false) {
+            if (!isLeaderboardOnly) {
+                document.getElementById('today-views').innerText = "0 ครั้ง";
+                if (hourlyChartInstance) {
+                    hourlyChartInstance.data.datasets[0].data = Array(24).fill(0);
+                    hourlyChartInstance.update();
+                }
+                const parts = dateString.split('-');
+                const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                document.getElementById('hourly-graph-date').innerText = targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                document.getElementById('view-card-title').innerText = `ยอดเข้าชม (${targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })})`;
+            }
+
+            document.getElementById('total-clicks').innerText = "0 ครั้ง";
+            if (productsChartInstance) {
+                productsChartInstance.data.labels = ["ไม่มีข้อมูล"];
+                productsChartInstance.data.datasets[0].data = [0];
+                productsChartInstance.update();
+            }
+            document.getElementById('products-table-body').innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">⏳ วันที่เลือกยังไม่มีข้อมูลสถิติบันทึกไว้ (เริ่มนับจาก 0)</td></tr>`;
         }
 
         async function loadAdvancedAnalytics() {
             try {
-                setDefaultDate();
+                setDefaultDates();
                 const selectedDateStr = document.getElementById('date-select').value;
                 const todayInputStr = getThailandDateKey();
 
-                loadQuotaFromStorage();
+                // บล็อกวันล่วงหน้า
+                if (selectedDateStr > todayInputStr) {
+                    updateBadgeStatus("🔮 เลือกวันที่ล่วงหน้าในอนาคต: ระบบเซ็ตค่าหน้าจอเริ่มต้นเป็น 0 อัตโนมัติ", "text-amber-400", "bg-amber-500/10", "border-amber-500/20");
+                    forceClearUIFieldsToZero(selectedDateStr, false);
+                    updateQuotaDOM('read', 0, currentQuota.read.max);
+                    updateQuotaDOM('write', 0, currentQuota.write.max);
+                    return; 
+                }
 
+                // สลับป้ายหัวข้อเกจ และตั้งค่าเริ่มต้นของหน่วยนับ Read/Write ตามเงื่อนไขวันที่เลือก
                 if (selectedDateStr === todayInputStr) {
                     document.getElementById('read-title-date').innerText = "วันนี้ - Realtime";
                     document.getElementById('write-title-date').innerText = "วันนี้ - Realtime";
-                    document.getElementById('read-type-label').innerText = "โควตาเต็มต่อวัน";
-                    document.getElementById('write-type-label').innerText = "โควตาเต็มต่อวัน";
+                    loadQuotaFromStorage(); // โหลดแต้มสะสมจริงของวันนี้
                 } else {
-                    document.getElementById('read-title-date').innerText = "ประวัติวันเลือก";
-                    document.getElementById('write-title-date').innerText = "ประวัติวันเลือก";
-                    document.getElementById('read-type-label').innerText = "ปริมาณเรียกดูประวัติคลาวด์";
-                    document.getElementById('write-type-label').innerText = "ปริมาณเรียกดูประวัติคลาวด์";
+                    document.getElementById('read-title-date').innerText = "สถิติกดอ่านประวัติวันเลือก";
+                    document.getElementById('write-title-date').innerText = "สถิติกดเขียนประวัติวันเลือก";
+                    historySessionQuota.read = 0; // ล้างค่าประวัติเซสชันเริ่มนับ 0 ใหม่ทั้งหมด
+                    historySessionQuota.write = 0;
                 }
 
                 updateBadgeStatus("🌐 กำลังดึงข้อมูล Realtime สดตรงจาก Cloud Firebase...", "text-blue-400", "bg-blue-500/10", "border-blue-500/20");
@@ -277,13 +324,16 @@
                 let hourlyData = Array(24).fill(0);
                 let targetDateViewsCount = 0;
                 let total7DaysViews = 0;
-                let productTotalClicks = 0;
-                let allProductsList = []; 
-                let tempDailyClicksMap = {};
 
-                // ⚡ Read #1: ดึงก้อนข้อมูลสถิติตารางหลัก
+                // ดึงข้อมูลวิเคราะห์ (นับแต้มโควตา)
                 const analyticsSnap = await getDocs(collection(db, "analytics"));
-                currentQuota.read.current += (analyticsSnap.size || 1);
+                const readCost = (analyticsSnap.size || 1);
+                
+                if (selectedDateStr === todayInputStr) {
+                    currentQuota.read.current += readCost;
+                } else {
+                    historySessionQuota.read += readCost;
+                }
 
                 analyticsSnap.forEach(docSnap => {
                     const data = docSnap.data();
@@ -294,55 +344,48 @@
                             for (let i = 0; i < 24; i++) { hourlyData[i] = (data.hourlyTraffic[i] || 0); }
                         }
                         targetDateViewsCount = data.totalPageViews || hourlyData.reduce((a, b) => a + b, 0);
-                        
-                        if (data.productClicks) {
-                            Object.keys(data.productClicks).forEach(pKey => {
-                                tempDailyClicksMap[pKey] = data.productClicks[pKey] || 0;
-                            });
-                        }
                     }
                     if (data.totalPageViews) { total7DaysViews += data.totalPageViews; }
                 });
 
-                // ⚡ Read #2: ดึงก้อนข้อมูลของคอลเลกชัน products 
-                const productsSnap = await getDocs(collection(db, "products"));
-                currentQuota.read.current += (productsSnap.size || 1);
-
-                // สร้างแผงข้อมูลสินค้าทั้งหมดที่มีอยู่ในร้าน เพื่อให้สินค้าใหม่ขึ้นโชว์ทันทีแม้คลิกจะเป็น 0
-                productsSnap.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if (!data) return;
-                    
-                    const pName = data.name || docSnap.id || "สินค้าไม่มีชื่อ"; 
-                    const baseClicks = data.clickCount || 0;
-                    
-                    // มองหาค่าการกดคลิกของวันนี้ที่ผูกกับชื่อสินค้าชิ้นนี้
-                    const dailyClicks = tempDailyClicksMap[pName] || tempDailyClicksMap[docSnap.id] || 0;
-                    const combinedClicks = baseClicks + dailyClicks;
-
-                    // 🛠️ แก้ไขเรียบร้อย: ถอดเงื่อนไข "combinedClicks > 0" ออก เพื่อให้สินค้าเกิดใหม่โผล่ขึ้นบอร์ดทันที!
-                    allProductsList.push({ 
-                        name: pName, 
-                        clickCount: combinedClicks 
-                    });
-                    productTotalClicks += combinedClicks;
-                });
-
                 if (targetDateViewsCount === 0) { targetDateViewsCount = hourlyData.reduce((a, b) => a + b, 0); }
 
-                saveQuotaToStorage();
-                updateQuotaDOM('read', currentQuota.read.current, currentQuota.read.max);
-                updateQuotaDOM('write', currentQuota.write.current, currentQuota.write.max);
+                // ดึงรายการสินค้าทั้งหมด
+                const productsSnap = await getDocs(collection(db, "products"));
+                const pReadCost = (productsSnap.size || 1);
+
+                if (selectedDateStr === todayInputStr) {
+                    currentQuota.read.current += pReadCost;
+                } else {
+                    historySessionQuota.read += pReadCost;
+                }
                 
-                quotaChannel.postMessage({
-                    type: 'sync',
-                    date: getThailandDateKey(),
-                    read: currentQuota.read.current,
-                    write: currentQuota.write.current
+                cachedProductsBase = [];
+                productsSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data) {
+                        cachedProductsBase.push({
+                            id: docSnap.id,
+                            name: data.name || docSnap.id || "สินค้าไม่มีชื่อ",
+                            clickCount: data.clickCount || 0
+                        });
+                    }
                 });
 
+                // อัปเดตและบันทึกข้อมูลเกจแสดงผลลงหน้าจอตามโหมดวันเลือก
+                if (selectedDateStr === todayInputStr) {
+                    saveQuotaToStorage();
+                    updateQuotaDOM('read', currentQuota.read.current, currentQuota.read.max);
+                    updateQuotaDOM('write', currentQuota.write.current, currentQuota.write.max);
+                } else {
+                    updateQuotaDOM('read', historySessionQuota.read, currentQuota.read.max);
+                    updateQuotaDOM('write', historySessionQuota.write, currentQuota.write.max);
+                }
+
+                await processLeaderboardData();
+
                 updateBadgeStatus("✨ ดึงดาต้าสด Realtime สำเร็จเรียบร้อยแล้ว", "text-emerald-400", "bg-emerald-500/10", "border-emerald-500/20");
-                renderDashboardUI(selectedDateStr, hourlyData, targetDateViewsCount, total7DaysViews, productTotalClicks, allProductsList);
+                renderDashboardUI(selectedDateStr, hourlyData, targetDateViewsCount, total7DaysViews);
 
             } catch (error) {
                 console.error("Dashboard Critical Error:", error);
@@ -350,17 +393,81 @@
             }
         }
 
-        function renderDashboardUI(selectedDateStr, hourlyData, targetDateViewsCount, total7DaysViews, productTotalClicks, allProductsList) {
+        async function processLeaderboardData() {
+            try {
+                const lbDateStr = document.getElementById('leaderboard-date-select').value;
+                const todayStr = getThailandDateKey();
+                const selectedDateStr = document.getElementById('date-select').value;
+
+                if (lbDateStr > todayStr) {
+                    forceClearUIFieldsToZero(lbDateStr, true);
+                    return;
+                }
+
+                let tempDailyClicksMap = {};
+                let productTotalClicks = 0;
+                let allProductsList = [];
+
+                const analyticsSnap = await getDocs(collection(db, "analytics"));
+                
+                // บันทึกแต้มโควตาการทำงานของฝั่งลีดเดอร์บอร์ด
+                if (selectedDateStr === todayStr) {
+                    currentQuota.read.current += 1;
+                } else {
+                    historySessionQuota.read += 1;
+                }
+
+                analyticsSnap.forEach(docSnap => {
+                    const docId = docSnap.id;
+                    const data = docSnap.data();
+                    if (docId === lbDateStr || data.date === lbDateStr) {
+                        if (data.productClicks) {
+                            Object.keys(data.productClicks).forEach(pKey => {
+                                tempDailyClicksMap[pKey] = data.productClicks[pKey] || 0;
+                            });
+                        }
+                    }
+                });
+
+                cachedProductsBase.forEach(prod => {
+                    const dailyClicks = tempDailyClicksMap[prod.name] || tempDailyClicksMap[prod.id] || 0;
+                    const combinedClicks = (lbDateStr === todayStr) ? (prod.clickCount + dailyClicks) : dailyClicks;
+
+                    allProductsList.push({
+                        name: prod.name,
+                        clickCount: combinedClicks
+                    });
+                    productTotalClicks += combinedClicks;
+                });
+
+                document.getElementById('total-clicks').innerText = (productTotalClicks || 0).toLocaleString() + " ครั้ง";
+
+                const sortedProducts = [...allProductsList].sort((a, b) => b.clickCount - a.clickCount);
+                renderLeaderboardUI(sortedProducts);
+                
+                // พ่นสถิติโควตาลง UI อีกรอบหลังดึงลีดเดอร์บอร์ดเสร็จ
+                if (selectedDateStr === todayStr) {
+                    saveQuotaToStorage();
+                    updateQuotaDOM('read', currentQuota.read.current, currentQuota.read.max);
+                } else {
+                    updateQuotaDOM('read', historySessionQuota.read, currentQuota.read.max);
+                }
+
+            } catch (err) {
+                console.error("Leaderboard processing error:", err);
+            }
+        }
+
+        function renderDashboardUI(selectedDateStr, hourlyData, targetDateViewsCount, total7DaysViews) {
             const parts = selectedDateStr.split('-');
             const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
             const thaiDateDisplay = targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
             
             document.getElementById('hourly-graph-date').innerText = thaiDateDisplay;
             document.getElementById('view-card-title').innerText = `ยอดเข้าชม (${targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })})`;
-            document.getElementById('click-card-title').innerText = `ยอดกดลิงก์สินค้า (${targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })})`;
+            document.getElementById('click-card-title').innerText = `ยอดกดลิงก์สินค้า (วันตาราง)`;
 
             document.getElementById('today-views').innerText = (targetDateViewsCount || 0).toLocaleString() + " ครั้ง";
-            document.getElementById('total-clicks').innerText = (productTotalClicks || 0).toLocaleString() + " ครั้ง";
 
             let weeklyLabels = [];
             let weeklyData = [];
@@ -372,10 +479,31 @@
             }
             document.getElementById('week-views').innerText = (total7DaysViews || 0).toLocaleString() + " ครั้ง";
 
-            // เรียงลำดับจากคลิกมากไปหาน้อย สินค้ามาใหม่ยอดเป็น 0 จะต่อท้ายตารางอย่างถูกต้อง
-            const sortedProducts = [...allProductsList].sort((a, b) => b.clickCount - a.clickCount);
+            const ctxHourly = document.getElementById('hourlyChart').getContext('2d');
+            if (hourlyChartInstance) hourlyChartInstance.destroy();
+            hourlyChartInstance = new Chart(ctxHourly, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [{ data: hourlyData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointBackgroundColor: '#2563eb' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } }
+            });
+
+            const ctxWeekly = document.getElementById('weeklyChart').getContext('2d');
+            if (weeklyChartInstance) weeklyChartInstance.destroy();
+            weeklyChartInstance = new Chart(ctxWeekly, {
+                type: 'bar',
+                data: {
+                    labels: weeklyLabels,
+                    datasets: [{ data: weeklyData, backgroundColor: 'rgba(168, 85, 247, 0.6)', borderColor: '#a855f7', borderWidth: 2, borderRadius: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } }
+            });
+        }
+
+        function renderLeaderboardUI(sortedProducts) {
             const top10Products = sortedProducts.slice(0, 10);
-            
             const productLabels = top10Products.map(p => p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name);
             const productClicksData = top10Products.map(p => p.clickCount);
 
@@ -410,28 +538,6 @@
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 30 } } } }
             });
-
-            const ctxHourly = document.getElementById('hourlyChart').getContext('2d');
-            if (hourlyChartInstance) hourlyChartInstance.destroy();
-            hourlyChartInstance = new Chart(ctxHourly, {
-                type: 'line',
-                data: {
-                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
-                    datasets: [{ data: hourlyData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointBackgroundColor: '#2563eb' }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } }
-            });
-
-            const ctxWeekly = document.getElementById('weeklyChart').getContext('2d');
-            if (weeklyChartInstance) weeklyChartInstance.destroy();
-            weeklyChartInstance = new Chart(ctxWeekly, {
-                type: 'bar',
-                data: {
-                    labels: weeklyLabels,
-                    datasets: [{ data: weeklyData, backgroundColor: 'rgba(168, 85, 247, 0.6)', borderColor: '#a855f7', borderWidth: 2, borderRadius: 6 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } }
-            });
         }
 
         function updateBadgeStatus(text, textColor, bgColor, borderColor) {
@@ -442,46 +548,107 @@
             }
         }
 
-        async function clearAllAnalyticsCloudData() {
-            const firstConfirm = confirm("⚠️ เตือนภัย: คุณกำลังจะลบข้อมูลสถิติผู้เข้าชมร้าน และยอดคลิกรายวันทิ้งทั้งหมดบน Cloud Firebase!\n\nคุณแน่ใจใช่ไหม?");
+        async function clearSelectedDateAnalyticsCloudData() {
+            setDefaultDates();
+            const selectedDateStr = document.getElementById('date-select').value;
+            const todayStr = getThailandDateKey();
+            
+            const firstConfirm = confirm(`⚠️ เตือนภัยขั้นวิกฤต: คุณกำลังจะลบเอกสารสถิติยอดชมและยอดคลิกสินค้าทั้งหมดของวันที่ [ ${selectedDateStr} ] บนระบบคลาวด์ทิ้งถาวร!\n\nคุณมั่นใจที่จะดำเนินการต่อใช่ไหม?`);
             if (!firstConfirm) return;
 
             try {
-                const analyticsSnap = await getDocs(collection(db, "analytics"));
-                const batch = writeBatch(db);
-                
-                let writeCount = 0;
-                analyticsSnap.forEach((docSnap) => { 
-                    batch.delete(docSnap.ref); 
-                    writeCount++;
-                });
+                updateBadgeStatus("🗑️ กำลังทำลายสถิติและเซ็ตระบบเป็นศูนย์ของวันที่เลือก...", "text-red-400", "bg-red-500/10", "border-red-500/20");
 
-                try {
+                const targetDocRef = doc(db, "analytics", selectedDateStr);
+                await deleteDoc(targetDocRef);
+                
+                if (selectedDateStr === todayStr) {
+                    currentQuota.write.current += 1;
+                } else {
+                    historySessionQuota.write += 1;
+                }
+
+                if (selectedDateStr === todayStr) {
                     const productsSnap = await getDocs(collection(db, "products"));
+                    const batch = writeBatch(db);
+                    let productResetCount = 0;
+                    
                     productsSnap.forEach((docSnap) => {
                         batch.update(docSnap.ref, { clickCount: 0 });
-                        writeCount++;
+                        productResetCount++;
                     });
-                } catch (e) { }
+                    
+                    if (productResetCount > 0) {
+                        await batch.commit();
+                        currentQuota.write.current += productResetCount;
+                    }
+                }
 
-                await batch.commit();
+                forceClearUIFieldsToZero(selectedDateStr, false);
+
+                if (selectedDateStr === todayStr) {
+                    saveQuotaToStorage();
+                    updateQuotaDOM('write', currentQuota.write.current, currentQuota.write.max);
+                } else {
+                    updateQuotaDOM('write', historySessionQuota.write, currentQuota.write.max);
+                }
                 
-                currentQuota.write.current += writeCount;
-                saveQuotaToStorage();
-                alert("✅ ล้างสถิติและรีเซ็ตยอดสะสมบน Cloud สำเร็จ!");
+                alert(`✅ ล้างข้อมูลสถิติมูลฐานของวันที่ ${selectedDateStr} เกลี้ยงระบบเรียบร้อยแล้ว!`);
                 loadAdvancedAnalytics();
+
             } catch (error) {
-                alert("🔴 เกิดข้อผิดพลาด: " + error.message);
+                alert("🔴 เกิดข้อผิดพลาดในการล้างข้อมูลสถิติ: " + error.message);
+                updateBadgeStatus("🔴 สัญญาณขัดข้องในการดำเนินการล้าง", "text-red-400", "bg-red-500/10", "border-red-500/20");
             }
         }
+
+        // ⏰ ระบบตรวจจับเวลาข้ามวัน 00:00 น. แบบ Realtime 
+        setInterval(() => {
+            const freshTodayKey = getThailandDateKey();
+            if (freshTodayKey !== internalCurrentDateKey) {
+                internalCurrentDateKey = freshTodayKey;
+                
+                // บังคับเซ็ตค่าโควตาสะสม Realtime ของวันเก่าในความจำเป็น 0 ต้อนรับวันใหม่
+                currentQuota.read.current = 0;
+                currentQuota.write.current = 0;
+                saveQuotaToStorage();
+
+                // รีเซ็ตเกจหน้าจอหลักเป็น 0% ทันที
+                updateQuotaDOM('read', 0, currentQuota.read.max);
+                updateQuotaDOM('write', 0, currentQuota.write.max);
+
+                // สลับปฏิทินเลือกวันกลับมาที่วันปัจจุบัน
+                document.getElementById('date-select').value = freshTodayKey;
+                document.getElementById('leaderboard-date-select').value = freshTodayKey;
+                
+                console.log(`⏰ [Midnight Reset] เข้าสู่วันใหม่เรียบร้อยแล้ว (${freshTodayKey}) ล้างค่าโควตาการใช้งานคลาวด์และสถิติบนบอร์ดทั้งหมดเป็น 0`);
+                
+                forceClearUIFieldsToZero(freshTodayKey, false);
+                
+                // ประกาศให้แท็บอื่นๆ รับรู้
+                quotaChannel.postMessage({
+                    type: 'sync',
+                    date: freshTodayKey,
+                    read: 0,
+                    write: 0
+                });
+
+                loadAdvancedAnalytics();
+            }
+        }, 1000);
 
         document.getElementById('date-select').addEventListener('change', () => {
             loadAdvancedAnalytics();
         });
 
+        document.getElementById('leaderboard-date-select').addEventListener('change', () => {
+            processLeaderboardData();
+        });
+
         window.updateQuotaDOM = updateQuotaDOM;
         window.loadAdvancedAnalytics = loadAdvancedAnalytics;
-        window.clearAllAnalyticsCloudData = clearAllAnalyticsCloudData;
+        window.processLeaderboardData = processLeaderboardData;
+        window.clearSelectedDateAnalyticsCloudData = clearSelectedDateAnalyticsCloudData;
         document.addEventListener('DOMContentLoaded', () => loadAdvancedAnalytics());
     </script>
 </body>
