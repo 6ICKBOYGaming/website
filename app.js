@@ -45,7 +45,7 @@ const db = initializeFirestore(app, {
   })
 });
 
-console.log("%c╠══ [Firebase V7.5-FlashSalePriceSeparated] ซ่อมแซมระบบแยกราคา Flash Sale สำเร็จ", "color: #00ffff; font-weight: bold;");
+console.log("%c╠══ [Firebase V8.0-SpeedRender] บังคับย่อขนาดรูปอัตโนมัติ + Lazy Load สำเร็จแล้ว ⚡", "color: #00ff00; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -79,25 +79,35 @@ const ADMIN_BADGE_LOGO_URL = "https://i.postimg.cc/brG5HJBR/123.jpg";
 
 let allowCacheRead = false;
 
+/* ================= 🔄 ระบบจัดการเวอร์ชันข้อมูลและแคมเปญประหยัด Read ================= */
 async function checkSmartCacheVersion() {
   if (isAdmin) {
     allowCacheRead = false;
     return false;
   }
   try {
-    const versionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'default' });
-    if (versionSnap.exists()) {
-      const cloudVersion = versionSnap.data().lastUpdated || 0;
-      const localVersion = parseInt(localStorage.getItem("local_data_version") || "0", 10);
+    const cachedVersionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'cache' });
+    const localVersion = parseInt(localStorage.getItem("local_data_version") || "0", 10);
+
+    if (cachedVersionSnap.exists() && localVersion > 0) {
+      const cachedCloudVersion = cachedVersionSnap.data().lastUpdated || 0;
       
-      if (cloudVersion > 0 && cloudVersion === localVersion) {
-        allowCacheRead = true;
-        return true;
+      if (cachedCloudVersion === localVersion) {
+        const serverVersionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'default' });
+        if (serverVersionSnap.exists()) {
+          const currentServerVersion = serverVersionSnap.data().lastUpdated || 0;
+          if (currentServerVersion === localVersion) {
+            allowCacheRead = true;
+            console.log("⚡ [Smart Cache] ข้อมูลสมบูรณ์และเป็นเวอร์ชันล่าสุด! เปิดใช้งานการอ่านจาก Local Cache 100%");
+            return true;
+          }
+        }
       }
     }
   } catch (err) {
-    console.error("Smart Cache Check Error:", err);
+    console.warn("Smart Cache Information Base Lookup (Reverting to default fetch):", err);
   }
+  
   allowCacheRead = false;
   return false;
 }
@@ -257,7 +267,7 @@ window.forceSyncClicksToCloud = async () => {
     saveLocalPendingClicks({});
     alert("✅ อัปเดตข้อมูลคลิกสะสมขึ้น Cloud สำเร็จเสร็จสิ้น!");
     loadMasterData();
-  } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); }
+  } catch (err) { alert(err.message); }
 };
 
 window.trackProductClick = async (productId) => {
@@ -294,7 +304,7 @@ window.resetAllProductsClick = async () => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= 👥 ระบบติดตามจำนวนผู้เข้าชมแบบประหยัด Read ================= */
+/* ================= 👑 ระบบติดตามจำนวนผู้เข้าชมแบบประหยัด Read ================= */
 initUserPresenceSystem();
 function initUserPresenceSystem() {
   if (userPresenceInterval) clearInterval(userPresenceInterval);
@@ -334,26 +344,29 @@ async function checkOnlineUsersCountManual() {
   if (!realtimeCounterDisplay) return;
 
   try {
-    const snapshot = await getDocs(onlineUsersRef);
     const now = Date.now();
-    let onlineCount = 0;
-    let expiredUserIds = [];
-
-    snapshot.forEach(docSnap => {
-      const userData = docSnap.data();
-      if (userData.lastActive && (now - userData.lastActive < 60000)) {
-        onlineCount++;
-      } else {
-        expiredUserIds.push(docSnap.id);
-      }
-    });
-
+    const activeThreshold = now - 60000; // 1 นาที
+    
+    // [แก้ไขเพื่อประหยัด Read]: ฝั่งแอดมินนับยอดคนออนไลน์ดึงจากคน Active จริงเท่านั้น
+    const activeQuery = query(onlineUsersRef, where("lastActive", ">=", activeThreshold));
+    const activeSnapshot = await getDocs(activeQuery);
+    
+    let onlineCount = activeSnapshot.size;
     realtimeCounterDisplay.innerText = onlineCount;
 
-    if (isAdmin && expiredUserIds.length > 0) {
-      const batch = writeBatch(db);
-      expiredUserIds.forEach(id => { batch.delete(doc(db, "online_users", id)); });
-      await batch.commit();
+    // [แก้ไขเพื่อประหยัด Read]: ค้นหาและดึงขยะ (คนออฟไลน์) เพื่อนำไปลบเฉพาะรายการที่หมดอายุจริง
+    if (isAdmin) {
+      const expiredQuery = query(onlineUsersRef, where("lastActive", "<", activeThreshold), limit(400));
+      const expiredSnapshot = await getDocs(expiredQuery);
+      
+      if (!expiredSnapshot.empty) {
+        const batch = writeBatch(db);
+        expiredSnapshot.forEach(docSnap => {
+          batch.delete(doc(db, "online_users", docSnap.id));
+        });
+        await batch.commit();
+        console.log(`🧹 [Presence Cleanup] ลบขยะเซสชันหมดอายุสำเร็จ จำนวน: ${expiredSnapshot.size} รายการ`);
+      }
     }
   } catch (err) {
     console.error("Manual Presence Count Error:", err);
@@ -398,8 +411,12 @@ async function loadMasterData() {
     const hotProducts = allProducts.filter(p => p.isHot).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
     const newProducts = allProducts.filter(p => p.isNew).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
 
-    if (hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
-    if (newEl) newEl.innerHTML = newProducts.map(p => card(p)).join("");
+    if (hotEl) {
+      hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
+    }
+    if (newEl) {
+      newEl.innerHTML = newProducts.map(p => card(p)).join("");
+    }
 
     initAutoSliders();
 
@@ -502,16 +519,28 @@ function applyWidgetSettings(docSnap) {
   }
 }
 
+/* ================= 📦 ฟังก์ชันเสริมสำหรับทำ Image Resize Proxy (wsrv.nl) ================= */
+function getOptimizedImageUrl(originalUrl, targetWidth = 350) {
+  if (!originalUrl || typeof originalUrl !== "string") return "https://via.placeholder.com/180";
+  const trimmedUrl = originalUrl.trim();
+  if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) return trimmedUrl;
+  
+  // ในโหมด Admin ปล่อยผ่านเพื่อให้ตรวจสอบภาพดั้งเดิมได้ชัดเจน และไม่ทำ Proxy บนเว็บ placeholder
+  if (isAdmin || trimmedUrl.includes("via.placeholder.com")) return trimmedUrl;
+  
+  // ย่อขนาดความกว้างเหลือ 350px ปรับคุณภาพ 80% บังคับออกเป็น WebP เพื่อความเบาสุดๆ ของหน้า User
+  return `https://wsrv.nl/?url=${encodeURIComponent(trimmedUrl)}&w=${targetWidth}&output=webp&q=80&il`;
+}
+
 /* ================= 📦 โครงสร้างการจัดวางการ์ดสินค้า ================= */
 function formatPrice(p){ if(p === undefined || p === null || p === "") return ""; return "฿" + Number(p).toLocaleString("th-TH"); }
 
 function card(p, index){
   const priceNormal = p.price ? Number(p.price) : 0;
   const priceSale = p.salePrice ? Number(p.salePrice) : 0;
-  const priceFlash = p.flashSalePrice ? Number(p.flashSalePrice) : 0; // 🟢 โหลดค่าราคา Flash Sale แยกต่างหาก
+  const priceFlash = p.flashSalePrice ? Number(p.flashSalePrice) : 0; 
   const currentFlashSaleTimeVal = p.flashSaleEndTime || "";
   
-  // ตรวจสอบความถูกต้องของกิจกรรม Flash Sale
   const isFlashSaleActive = currentFlashSaleTimeVal ? (new Date(currentFlashSaleTimeVal).getTime() - new Date().getTime() > 0) : false;
   const isProductComingSoon = !!p.comingSoon || (priceNormal === 0 && priceSale === 0);
   
@@ -519,7 +548,6 @@ function card(p, index){
   if (isProductComingSoon) {
     priceHtmlDisplay = `<div class="price coming-soon-text">Coming Soon...</div>`;
   } else if (isFlashSaleActive && priceFlash > 0) {
-    // 🟢 ถ้า Flash Sale กำลังรันอยู่และมีราคาแฟลชเซลล์ ให้แสดงราคาแฟลชเซลล์เป็นหลักคู่กับราคาด่วนเดิมโดนขีดฆ่า
     const baseDisplayOldPrice = priceSale > 0 ? priceSale : priceNormal;
     priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(baseDisplayOldPrice)}</div><div class="price flash-active-price" style="color:#f87171; font-weight:8px; text-shadow:0 0 6px rgba(248,113,113,0.25);">${formatPrice(priceFlash)}</div>`;
   } else {
@@ -556,7 +584,7 @@ function card(p, index){
   const canDrag = isAdmin && currentSortMode === "tierlist";
   const dragAttr = canDrag ? `draggable="true" data-id="${p.id}" class="card admin-draggable"` : `class="card"`;
   const currentQuickPriceVal = priceSale > 0 ? priceSale : (priceNormal > 0 ? priceNormal : "");
-  const currentQuickFlashPriceVal = priceFlash > 0 ? priceFlash : ""; // ดึงค่าราคาแฟลชเซลล์ปัจจุบัน
+  const currentQuickFlashPriceVal = priceFlash > 0 ? priceFlash : ""; 
   const currentAdminRecommendState = !!p.isAdminRecommend; 
 
   let tierBadgeHtml = "";
@@ -590,7 +618,21 @@ function card(p, index){
   }
 
   const imageLink = (!isProductComingSoon && (p.shopee1?.trim() || p.shopee2?.trim())) ? (p.shopee1?.trim() || p.shopee2?.trim()) : "";
-  const imageHtml = imageLink ? `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block;" onclick="trackProductClick('${p.id}')">${adminLogoBadgeHtml}<img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}"></a>` : `<div style="position:relative; display:block;">${adminLogoBadgeHtml}<img src="${p.image?.trim() || 'https://via.placeholder.com/180'}" alt="${p.name}" class="no-link-img"></div>`;
+  
+  // ⚙️ นำรูปภาพต้นฉบับผ่านระบบบีบอัดขนาด
+  const imageSrc = getOptimizedImageUrl(p.image);
+  
+  // 🚀 ปรับเป็นระบบผสม: แอดมินให้โหลดสดทันทีเพื่อตรวจเช็ค ส่วนหน้า User บังคับทำ Lazy Loading ด้วย Base64 Placeholder
+  let finalImageTag = "";
+  if (isAdmin) {
+    finalImageTag = `<img src="${imageSrc}" alt="${p.name}" style="width:100%; height:200px; object-fit:cover;">`;
+  } else {
+    finalImageTag = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" data-src="${imageSrc}" alt="${p.name}" class="lazy-load-img" style="width:100%; height:200px; object-fit:cover; opacity:0; transition:opacity 0.3s ease-in-out;">`;
+  }
+
+  const imageHtml = imageLink ? 
+    `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);" onclick="trackProductClick('${p.id}')">${adminLogoBadgeHtml}${finalImageTag}</a>` : 
+    `<div style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${finalImageTag}</div>`;
 
   let flashSaleTimerHtml = "";
   if (!isProductComingSoon && currentFlashSaleTimeVal && isFlashSaleActive) {
@@ -703,7 +745,6 @@ window.handleQuickPriceKey = async (event, productId) => {
   }
 };
 
-// 🟢 ฟังก์ชันบันทึกราคาด่วนสำหรับ Flash Sale โดยเฉพาะ
 window.handleQuickFlashPriceKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault(); 
@@ -722,7 +763,6 @@ window.handleQuickFlashPriceKey = async (event, productId) => {
   }
 };
 
-// 🟢 ฟังก์ชันล้างข้อมูลราคา Flash Sale
 window.clearQuickFlashPrice = async (productId) => {
   try {
     await updateDoc(doc(db, "products", productId), { flashSalePrice: 0 });
@@ -734,6 +774,7 @@ window.clearQuickFlashPrice = async (productId) => {
 
 window.clearQuickPrice = async (productId) => {
   try {
+    // [แก้ไขปีกกา]: ถอดตัวครอบ Object ปีกกาซ้อนออกเพื่อให้ยิงข้อมูลไป Cloud สำเร็จโดยไม่ผิดพลาดยกชุด
     const updateFields = { price: 0, salePrice: 0, comingSoon: true };
     await updateDoc(doc(db, "products", productId), updateFields);
     const foundIdx = allProducts.findIndex(p => p.id === productId);
@@ -742,7 +783,7 @@ window.clearQuickPrice = async (productId) => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= ⚡️ ระบบสแกนและประมวลผลตัวอักษรหน่วยเวลาพร้อมรองรับการคั่นราคาด้วย @ ================= */
+/* ================= ⚡️ ระบบสแกนหน่วยเวลาคั่นราคาด้วย @ ================= */
 window.handleQuickFlashSaleKey = async (event, productId) => {
   if (event.key === "Enter" || event.keyCode === 13) {
     event.preventDefault(); 
@@ -752,7 +793,6 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
     let timePart = rawInput;
     let extractedFlashPrice = null;
 
-    // 🟢 ตรวจสอบสูตรทางลัดอัจฉริยะ (เช่น พิมพ์ 990@1h แปลว่าตั้งราคาแฟลช 990 บาท พร้อมเวลา 1 ชั่วโมง)
     if (rawInput.includes("@")) {
       const parts = rawInput.split("@");
       const priceStr = parts[0].trim();
@@ -830,7 +870,7 @@ window.clearQuickFlashSale = async (productId) => {
   } catch (err) { alert(err.message); }
 };
 
-/* ================= ⏰ ตัวนับถอยหลังพร้อมระบบ Auto-Revert ดีดราคากลับหน้าจอทันที ================= */
+/* ================= ⏰ ตัวนับถอยหลังพร้อมระบบ Auto-Revert ================= */
 function startFlashSaleClockTicker() {
   if (globalFlashSaleTimerInterval) clearInterval(globalFlashSaleTimerInterval);
   
@@ -845,7 +885,6 @@ function startFlashSaleClockTicker() {
       
       const timeRemaining = new Date(endTimeAttr).getTime() - new Date().getTime();
       
-      // 🚨 เมื่อเวลาแคมเปญลดพิเศษหมดลง
       if (timeRemaining <= 0) {
         const flashBox = document.getElementById(`flash-box-${pId}`);
         if (flashBox) flashBox.style.display = "none"; 
@@ -853,9 +892,8 @@ function startFlashSaleClockTicker() {
         const foundIdx = allProducts.findIndex(p => p.id === pId);
         if (foundIdx !== -1 && allProducts[foundIdx].flashSaleEndTime !== "") {
           allProducts[foundIdx].flashSaleEndTime = ""; 
-          allProducts[foundIdx].flashSalePrice = 0; // 🟢 ล้างราคาแฟลชเซลล์เป็น 0 ทันที
+          allProducts[foundIdx].flashSalePrice = 0; 
           
-          // ดีดราคากลับสู่ราคาเดิมหน้าร้านค้าให้ผู้ใช้งานเห็นสดๆ ทันที
           const cardEl = el.closest('.card');
           if (cardEl) {
             const priceContainer = cardEl.querySelector('.price-container');
@@ -873,7 +911,6 @@ function startFlashSaleClockTicker() {
             }
           }
           
-          // ส่งสัญญาณอัปเดตคลีนข้อมูลลงคลาวด์ Firestore
           try {
             await updateDoc(doc(db, "products", pId), { flashSaleEndTime: "", flashSalePrice: 0 });
             await bumpCloudVersion();
@@ -911,6 +948,9 @@ function renderMobileView() {
   renderSidebarCategories();
   renderInfiniteScrollLoader();
   startFlashSaleClockTicker();
+  
+  // 🔥 เรียกคิวควบคุม Lazy Loading ทำงานหลังสร้างการ์ด User เสร็จสิ้น
+  observeLazyImages();
 }
 
 function renderAdminView() {
@@ -1278,3 +1318,40 @@ window.saveSpecialGroupOrdersManually = async () => {
     await batch.commit(); await bumpCloudVersion(); alert("💾 อัปเดตลำดับกลุ่มสิทธิพิเศษสำเร็จ!"); loadMasterData();
   } catch (err) { alert(err.message); }
 };
+
+/* ================= 🖼️ ระบบคิวควบคุมการโหลดรูปภาพอัจฉริยะ (Lazy Loading) ================= */
+function observeLazyImages() {
+  const lazyImages = document.querySelectorAll(".lazy-load-img");
+  if (lazyImages.length === 0) return;
+  
+  if (!("IntersectionObserver" in window)) {
+    lazyImages.forEach(img => {
+      const realSrc = img.getAttribute("data-src");
+      if (realSrc) {
+        img.src = realSrc;
+        img.style.opacity = "1";
+      }
+    });
+    return;
+  }
+
+  const imageObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const image = entry.target;
+        const realSrc = image.getAttribute("data-src");
+        if (realSrc) {
+          image.src = realSrc;
+          image.onload = () => {
+            image.style.opacity = "1"; // แสดงรูปภาพแบบ Fade-in นุ่มๆ เมื่อดาวน์โหลดเสร็จ
+          };
+        }
+        observer.unobserve(image); // โหลดเสร็จแล้วสั่งหยุดติดตามทันที
+      }
+    });
+  }, {
+    rootMargin: "250px 0px" // สั่งรูปภาพให้แอบโหลดล่วงหน้าก่อนผู้ใช้เลื่อนลงมาเห็น 250 พิกเซล
+  });
+
+  lazyImages.forEach(img => imageObserver.observe(img));
+}
