@@ -252,7 +252,6 @@
             }
         }
 
-        // 🌟 ฟังก์ชันดึงข้อมูลสดข้ามหัว Cache ตรงเข้า Firebase ทุกๆ ครั้งที่ถูกเรียก
         async function loadAdvancedAnalytics() {
             try {
                 setDefaultDate();
@@ -297,46 +296,40 @@
                         targetDateViewsCount = data.totalPageViews || hourlyData.reduce((a, b) => a + b, 0);
                         
                         if (data.productClicks) {
-                            Object.keys(data.productClicks).forEach(pName => {
-                                tempDailyClicksMap[pName] = data.productClicks[pName] || 0;
+                            Object.keys(data.productClicks).forEach(pKey => {
+                                tempDailyClicksMap[pKey] = data.productClicks[pKey] || 0;
                             });
                         }
                     }
                     if (data.totalPageViews) { total7DaysViews += data.totalPageViews; }
                 });
 
-                // ⚡ Read #2: ดึงก้อนข้อมูลยอดสะสมรวมของ Products (เฉพาะเมื่อดูของวันปัจจุบัน)
-                if (selectedDateStr === todayInputStr) {
-                    const productsSnap = await getDocs(collection(db, "products"));
-                    currentQuota.read.current += (productsSnap.size || 1);
+                // ⚡ Read #2: ดึงก้อนข้อมูลของคอลเลกชัน products 
+                const productsSnap = await getDocs(collection(db, "products"));
+                currentQuota.read.current += (productsSnap.size || 1);
 
-                    productsSnap.forEach(docSnap => {
-                        const data = docSnap.data();
-                        if (!data) return;
-                        
-                        const pName = data.name || docSnap.id || "สินค้าไม่มีชื่อ"; 
-                        const baseClicks = data.clickCount || 0;
-                        const dailyClicks = tempDailyClicksMap[pName] || 0;
-                        const combinedClicks = baseClicks + dailyClicks;
+                // สร้างแผงข้อมูลสินค้าทั้งหมดที่มีอยู่ในร้าน เพื่อให้สินค้าใหม่ขึ้นโชว์ทันทีแม้คลิกจะเป็น 0
+                productsSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (!data) return;
+                    
+                    const pName = data.name || docSnap.id || "สินค้าไม่มีชื่อ"; 
+                    const baseClicks = data.clickCount || 0;
+                    
+                    // มองหาค่าการกดคลิกของวันนี้ที่ผูกกับชื่อสินค้าชิ้นนี้
+                    const dailyClicks = tempDailyClicksMap[pName] || tempDailyClicksMap[docSnap.id] || 0;
+                    const combinedClicks = baseClicks + dailyClicks;
 
-                        if (combinedClicks > 0) {
-                            allProductsList.push({ name: pName, clickCount: combinedClicks });
-                            productTotalClicks += combinedClicks;
-                        }
+                    // 🛠️ แก้ไขเรียบร้อย: ถอดเงื่อนไข "combinedClicks > 0" ออก เพื่อให้สินค้าเกิดใหม่โผล่ขึ้นบอร์ดทันที!
+                    allProductsList.push({ 
+                        name: pName, 
+                        clickCount: combinedClicks 
                     });
-                } else {
-                    Object.keys(tempDailyClicksMap).forEach(pName => {
-                        const clicks = tempDailyClicksMap[pName] || 0;
-                        if (clicks > 0) {
-                            allProductsList.push({ name: pName, clickCount: clicks });
-                            productTotalClicks += clicks;
-                        }
-                    });
-                }
+                    productTotalClicks += combinedClicks;
+                });
 
                 if (targetDateViewsCount === 0) { targetDateViewsCount = hourlyData.reduce((a, b) => a + b, 0); }
 
-                // อัปเดตและบันทึกปริมาณการกินโควตาลง Storage เพื่อส่งสัญญาณไปแท็บอื่นๆ
                 saveQuotaToStorage();
                 updateQuotaDOM('read', currentQuota.read.current, currentQuota.read.max);
                 updateQuotaDOM('write', currentQuota.write.current, currentQuota.write.max);
@@ -379,19 +372,22 @@
             }
             document.getElementById('week-views').innerText = (total7DaysViews || 0).toLocaleString() + " ครั้ง";
 
-            const top10Products = [...allProductsList].sort((a, b) => b.clickCount - a.clickCount).slice(0, 10);
+            // เรียงลำดับจากคลิกมากไปหาน้อย สินค้ามาใหม่ยอดเป็น 0 จะต่อท้ายตารางอย่างถูกต้อง
+            const sortedProducts = [...allProductsList].sort((a, b) => b.clickCount - a.clickCount);
+            const top10Products = sortedProducts.slice(0, 10);
+            
             const productLabels = top10Products.map(p => p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name);
             const productClicksData = top10Products.map(p => p.clickCount);
 
             let tableHtml = "";
-            if (top10Products.length === 0 || productTotalClicks === 0) {
-                tableHtml = `<tr><td colspan="3" class="text-center py-4 text-gray-500">ยังไม่มีสถิติการคลิกสินค้าในวันนี้</td></tr>`;
+            if (sortedProducts.length === 0) {
+                tableHtml = `<tr><td colspan="3" class="text-center py-4 text-gray-500">ไม่มีสินค้าในระบบคลาวด์</td></tr>`;
             } else {
-                top10Products.forEach((p, idx) => {
+                sortedProducts.forEach((p, idx) => {
                     let badgeColor = "bg-gray-800 text-gray-400";
-                    if (idx === 0) badgeColor = "bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30";
-                    if (idx === 1) badgeColor = "bg-slate-300/20 text-slate-300 font-bold border border-slate-300/30";
-                    if (idx === 2) badgeColor = "bg-amber-700/20 text-amber-600 font-bold border border-amber-700/30";
+                    if (idx === 0 && p.clickCount > 0) badgeColor = "bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30";
+                    if (idx === 1 && p.clickCount > 0) badgeColor = "bg-slate-300/20 text-slate-300 font-bold border border-slate-300/30";
+                    if (idx === 2 && p.clickCount > 0) badgeColor = "bg-amber-700/20 text-amber-600 font-bold border border-amber-700/30";
 
                     tableHtml += `
                         <tr class="border-b border-gray-900 hover:bg-gray-900/40 transition">
@@ -479,7 +475,6 @@
             }
         }
 
-        // เมื่อมีการเปลี่ยนตัวเลือกวันที่ ให้โหลดข้อมูลสดของวันนั้นๆ ทันที
         document.getElementById('date-select').addEventListener('change', () => {
             loadAdvancedAnalytics();
         });
