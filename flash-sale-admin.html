@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการกลุ่มสินค้า Flash Sale (Admin)</title>
+    <style>
+        body {
+            background-color: #0c0a09;
+            color: #f5f5f4;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header-panel {
+            background: #1c1917;
+            border: 1px solid #262626;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .header-panel h1 {
+            color: #eab308;
+            margin-top: 0;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .bulk-box {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 15px;
+            background: #171717;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #262626;
+            margin-top: 15px;
+            align-items: flex-end;
+        }
+        @media (max-width: 600px) {
+            .bulk-box { grid-template-columns: 1fr; }
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group label {
+            font-size: 13px;
+            color: #a3a3a3;
+        }
+        .form-group input, .select-control {
+            background: #262626;
+            border: 1px solid #404040;
+            color: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            outline: none;
+            font-size: 14px;
+        }
+        .form-group input:focus, .select-control:focus {
+            border-color: #eab308;
+        }
+        .btn-yellow {
+            background: #eab308;
+            color: #000;
+            font-weight: bold;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            height: 40px;
+        }
+        .btn-yellow:hover {
+            background: #facc15;
+        }
+        .ctrl-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn-outline {
+            background: #262626;
+            color: #fff;
+            border: 1px solid #404040;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-outline:hover {
+            background: #404040;
+        }
+        .filter-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1c1917;
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid #262626;
+        }
+        .filter-box label {
+            font-size: 13px;
+            color: #a3a3a3;
+        }
+        .select-control {
+            padding: 6px 12px;
+            background: #171717;
+            cursor: pointer;
+        }
+        .table-responsive {
+            overflow-x: auto;
+            background: #1c1917;
+            border: 1px solid #262626;
+            border-radius: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background: #262626;
+            color: #e5e5e5;
+            padding: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid #404040;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #262626;
+            vertical-align: middle;
+        }
+        tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+        .input-flash-price {
+            background: #262626;
+            border: 1px solid #404040;
+            color: #ef4444;
+            font-weight: bold;
+            padding: 6px 10px;
+            border-radius: 4px;
+            width: 100px;
+            outline: none;
+        }
+        .input-flash-price:focus {
+            border-color: #ef4444;
+            background: #1f1414;
+        }
+        .debug-panel {
+            background: #18181b;
+            border-left: 4px solid #ef4444;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #f4f4f5;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <div class="header-panel">
+            <h1>⚡ แผงควบคุมตั้งค่าสินค้า Flash Sale แบบกลุ่ม (Bulk Manager)</h1>
+            <p style="color: #a3a3a3; font-size: 14px; margin: 0;">กำหนดเวลาแคมเปญด้านบน ติ๊กเลือกสินค้าและระบุราคาพิเศษของแต่ละชิ้นในตาราง จากนั้นกดปล่อยโปรโมชั่นพร้อมกันได้ทันที</p>
+            
+            <div class="bulk-box">
+                <div class="form-group">
+                    <label for="bulkDurationInput">⏳ ระยะเวลาแคมเปญปล่อยกลุ่ม (เช่น 1h, 45m, 2h 30m):</label>
+                    <input type="text" id="bulkDurationInput" placeholder="ตัวอย่าง: 2h หรือ 45m">
+                </div>
+                <div>
+                    <button id="submitBulkBtn" class="btn-yellow">🚀 ปล่อยโปรโมชั่นกลุ่มตามราคาที่ตั้ง</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="debugConsole" class="debug-panel"></div>
+
+        <div class="ctrl-row">
+            <button id="selectAllBtn" class="btn-outline">✅ เลือกสินค้าทั้งหมด</button>
+            <button id="clearAllSelectBtn" class="btn-outline">❌ ยกเลิกการเลือกทั้งหมด</button>
+            
+            <div class="filter-box">
+                <label for="categoryFilter">📁 แยกตามหมวดหมู่:</label>
+                <select id="categoryFilter" class="select-control">
+                    <option value="all">แสดงสินค้าทั้งหมด (-- โหลดฐานข้อมูลก่อน --)</option>
+                </select>
+            </div>
+
+            <div style="margin-left: auto; display: flex; align-items: center; background: #1c1917; padding: 0 15px; border-radius: 6px; border: 1px solid #262626; font-size: 13px; height: 34px; box-sizing: border-box;">
+                เลือกอยู่: &nbsp;<strong id="selectedCountDisplay" style="color: #eab308; font-size: 16px;">0</strong>&nbsp; ชิ้น
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">เลือก</th>
+                        <th style="width: 70px;">รูปภาพ</th>
+                        <th>ชื่อสินค้า / ไอดีคลาวด์</th>
+                        <th>หมวดหมู่</th>
+                        <th>ราคาขายปัจจุบัน</th>
+                        <th style="width: 140px;">ตั้งราคา Flash Sale (บาท)</th>
+                        <th>นับถอยหลังสิ้นสุด</th>
+                        <th>สถานะคลาวด์</th>
+                        <th style="text-align: center; width: 100px;">จัดการเดี่ยว</th>
+                    </tr>
+                </thead>
+                <tbody id="flashProductTableBody">
+                    <tr>
+                        <td colspan="9" style="text-align:center; color:#a3a3a3; padding: 25px;">
+                            ⏳ ระบบกำลังเริ่มทำงานและสตรีมข้อมูลสินค้าจาก Cloud Store...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script type="module" src="flash-sale-admin.js"></script>
+</body>
+</html>
