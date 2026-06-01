@@ -774,7 +774,6 @@ window.clearQuickFlashPrice = async (productId) => {
 
 window.clearQuickPrice = async (productId) => {
   try {
-    // [แก้ไขปีกกา]: ถอดตัวครอบ Object ปีกกาซ้อนออกเพื่อให้ยิงข้อมูลไป Cloud สำเร็จโดยไม่ผิดพลาดยกชุด
     const updateFields = { price: 0, salePrice: 0, comingSoon: true };
     await updateDoc(doc(db, "products", productId), updateFields);
     const foundIdx = allProducts.findIndex(p => p.id === productId);
@@ -939,8 +938,27 @@ function renderMobileView() {
   }
 
   if (document.getElementById("categoryTitle")) document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + selectedCategory;
-  let displayed = [...clientDisplayedProducts];
-  if (selectedCategory !== "ทั้งหมด") displayed = displayed.filter(p => p.category === selectedCategory);
+  
+  // 🛠️ แก้ไขตรรกะตรงนี้: ถ้าเลือกหมวดหมู่เจาะจง ให้ค้นหาจากสินค้าทั้งหมดใน master (allProducts) เพื่อให้กดปุ่มเมนูแล้วเจอทันทีโดยไม่ต้องเลื่อนหน้าเว็บลงล่างสุดก่อน
+  let displayed = [];
+  if (selectedCategory === "ทั้งหมด") {
+    displayed = [...clientDisplayedProducts];
+  } else {
+    displayed = allProducts.filter(p => p.category === selectedCategory);
+    
+    // จัดเรียงสินค้าตามโหมดเรียงลำดับที่แอดมินหรือผู้ใช้ตั้งไว้ปัจจุบันให้กับสินค้าที่กรองด้วย
+    if (currentSortMode === "priceAsc") {
+      displayed.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
+    } else if (currentSortMode === "priceDesc") {
+      displayed.sort((a, b) => (b.salePrice || b.price) - (a.salePrice || a.price));
+    } else if (currentSortMode === "adminRecommend") {
+      displayed = displayed.filter(p => !!p.isAdminRecommend);
+      displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    } else {
+      displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }
+  }
+
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) displayed = displayed.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
 

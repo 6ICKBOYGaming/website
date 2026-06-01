@@ -23,6 +23,97 @@
     <meta name="twitter:image" content="https://i.postimg.cc/brG5HJBR/123.jpg">
 
     <link rel="stylesheet" href="style.css">
+
+    <style>
+        @keyframes bell-ring {
+            0%, 100% { transform: rotate(0deg); }
+            10% { transform: rotate(15deg); }
+            20% { transform: rotate(-10deg); }
+            30% { transform: rotate(12deg); }
+            40% { transform: rotate(-8deg); }
+            50% { transform: rotate(5deg); }
+            60% { transform: rotate(0deg); }
+        }
+        
+        .bell-trigger-container {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            z-index: 10000;
+            display: block;
+        }
+
+        .bell-trigger-btn {
+            background: #eab308;
+            color: #000000;
+            border: 1px solid #ffffff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+        
+        .bell-trigger-btn:hover {
+            background: #facc15;
+            transform: scale(1.08);
+        }
+
+        .bell-trigger-btn span {
+            display: inline-block;
+            animation: bell-ring 2.5s infinite ease-in-out;
+        }
+
+        .news-expand-btn {
+            position: fixed;
+            bottom: 50px; /* ลอยอยู่เหนือแถบ Copyright ด้านขวา */
+            right: 20px;
+            background: #eab308;
+            color: #000000;
+            border: 2px solid #000000;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 9998;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transform: scale(0) translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .news-expand-btn.show {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .news-expand-btn:hover {
+            background: #facc15;
+            box-shadow: 0 6px 16px rgba(234, 179, 8, 0.4);
+        }
+
+        .mini-page-logo {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            object-fit: contain;
+            border: 1px solid #000000;
+            background: #ffffff;
+        }
+    </style>
 </head>
 <body>
     
@@ -50,7 +141,7 @@
     <input id="search" placeholder="ค้นหาสินค้า...">
 </header>
 
-<div class="layout">
+<div class="layout" style="margin-bottom: 60px;">
 
     <aside class="sidebar">
         <section class="sidebar-box">
@@ -246,7 +337,7 @@
 
 </div>
 
-<button id="backToTopBtn" title="เลื่อนขึ้นบนสุด">
+<button id="backToTopBtn" title="เลื่อนขึ้นบนสุด" style="bottom: 110px !important; right: 20px !important; z-index: 10000 !important;">
     <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
         <path fill-rule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5.5z"/>
     </svg>
@@ -262,6 +353,77 @@
         <button type="submit" id="authSubmitBtn">ยืนยันเข้าสู่ระบบ</button>
     </form>
 </div>
+
+<button id="newsToggleBtn" class="news-expand-btn" onclick="openNewsModal()">
+    <img src="https://i.postimg.cc/MffGQXrG/image.png" alt="Mini Logo" class="mini-page-logo">
+    📰 ข่าวสารเพจล่าสุด
+</button>
+
+<footer style="position: fixed; bottom: 0; left: 0; width: 100%; background-color: #000000; color: #ffffff; text-align: center; padding: 12px 0; font-family: sans-serif; font-size: 14px; z-index: 9999; box-shadow: 0 -2px 10px rgba(0,0,0,0.5);">
+    2026 6ICKBOY Website Copyright © all rights reserved
+    
+    <div id="bellContainer" class="bell-trigger-container">
+        <button class="bell-trigger-btn" onclick="activateNewsButton(event)">
+            <span>🔔</span>
+        </button>
+    </div>
+</footer>
+
+<div id="newsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 20000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;">
+    <div style="background: var(--bg-main, #1e1e2e); width: 100%; max-width: 500px; border-radius: 12px; border: 1px solid var(--border-color, #333); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div style="padding: 12px 16px; background: var(--bg-deep, #11111b); border-bottom: 1px solid var(--border-color, #333); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 15px; color: var(--text-main, #cdd6f4); display: flex; align-items: center; gap: 6px;">📰 ข่าวสารและโพสต์ล่าสุด</h3>
+            <button onclick="closeNewsModal()" style="background: none; border: none; color: #f38ba8; font-size: 18px; cursor: pointer; padding: 0 5px;">✕</button>
+        </div>
+        <div style="padding: 10px; display: flex; justify-content: center; background: #ffffff; overflow-y: auto; max-height: 70vh;">
+            <iframe src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2F6ICKBOYCHANNEL%2F&tabs=timeline&width=500&height=500&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=false&appId" 
+                width="100%" height="500" style="border:none; overflow:hidden;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">
+            </iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    let newsTimer = null;
+
+    function activateNewsButton(event) {
+        if (event) event.stopPropagation(); // ป้องกันการดีดของอีเวนต์
+        
+        const bellContainer = document.getElementById('bellContainer');
+        const newsBtn = document.getElementById('newsToggleBtn');
+        
+        // ซ่อนปุ่มกระดิ่ง และโชว์ปุ่มข่าวสารหลักขึ้นมาด้านบนแถบ copyright
+        bellContainer.style.display = 'none';
+        newsBtn.classList.add('show');
+        
+        // เคลียร์ค่า Timer เก่า (ถ้ามีตกค้าง)
+        clearTimeout(newsTimer);
+        
+        // ตั้งเวลานับถอยหลัง 5 วินาที (5000 มิลลิวินาที) หากไม่มีการคลิกใช้งาน ให้กลับไปปุ่มแรกเริ่ม
+        newsTimer = setTimeout(resetToBellButton, 5000);
+    }
+
+    function resetToBellButton() {
+        const bellContainer = document.getElementById('bellContainer');
+        const newsBtn = document.getElementById('newsToggleBtn');
+        
+        // หุบปุ่มข่าวสารหลัก และสลับให้ปุ่มกระดิ่งแรกเริ่มตรง copyright แสดงกลับมา
+        newsBtn.classList.remove('show');
+        bellContainer.style.display = 'block';
+    }
+
+    function openNewsModal() {
+        // เมื่อคลิกเปิดหน้าต่างอ่านข่าวจริง ให้เคลียร์ตัวจับเวลา 5 วินาทีออก เพื่อไม่ให้ปุ่มหดหายระหว่างเปิดดูข่าว
+        clearTimeout(newsTimer);
+        document.getElementById('newsModal').style.display = 'flex';
+    }
+
+    function closeNewsModal() {
+        document.getElementById('newsModal').style.display = 'none';
+        // เมื่อปิดหน้าต่างป๊อปอัพข่าวสารลง ให้ทำการเซ็ตรีเซ็ตปุ่มกลับเป็นปุ่มกระดิ่งแรกเริ่มทันที
+        resetToBellButton();
+    }
+</script>
 
 <script type="module" src="app.js"></script>
 </body>
