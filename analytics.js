@@ -59,3 +59,6 @@ function trackPageView() {
     incrementLocalQuota('write', 1);
     window.dispatchEvent(new CustomEvent('storePageView', { detail: viewData }));
 }
+
+window.incrementLocalQuota = incrementLocalQuota;
+window.getThailandDateString = getThailandDateString;
