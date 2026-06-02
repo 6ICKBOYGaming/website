@@ -45,7 +45,7 @@ const db = initializeFirestore(app, {
   })
 });
 
-console.log("%c╠══ [Firebase V8.0-SpeedRender] ป้องกันสคริปต์หยุดทำงานเรียบร้อยแล้ว ⚡", "color: #00ff00; font-weight: bold;");
+console.log("%c╠══ [Firebase V8.0-SpeedRender] บังคับย่อขนาดรูปอัตโนมัติ + Lazy Load สำเร็จแล้ว ⚡", "color: #00ff00; font-weight: bold;");
 
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
@@ -156,9 +156,8 @@ let currentWidgetState = {
 
 /* ================= 🌓 ระบบสลับธีมสี ================= */
 const themeToggleBtn = document.getElementById("themeToggleBtn");
-if (document.documentElement && localStorage.getItem("theme")) {
-  document.documentElement.setAttribute("data-theme", localStorage.getItem("theme"));
-}
+const currentTheme = localStorage.getItem("theme") || "dark";
+if (document.documentElement) document.documentElement.setAttribute("data-theme", currentTheme);
 if (themeToggleBtn) {
   themeToggleBtn.onclick = () => {
     const targetTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
@@ -413,6 +412,7 @@ async function loadMasterData() {
   try {
     await syncPendingClicksToCloud();
 
+    // ดึงค่าเวอร์ชันล่าสุดบน Server เสมอเพื่อตรวจสอบส่วนต่างความเปลี่ยนแปลง
     let currentServerVersion = 0;
     try {
       const serverVersionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'default' });
@@ -427,8 +427,10 @@ async function loadMasterData() {
     let cachedProductsRaw = localStorage.getItem("incremental_products_cache");
     let localProductsList = cachedProductsRaw ? JSON.parse(cachedProductsRaw) : [];
 
+    // ตัวแปรตัดสินใจว่าเปิดการอ่านแคชถาวรได้สมบูรณ์หรือไม่
     if (!isAdmin && currentServerVersion > 0 && localVersion === currentServerVersion && localProductsList.length > 0) {
       allowCacheRead = true;
+      console.log("⚡ [Smart Cache] เวอร์ชันตรงกัน 100%! เรียกใช้งานฐานข้อมูลสินค้าแบบออฟไลน์ด่วน");
     } else {
       allowCacheRead = false;
     }
@@ -437,32 +439,50 @@ async function loadMasterData() {
     let finalProducts = [];
 
     if (isAdmin) {
+      // โหมดแอดมิน: ดึงข้อมูลสดใหม่ทั้งหมดจาก Firestore เสมอ ป้องกันปัญหาในการจัดการโครงสร้างข้อมูล
       const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
       prodSnap.forEach(d => finalProducts.push({ id: d.id, ...d.data() }));
     } else {
       if (useCache && localProductsList.length > 0) {
+        // กรณีแคชตรงกับเซิร์ฟเวอร์แบบสมบูรณ์: โหลดข้อมูลจาก LocalStorage ได้ทันทีโดยไม่ต้องเรียกเน็ตเวิร์ก
         finalProducts = localProductsList;
+        console.log(`📦 [Incremental Cache] อ่านข้อมูลจากแคชในเครื่องสำเร็จ (${finalProducts.length} ชิ้น)`);
       } else if (localVersion > 0 && localProductsList.length > 0 && currentServerVersion > localVersion) {
+        // 🔄 กรณีพิเศษ [Delta Sync]: มีข้อมูลเดิมอยู่ในเครื่องแต่ระบบบนคลาวด์อัปเดตใหม่ ให้ดึงเฉพาะข้อมูลส่วนต่างที่เปลี่ยนเข้ามาเติม
+        console.log(`🔄 [Incremental Cache] กำลังดึงข้อมูลอัปเดตเฉพาะส่วนต่างตั้งแต่เวอร์ชัน: ${localVersion}`);
+        
+        // 1. ดึงสินค้าที่เพิ่มหรือแก้ไขหลังจากเวอร์ชันในเครื่อง
         const deltaProdSnap = await getDocs(query(productsRef, where("lastUpdated", ">", localVersion)));
         let updatedItems = [];
         deltaProdSnap.forEach(d => updatedItems.push({ id: d.id, ...d.data() }));
 
+        // 2. ตรวจสอบประวัติสินค้าที่ถูกลบออกจากฐานข้อมูลเพื่อให้เครื่อง Client ลบออกตามอย่างถูกต้อง
         const deletedLogSnap = await getDocs(query(deletedLogRef, where("deletedAt", ">", localVersion)));
         let deletedIds = [];
         deletedLogSnap.forEach(d => deletedIds.push(d.data().productId));
 
+        // 3. ควบรวมข้อมูลส่วนต่างเข้ากับข้อมูลหลักก้อนเดิมที่มีอยู่
         let existingMap = new Map(localProductsList.map(p => [p.id, p]));
+        
+        // ลบสินค้าตามประวัติบันทึกการลบ
         deletedIds.forEach(id => existingMap.delete(id));
+        
+        // เพิ่มหรือบันทึกข้อมูลแก้ไขทับตัวเก่า
         updatedItems.forEach(p => existingMap.set(p.id, p));
 
         finalProducts = Array.from(existingMap.values());
         finalProducts.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
+        // เขียนบันทึกข้อมูลชุดใหม่เก็บลงคลังของ Client
         localStorage.setItem("incremental_products_cache", JSON.stringify(finalProducts));
         localStorage.setItem("local_data_version", currentServerVersion.toString());
+        console.log(`💾 [Incremental Cache] ซิงค์ส่วนต่างเรียบร้อย! ข้อมูลปัจจุบัน: ${finalProducts.length} ชิ้น`);
       } else {
+        // กรณีเข้ามาครั้งแรกหรือข้อมูลเสียหาย: โหลดข้อมูลใหม่ทั้งหมดแบบ Full Load เพื่อตั้งต้นระบบแคช
+        console.log("📥 [Incremental Cache] ไม่พบแคชที่ใช้งานได้ กำลังทำการโหลดข้อมูลใหม่เต็มระบบ...");
         const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
         prodSnap.forEach(d => finalProducts.push({ id: d.id, ...d.data() }));
+
         localStorage.setItem("incremental_products_cache", JSON.stringify(finalProducts));
         if (currentServerVersion > 0) {
           localStorage.setItem("local_data_version", currentServerVersion.toString());
@@ -472,6 +492,7 @@ async function loadMasterData() {
 
     allProducts = finalProducts;
 
+    // โหลดหมวดหมู่และวิดเจ็ตกิจกรรมผ่าน Cache ปกติของ Firestore SDK
     const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: useCache ? 'cache' : 'default' });
     const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: useCache ? 'cache' : 'default' });
 
@@ -535,7 +556,9 @@ function getOptimizedImageUrl(originalUrl, targetWidth = 350) {
   if (!originalUrl || typeof originalUrl !== "string") return "https://via.placeholder.com/180";
   const trimmedUrl = originalUrl.trim();
   if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) return trimmedUrl;
+  
   if (isAdmin || trimmedUrl.includes("via.placeholder.com")) return trimmedUrl;
+  
   return `https://wsrv.nl/?url=${encodeURIComponent(trimmedUrl)}&w=${targetWidth}&output=webp&q=80&il`;
 }
 
@@ -672,8 +695,8 @@ function card(p, index){
           </div>
 
           <div class="admin-card-actions">
-            <button class="btn edit" onclick='editProduct("` + p.id + `")'>Edit</button>
-            <button class="btn delete" onclick='deleteProduct("` + p.id + `")'>Delete</button>
+            <button class="btn edit" onclick='editProduct("${p.id}")'>Edit</button>
+            <button class="btn delete" onclick='deleteProduct("${p.id}")'>Delete</button>
           </div>
           
           <div class="quick-admin-controls-wrapper" style="display: flex; flex-direction: column; gap: 8px;">
@@ -688,7 +711,7 @@ function card(p, index){
             <div class="quick-price-box" style="border-top: 1px dotted rgba(255,255,255,0.1); padding-top: 6px;">
               <label style="color: #ff6b6b; font-weight: bold;">🏷️ ตั้งราคาพิเศษ Flash Sale:</label>
               <div class="quick-price-row">
-                <input type="text" class="quick-flash-price-input" value="${currentQuickFlashPriceVal}" placeholder="เช่น 990 (เว้นว่าง = ใช้ราคาปกติ)" onkeydown="handleQuickFlashPriceKey(event, '${p.id}')" style="border-color: rgba(239, 68, 68, 0.4);">
+                <input type="text" class="quick-flash-price-input" value="${currentQuickFlashPriceVal}" placeholder="เช่น 990 (เว้นว่าง = ใช้ราคาปกติ)" onkeydown="handleQuickFlashPriceKey(event, '${p.id}') style="border-color: rgba(239, 68, 68, 0.4);">
                 <button class="quick-price-clear-btn" title="ลบราคา Flash" onclick="clearQuickFlashPrice('${p.id}')">✕</button>
               </div>
             </div>
@@ -800,6 +823,7 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
       const parts = rawInput.split("@");
       const priceStr = parts[0].trim();
       timePart = parts[1].trim();
+
       if (priceStr && !isNaN(priceStr)) {
         extractedFlashPrice = Number(priceStr);
       }
@@ -815,6 +839,7 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
           const part = match.trim();
           const unit = part.slice(-1); 
           const value = parseFloat(part.slice(0, -1)) || 0;
+
           if (unit === 'h') totalMs += value * 60 * 60 * 1000;
           if (unit === 'm') totalMs += value * 60 * 1000;
           if (unit === 's') totalMs += value * 1000;
@@ -837,6 +862,7 @@ window.handleQuickFlashSaleKey = async (event, productId) => {
     }
 
     if (totalMs <= 0) { alert("เวลาที่คำนวณได้ต้องมากกว่า 0 วินาทีครับ"); return; }
+    
     const endTimeIsoString = new Date(new Date().getTime() + totalMs).toISOString();
     const nowTime = Date.now();
     
@@ -906,6 +932,7 @@ function startFlashSaleClockTicker() {
       if (!endTimeAttr) return;
       
       const timeRemaining = new Date(endTimeAttr).getTime() - new Date().getTime();
+      
       if (timeRemaining > 0) {
         const hours = Math.floor(timeRemaining / 3600000);
         const minutes = Math.floor((timeRemaining % 3600000) / 60000);
@@ -922,7 +949,10 @@ function render() {
 
 /* ================= 📦 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป (User Mobile View) ================= */
 function renderMobileView() {
-  if (dragNoticeEl) dragNoticeEl.style.display = "none";
+  if (dragNoticeEl) {
+    dragNoticeEl.style.display = "none";
+  }
+
   if (document.getElementById("categoryTitle")) document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + selectedCategory;
   
   let displayed = [];
@@ -1006,9 +1036,11 @@ window.filterCategory = (category) => {
   render();
 };
 
-if(searchInput) searchInput.addEventListener("input", () => { render(); });
+if (searchInput) {
+  searchInput.addEventListener("input", () => { render(); });
+}
 
-if(sortProductsSelect) {
+if (sortProductsSelect) {
   sortProductsSelect.addEventListener("change", (e) => { 
     currentSortMode = e.target.value; 
     render();
@@ -1018,10 +1050,12 @@ if(sortProductsSelect) {
 /* ================= 📁 แผงแสดงสถิติจำนวนรวมหมวดหมู่บน Sidebar ================= */
 function renderSidebarCategories() {
   if (!categoriesEl) return;
+  
   const totalCount = allProducts.length; 
   const flashSaleCount = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0)).length;
 
   let html = `<div class="category ${selectedCategory === 'ทั้งหมด' ? 'active' : ''}" onclick="filterCategory('ทั้งหมด')">ทั้งหมด (${totalCount})</div>`;
+  
   if (flashSaleCount > 0) {
     html += `<div class="category flash-sale-menu-item ${selectedCategory === '⚡ Flash Sale' ? 'active' : ''}" onclick="filterCategory('⚡ Flash Sale')">⚡ Flash Sale (${flashSaleCount})</div>`;
   } else {
@@ -1059,24 +1093,19 @@ function renderAdminCategoryList() {
 }
 
 window.clearCategoryForm = () => {
-  if(adminCategoryInput) adminCategoryInput.value = ""; 
-  currentEditCategoryId = null;
-  if(adminCategoryTitle) adminCategoryTitle.innerText = "📁 แผงจัดการระบบหมวดหมู่สินค้า"; 
-  if(categorySubmitBtn) categorySubmitBtn.innerText = "เพิ่มหมวดหมู่";
+  adminCategoryInput.value = ""; currentEditCategoryId = null;
+  adminCategoryTitle.innerText = "📁 แผงจัดการระบบหมวดหมู่สินค้า"; categorySubmitBtn.innerText = "เพิ่มหมวดหมู่";
   if(categoryCancelBtn) categoryCancelBtn.style.display = "none";
 };
 
 window.editCategory = (id) => {
   const cat = dbCategories.find(c => c.id === id); if (!cat) return;
-  currentEditCategoryId = id; 
-  if(adminCategoryInput) { adminCategoryInput.value = cat.name || ""; adminCategoryInput.focus(); }
-  if(adminCategoryTitle) adminCategoryTitle.innerText = "📝 แก้ไขชื่อหมวดหมู่สินค้า"; 
-  if(categorySubmitBtn) categorySubmitBtn.innerText = "บันทึกการแก้ไข";
-  if(categoryCancelBtn) categoryCancelBtn.style.display = "block"; 
+  currentEditCategoryId = id; adminCategoryInput.value = cat.name || "";
+  adminCategoryTitle.innerText = "📝 แก้ไขชื่อหมวดหมู่สินค้า"; categorySubmitBtn.innerText = "บันทึกการแก้ไข";
+  if(categoryCancelBtn) categoryCancelBtn.style.display = "block"; adminCategoryInput.focus();
 };
 
 window.handleCategorySubmit = async () => {
-  if(!adminCategoryInput) return;
   const name = adminCategoryInput.value.trim(); if (!name) return;
   try {
     if (currentEditCategoryId) { await updateDoc(doc(db, "categories_list", currentEditCategoryId), { name: name }); } 
@@ -1120,7 +1149,6 @@ function setupCategoryDragAndDrop() {
 }
 
 window.handleWidgetUpdate = async () => {
-  if(!widgetImageInput || !widgetLinkInput || !widgetVisibleCheck) return;
   try {
     await setDoc(doc(db, "settings", "shopee_promo_widget"), { imageUrl: widgetImageInput.value.trim(), buttonLink: widgetLinkInput.value.trim(), visible: widgetVisibleCheck.checked });
     await bumpCloudVersion(); alert("💾 บันทึกข้อมูลวิดเจ็ตกิจกรรมสำเร็จ!"); loadMasterData();
@@ -1162,24 +1190,23 @@ window.saveAllProductsOrderManually = async () => {
 };
 
 window.handleProductSubmit = async () => {
-  if(!productName || !productPrice || !productSalePrice) return;
-  const name = productName.value.trim(), image = productImage ? productImage.value.trim() : "";
+  const name = productName.value.trim(), image = productImage.value.trim();
   const price = Number(productPrice.value) || 0, salePrice = Number(productSalePrice.value) || 0;
   if (!name) { alert("กรุณาป้อนชื่อแบรนด์หรือรุ่นสินค้าด้วยครับ"); return; }
 
   const nowTime = Date.now();
   const productData = {
-    name, image, price, salePrice, description: productDescription ? productDescription.value.trim() : "",
-    category: productCategory ? productCategory.value : "", tier: productTier ? productTier.value : "", shopee1: shopee1 ? shopee1.value.trim() : "",
-    shopee2: shopee2 ? shopee2.value.trim() : "", lazada: lazada ? lazada.value.trim() : "", isNew: isNew ? isNew.checked : false,
-    isHot: isHot ? isHot.checked : false, comingSoon: (comingSoon ? comingSoon.checked : false) || (price === 0 && salePrice === 0),
+    name, image, price, salePrice, description: productDescription.value.trim(),
+    category: productCategory.value, tier: productTier.value, shopee1: shopee1.value.trim(),
+    shopee2: shopee2.value.trim(), lazada: lazada.value.trim(), isNew: isNew.checked,
+    isHot: isHot.checked, comingSoon: comingSoon.checked || (price === 0 && salePrice === 0),
     isAdminRecommend: isAdminRecommend ? isAdminRecommend.checked : false,
     lastUpdated: nowTime
   };
 
   try {
     if (currentEditId) {
-      await updateDoc(doc(db, "products", currentEditId), productData); currentEditId = null; if(submitBtn) submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ"; removeProductCancelButton(); 
+      await updateDoc(doc(db, "products", currentEditId), productData); currentEditId = null; submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ"; removeProductCancelButton(); 
     } else {
       productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
       productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
@@ -1192,8 +1219,8 @@ window.handleProductSubmit = async () => {
 };
 
 function clearProductForm() {
-  if(productName) productName.value = ""; if(productImage) productImage.value = ""; if(productPrice) productPrice.value = ""; if(productSalePrice) productSalePrice.value = ""; if(productDescription) productDescription.value = "";
-  if(productTier) productTier.value = ""; if(shopee1) shopee1.value = ""; if(shopee2) shopee2.value = ""; if(lazada) lazada.value = ""; if(isNew) isNew.checked = false; if(isHot) isHot.checked = false; if(comingSoon) comingSoon.checked = false;
+  productName.value = ""; productImage.value = ""; productPrice.value = ""; productSalePrice.value = ""; productDescription.value = "";
+  if(productTier) productTier.value = ""; shopee1.value = ""; shopee2.value = ""; lazada.value = ""; isNew.checked = false; isHot.checked = false; comingSoon.checked = false;
   if(isAdminRecommend) isAdminRecommend.checked = false; 
 }
 
@@ -1206,52 +1233,39 @@ function removeProductCancelButton() {
 }
 
 window.cancelProductEdit = () => {
-  currentEditId = null; clearProductForm(); if(submitBtn) submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ"; removeProductCancelButton();
+  currentEditId = null; clearProductForm(); submitBtn.innerText = "เพิ่มสินค้าเข้าระบบ"; removeProductCancelButton();
 };
 
 window.editProduct = (id) => {
   const p = allProducts.find(item => item.id === id); if (!p) return;
-  currentEditId = id; 
-  if(productName) productName.value = p.name || ""; 
-  if(productImage) productImage.value = p.image || ""; 
-  if(productPrice) productPrice.value = p.price || ""; 
-  if(productSalePrice) productSalePrice.value = p.salePrice || ""; 
-  if(productDescription) productDescription.value = p.description || ""; 
-  if(productCategory) productCategory.value = p.category || "";
-  if(productTier) productTier.value = p.tier || ""; 
-  if(shopee1) shopee1.value = p.shopee1 || ""; 
-  if(shopee2) shopee2.value = p.shopee2 || ""; 
-  if(lazada) lazada.value = p.lazada || ""; 
-  if(isNew) isNew.checked = !!p.isNew; 
-  if(isHot) isHot.checked = !!p.isHot; 
-  if(comingSoon) comingSoon.checked = !!p.comingSoon;
+  currentEditId = id; productName.value = p.name || ""; productImage.value = p.image || ""; productPrice.value = p.price || ""; productSalePrice.value = p.salePrice || ""; productDescription.value = p.description || ""; productCategory.value = p.category || "";
+  if(productTier) productTier.value = p.tier || ""; shopee1.value = p.shopee1 || ""; shopee2.value = p.shopee2 || ""; lazada.value = p.lazada || ""; isNew.checked = !!p.isNew; isHot.checked = !!p.isHot; comingSoon.checked = !!p.comingSoon;
   if(isAdminRecommend) isAdminRecommend.checked = !!p.isAdminRecommend; 
   
-  if(submitBtn) {
-    submitBtn.innerText = "บันทึกการแก้ไขสินค้า"; 
-    let wrapper = document.getElementById("submitBtnWrapper");
-    if (!wrapper) {
-      wrapper = document.createElement("div"); wrapper.id = "submitBtnWrapper"; submitBtn.parentNode.insertBefore(wrapper, submitBtn); wrapper.appendChild(submitBtn);
-    }
-    wrapper.style.display = "flex"; wrapper.style.gap = "10px"; wrapper.style.width = "100%"; wrapper.style.marginTop = "15px";
-    submitBtn.style.width = "70%"; submitBtn.style.margin = "0";
-    
-    if (!document.getElementById("productCancelBtn")) {
-      const cancelBtn = document.createElement("button"); cancelBtn.id = "productCancelBtn"; cancelBtn.innerText = "ยกเลิก"; cancelBtn.className = "btn delete"; 
-      cancelBtn.style.width = "30%"; cancelBtn.style.margin = "0"; cancelBtn.style.whiteSpace = "nowrap";
-      cancelBtn.onclick = (e) => { e.preventDefault(); window.cancelProductEdit(); };
-      wrapper.appendChild(cancelBtn);
-    }
+  submitBtn.innerText = "บันทึกการแก้ไขสินค้า"; 
+  let wrapper = document.getElementById("submitBtnWrapper");
+  if (!wrapper) {
+    wrapper = document.createElement("div"); wrapper.id = "submitBtnWrapper"; submitBtn.parentNode.insertBefore(wrapper, submitBtn); wrapper.appendChild(submitBtn);
   }
-  const adminPanelEl = document.getElementById("adminPanel");
-  if(adminPanelEl) adminPanelEl.scrollIntoView({ behavior: "smooth" });
+  wrapper.style.display = "flex"; wrapper.style.gap = "10px"; wrapper.style.width = "100%"; wrapper.style.marginTop = "15px";
+  submitBtn.style.width = "70%"; submitBtn.style.margin = "0";
+  
+  if (!document.getElementById("productCancelBtn")) {
+    const cancelBtn = document.createElement("button"); cancelBtn.id = "productCancelBtn"; cancelBtn.innerText = "ยกเลิก"; cancelBtn.className = "btn delete"; 
+    cancelBtn.style.width = "30%"; cancelBtn.style.margin = "0"; cancelBtn.style.whiteSpace = "nowrap";
+    cancelBtn.onclick = (e) => { e.preventDefault(); window.cancelProductEdit(); };
+    wrapper.appendChild(cancelBtn);
+  }
+  document.getElementById("adminPanel").scrollIntoView({ behavior: "smooth" });
 };
 
 window.deleteProduct = async (id) => {
   if (confirm("ต้องการลบสินค้าถาวรออกจากฐานข้อมูลคลาวด์?")) {
     try { 
+      // บันทึกประวัติการลบลง log คลาวด์เพื่อให้เครื่อง Client สามารถตรวจสอบส่วนต่างและลบ ID สินค้านี้ออกจากแคชได้อย่างถูกต้อง
       const nowTime = Date.now();
       await addDoc(deletedLogRef, { productId: id, deletedAt: nowTime });
+
       await deleteDoc(doc(db, "products", id)); 
       if (currentEditId === id) window.cancelProductEdit();
       await bumpCloudVersion(); loadMasterData(); 
@@ -1262,14 +1276,13 @@ window.deleteProduct = async (id) => {
 /* ================= 🔒 ระบบดูแลสิทธิ์และเข้าสู่ระบบควบคุม ================= */
 const loginBtn = document.getElementById("loginBtn"); const logoutBtn = document.getElementById("logoutBtn"); const authModal = document.getElementById("authModal"); const closeAuthBtn = document.getElementById("closeAuthBtn"); const authSubmitBtn = document.getElementById("authSubmitBtn"); const adminPanel = document.getElementById("adminPanel");
 
-if(loginBtn) loginBtn.onclick = () => { if(authModal) authModal.style.display = "flex"; };
-if(closeAuthBtn) closeAuthBtn.onclick = () => { if(authModal) authModal.style.display = "none"; };
+if(loginBtn) loginBtn.onclick = () => authModal.style.display = "flex";
+if(closeAuthBtn) closeAuthBtn.onclick = () => { authModal.style.display = "none"; };
 if(authSubmitBtn) {
   authSubmitBtn.onclick = async () => {
     try {
       await signInWithEmailAndPassword(auth, document.getElementById("authEmail").value.trim(), document.getElementById("authPassword").value.trim());
-      if(authModal) authModal.style.display = "none"; 
-      document.getElementById("authEmail").value = ""; document.getElementById("authPassword").value = "";
+      authModal.style.display = "none"; document.getElementById("authEmail").value = ""; document.getElementById("authPassword").value = "";
     } catch (error) { alert("สิทธิ์เข้าใช้งานไม่ถูกต้อง!"); }
   };
 }
@@ -1285,9 +1298,15 @@ onAuthStateChanged(auth, (user) => {
   if(adminCategoryPanel) adminCategoryPanel.style.display = dStyle;
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
   if(adminDragSortPanel) adminDragSortPanel.style.display = dStyle;
-  if(goToFlashSaleAdminBtn) goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
 
-  if(!isAdmin) window.cancelProductEdit();
+  if(goToFlashSaleAdminBtn) {
+    goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
+  }
+
+  if(!isAdmin) {
+    window.cancelProductEdit();
+  }
+  
   initUserPresenceSystem();
   loadMasterData();
 });
@@ -1356,7 +1375,10 @@ function observeLazyImages() {
   if (!("IntersectionObserver" in window)) {
     lazyImages.forEach(img => {
       const realSrc = img.getAttribute("data-src");
-      if (realSrc) { img.src = realSrc; img.style.opacity = "1"; }
+      if (realSrc) {
+        img.src = realSrc;
+        img.style.opacity = "1";
+      }
     });
     return;
   }
@@ -1364,12 +1386,20 @@ function observeLazyImages() {
   const imageObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        const image = entry.target; const realSrc = image.getAttribute("data-src");
-        if (realSrc) { image.src = realSrc; image.onload = () => { image.style.opacity = "1"; }; }
+        const image = entry.target;
+        const realSrc = image.getAttribute("data-src");
+        if (realSrc) {
+          image.src = realSrc;
+          image.onload = () => {
+            image.style.opacity = "1"; 
+          };
+        }
         imageObserver.unobserve(image); 
       }
     });
-  }, { rootMargin: "250px 0px" });
+  }, {
+    rootMargin: "250px 0px" 
+  });
 
   lazyImages.forEach(img => imageObserver.observe(img));
 }
