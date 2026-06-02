@@ -47,19 +47,23 @@ console.log("%c╠══ [Firebase V8.0-SpeedRender] ดึงข้อมูล
 const auth = getAuth(app);
 const productsRef = collection(db, "products");
 const categoriesRef = collection(db, "categories_list");
+const consoleCategoriesRef = collection(db, "console_categories_list"); // 🎮 เพิ่ม Collection แยกสำหรับหมวดหมู่เกมคอนโซล
 const onlineUsersRef = collection(db, "online_users");
 const deletedLogRef = collection(db, "deleted_products_log");
 
 let allProducts = []; 
 let dbCategories = [];
+let dbConsoleCategories = []; // 🎮 เพิ่มตัวแปรเก็บข้อมูลหมวดหมู่เกมคอนโซล
 let isAdmin = false;
 let currentEditId = null;
 let currentEditCategoryId = null; 
+let currentEditConsoleCategoryId = null; // 🎮 เพิ่มตัวแปรสำหรับแก้ไขหมวดหมู่เกมคอนโซล
 let selectedCategory = "ทั้งหมด";
 let currentSortMode = "tierlist"; 
 
 let draggedProductId = null;
 let draggedCategoryId = null;
+let draggedConsoleCategoryId = null; // 🎮 เพิ่มตัวแปร Drag & Drop สำหรับหมวดหมู่เกมคอนโซล
 let draggedSortId = null; 
 
 let hotSlideInterval = null;
@@ -100,6 +104,14 @@ const adminCategoryPanel = document.getElementById("adminCategoryPanel");
 const categorySubmitBtn = document.getElementById("categorySubmitBtn");
 const categoryCancelBtn = document.getElementById("categoryCancelBtn");
 const searchInput = document.getElementById("search");
+
+// 🎮 สร้างหรือดึง Element สำหรับแผงจัดการหมวดหมู่เกมคอนโซล (ดึงจาก HTML ถ้ามี หรือจะ Render อัตโนมัติในส่วนแสดงผล)
+let adminConsoleCategoryTitle = document.getElementById("adminConsoleCategoryTitle");
+let adminConsoleCategoryInput = document.getElementById("adminConsoleCategoryInput");
+let adminConsoleCategoryList = document.getElementById("adminConsoleCategoryList");
+let adminConsoleCategoryPanel = document.getElementById("adminConsoleCategoryPanel");
+let consoleCategorySubmitBtn = document.getElementById("consoleCategorySubmitBtn");
+let consoleCategoryCancelBtn = document.getElementById("consoleCategoryCancelBtn");
 
 const shopeePromoWidget = document.getElementById("shopeePromoWidget");
 const widgetGiftImg = document.getElementById("widgetGiftImg");
@@ -280,7 +292,7 @@ function getEffectivePrice(p) {
 /* ================= ⚙️ โหลดข้อมูลหลัก (Master Data Loader - Smart Cache System) ================= */
 async function loadMasterData() {
   try {
-    // ฟังก์ชันย่อยสำหรับไป Fetch ข้อมูลจริงจาก Firebase Cloud (ถูกเรียกใช้เมื่อไม่มีแคชหรือข้อมูลเก่าไป)
+    // ฟังก์ชันย่อยสำหรับไป Fetch ข้อมูลจริงจาก Firebase Cloud
     const fetchLiveDocsFromCloud = async () => {
       let products = [];
       const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
@@ -290,23 +302,30 @@ async function loadMasterData() {
       const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: 'default' });
       catSnap.forEach(d => categories.push({ id: d.id, ...d.data() }));
 
+      // 🎮 ดึงข้อมูล Live ของหมวดหมู่คอนโซลเกมเพิ่มเติม
+      let consoleCategories = [];
+      const consoleCatSnap = await getDocs(query(consoleCategoriesRef, orderBy("order")), { source: 'default' });
+      consoleCatSnap.forEach(d => consoleCategories.push({ id: d.id, ...d.data() }));
+
       const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: 'default' });
       let widget = widgetSnap.exists() ? widgetSnap.data() : null;
 
-      return { products, categories, widget };
+      return { products, categories, consoleCategories, widget };
     };
 
-    // 🔥 เรียกใช้งานระบบดึงข้อมูลผ่านระบบ Smart Cache ที่เราแยกไฟล์ไว้
+    // 🔥 เรียกใช้งานระบบดึงข้อมูลผ่านระบบ Smart Cache
     const result = await getSmartCachedData(db, fetchLiveDocsFromCloud, isAdmin);
 
-    // นำข้อมูลที่ได้ (ไม่ว่าจะมาจากเครื่องหรือคลาวด์) มากระจายลงตัวแปรของระบบตามเดิม
     allProducts = result.products;
     dbCategories = result.categories;
+    dbConsoleCategories = result.consoleCategories || []; // 🎮 เก็บสถานะลงตัวแปรกลางคลาวด์
+
+    // ตรวจสอบโครงสร้าง Element ปลายทางของกล่องควบคุมแผงควบคุมเกมคอนโซล
+    ensureConsoleCategoryElementsExist();
 
     // อัปเดตโครงสร้างหน้าเว็บและวิดเจ็ตตามปกติ
     updateCategoryDropdown();
     
-    // จำลองโครงสร้างเพื่อให้ฟังก์ชัน applyWidgetSettings ทำงานร่วมกันได้เหมือนเดิม
     const mockWidgetSnap = {
       exists: () => !!result.widget,
       data: () => result.widget
@@ -418,7 +437,6 @@ function card(p, index){
     btnsContent = shopeeBtns + lazadaBtn;
   }
 
-  // 💡 [แก้ไขแล้ว] ตรวจสอบและฝัง data-id ทั้งสำหรับโหมด Admin และผู้ใช้งานปกติ (Mobile View) เพื่อส่งข้อมูลให้ Click.js
   const canDrag = isAdmin && currentSortMode === "tierlist";
   const dragAttr = canDrag ? `draggable="true" data-id="${p.id}" class="card admin-draggable"` : `class="card" data-id="${p.id}"`;
 
@@ -791,7 +809,6 @@ function renderMobileView() {
   if (allEl) allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
   
   renderSidebarCategories();
-  startFlashSaleClockTicker();
   observeLazyImages();
 }
 
@@ -823,6 +840,7 @@ function renderAdminView() {
   if (allEl) allEl.innerHTML = filtered.map((p, index) => card(p, index)).join("");
   renderSidebarCategories();
   renderAdminCategoryList();
+  renderAdminConsoleCategoryList();
   renderAdminDragSortLists();
   
   if (dragNoticeEl) {
@@ -876,16 +894,36 @@ function renderSidebarCategories() {
     }
   }
 
+  // 📝 แสดงผลหมวดหมู่แบบดั้งเดิม
+  // เปลี่ยนตรง color: #f97316; (หรือ #ff9900) เพื่อให้เป็นสีส้มตามต้องการครับ
+  html += `<div style="font-size:14px; font-weight:bold; color:#f97316; padding:14px 14px 8px 14px; text-transform:uppercase; border-top:1px solid rgba(255,255,255,0.05);">หมวดหมู่เกมมิ่งเกียร์</div>`;
   dbCategories.forEach(cat => {
     const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
     html += `<div class="category ${selectedCategory === cat.name ? 'active' : ''}" onclick="filterCategory('${cat.name}')">${cat.name} (${count})</div>`;
   });
+
+  // แสดงผลหมวดหมู่ย่อยเกมคอนโซลเพิ่มลงบนแถบเมนูด้านข้างแยกกลุ่มชัดเจน
+  if (dbConsoleCategories.length > 0) {
+    html += `<div style="font-size:14px; font-weight:bold; color:#f97316; padding:14px 14px 8px 14px; text-transform:uppercase; border-top:1px solid rgba(255,255,255,0.05);">หมวดหมู่เกมมิ่งเกียร์</div>`;
+    dbConsoleCategories.forEach(cat => {
+      const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
+      html += `<div class="category ${selectedCategory === cat.name ? 'active' : ''}" onclick="filterCategory('${cat.name}')"> ${cat.name} (${count})</div>`;
+    });
+  }
+
   categoriesEl.innerHTML = html;
 }
 
 function updateCategoryDropdown() {
   if (!productCategory) return;
-  productCategory.innerHTML = dbCategories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join("");
+  // ผสานตัวเลือกทั้งหมวดหมู่ปกติและหมวดหมู่เกมคอนโซลให้เลือกเพิ่มสินค้าเข้าหมวดหมู่ได้ทั้งหมด
+  let optionsHtml = dbCategories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join("");
+  if (dbConsoleCategories.length > 0) {
+    optionsHtml += `<optgroup label="🎮 หมวดหมู่เกมคอนโซล">`;
+    optionsHtml += dbConsoleCategories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join("");
+    optionsHtml += `</optgroup>`;
+  }
+  productCategory.innerHTML = optionsHtml;
 }
 
 function renderAdminCategoryList() {
@@ -958,6 +996,144 @@ function setupCategoryDragAndDrop() {
     });
   });
 }
+
+function ensureConsoleCategoryElementsExist() {
+  // ตรวจสอบและสร้าง UI แผงจัดการระบบหมวดหมู่คอนโซลเกมอัตโนมัติหากยังไม่มี Element ในหน้า HTML
+  if (!document.getElementById("adminConsoleCategoryPanel")) {
+    
+    // 💡 ค้นหากล่องนอกสุด (กล่องพ่อ) เพื่อที่เราจะเอา "กล่องใหม่" ไปต่อแถวข้างนอก ไม่ใช่ข้างในกรอบเทาเดิม
+    const adminCategoryPanelEl = document.getElementById("adminCategoryPanel");
+    
+    if (adminCategoryPanelEl) {
+      const consolePanelHTML = document.createElement("div");
+      consolePanelHTML.id = "adminConsoleCategoryPanel";
+      
+      // ใช้ Class "admin-panel" เพื่อให้ได้ดีไซน์กรอบมนสีเทาเข้มแบบเดียวกับอันเก่าเป๊ะๆ แยกชิ้นออกมา
+      consolePanelHTML.className = "admin-panel"; 
+      
+      // เพิ่มระยะห่างด้านบน (Margin Top) ให้เว้นสเปซห่างออกจากกล่องเทาเดิมแบบในภาพวาดเป๊ะๆ
+      consolePanelHTML.style.marginTop = "20px";
+      consolePanelHTML.style.display = isAdmin ? "block" : "none";
+      
+      consolePanelHTML.innerHTML = `
+        <div class="panel-header">
+          <h3 id="adminConsoleCategoryTitle" style="display:flex; align-items:center; gap:8px; margin:0;">
+            แผงจัดการระบบหมวดหมู่ เกมคอนโซล
+          </h3>
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <input type="text" id="adminConsoleCategoryInput" placeholder="ป้อนชื่อหมวดหมู่เกมคอนโซล เช่น PS5, Nintendo Switch, Xbox...">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:12px;">
+          <button id="consoleCategorySubmitBtn" class="btn edit" style="flex:1;" onclick="window.handleConsoleCategorySubmit()">เพิ่มหมวดหมู่เกมคอนโซล</button>
+          <button id="consoleCategoryCancelBtn" class="btn delete" style="width:80px; display:none;" onclick="window.clearConsoleCategoryForm()">ยกเลิก</button>
+        </div>
+        <div id="adminConsoleCategoryList" style="margin-top:18px; display:flex; flex-direction:column; gap:8px;"></div>
+      `;
+      
+      // 🔥 [จุดสำคัญ] สั่งวางกล่องใหม่ "afterend" (ต่อท้ายข้างนอกกรอบเทาอันเก่าเด็ดขาด ไม่เข้าล็อกเดิม)
+      adminCategoryPanelEl.insertAdjacentElement('afterend', consolePanelHTML);
+      
+      // ผูกค่า Element กลับเข้าตัวแปรระบบของแอปตามปกติ
+      adminConsoleCategoryTitle = document.getElementById("adminConsoleCategoryTitle");
+      adminConsoleCategoryInput = document.getElementById("adminConsoleCategoryInput");
+      adminConsoleCategoryList = document.getElementById("adminConsoleCategoryList");
+      adminConsoleCategoryPanel = document.getElementById("adminConsoleCategoryPanel");
+      consoleCategorySubmitBtn = document.getElementById("consoleCategorySubmitBtn");
+      consoleCategoryCancelBtn = document.getElementById("consoleCategoryCancelBtn");
+    }
+  }
+}
+
+/* ================= 📁 [แก้ไข] โครงสร้างแถวเรียงสวยงาม ชิดขวา พร้อมระบบลากจัดลำดับ (Drag & Drop) ================= */
+function renderAdminConsoleCategoryList() {
+  if (!adminConsoleCategoryList) return;
+  
+  adminConsoleCategoryList.innerHTML = dbConsoleCategories.map(cat => `
+    <div class="admin-cat-item admin-draggable" 
+         draggable="true" 
+         data-consolecatid="${cat.id}" 
+         style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; cursor: grab;">
+      
+      <span style="font-weight: 500; display: flex; align-items: center; gap: 8px;">
+        <span style="color: var(--text-muted, #94a3b8); font-size: 14px;">☰</span>
+        ${cat.name}
+      </span>
+      
+      <div class="admin-cat-actions" style="display: flex; gap: 8px; align-items: center;">
+        <button class="btn edit" onclick="window.editConsoleCategory('${cat.id}', '${cat.name}')">แก้ไข</button>
+        <button class="btn delete" onclick="window.deleteConsoleCategory('${cat.id}')">ลบ</button>
+      </div>
+      
+    </div>
+  `).join("");
+  
+  // เรียกฟังก์ชันเปิดใช้งานระบบลากวางดั้งเดิมของโปรแกรม
+  if (typeof setupConsoleCategoryDragAndDrop === 'function') {
+    setupConsoleCategoryDragAndDrop();
+  }
+}
+
+window.clearConsoleCategoryForm = () => {
+  if (!adminConsoleCategoryInput) return;
+  adminConsoleCategoryInput.value = ""; currentEditConsoleCategoryId = null;
+  adminConsoleCategoryTitle.innerText = " แผงจัดการระบบหมวดหมู่ เกมคอนโซล"; consoleCategorySubmitBtn.innerText = "เพิ่มหมวดหมู่เกมคอนโซล";
+  if(consoleCategoryCancelBtn) consoleCategoryCancelBtn.style.display = "none";
+};
+
+window.editConsoleCategory = (id) => {
+  const cat = dbConsoleCategories.find(c => c.id === id); if (!cat) return;
+  currentEditConsoleCategoryId = id; adminConsoleCategoryInput.value = cat.name || "";
+  adminConsoleCategoryTitle.innerText = "📝 แก้ไขชื่อหมวดหมู่เกมคอนโซล"; consoleCategorySubmitBtn.innerText = "บันทึกการแก้ไข";
+  if(consoleCategoryCancelBtn) consoleCategoryCancelBtn.style.display = "block"; adminConsoleCategoryInput.focus();
+};
+
+window.handleConsoleCategorySubmit = async () => {
+  const name = adminConsoleCategoryInput.value.trim();
+  if (!name) return;
+  try {
+    if (currentEditConsoleCategoryId) { 
+      await updateDoc(doc(db, "console_categories_list", currentEditConsoleCategoryId), { name: name }); 
+    } else {
+      const maxOrder = dbConsoleCategories.reduce((max, c) => ((c.order ?? 0) > max ? c.order : max), 0);
+      await addDoc(consoleCategoriesRef, { name: name, order: maxOrder + 1 });
+    }
+    await bumpCloudVersion(); clearConsoleCategoryForm(); loadMasterData();
+  } catch (error) { alert(error.message); }
+};
+
+window.deleteConsoleCategory = async (id, name) => {
+  if (confirm(`ต้องการลบหมวดหมู่เกมคอนโซล "${name}" ถาวร?`)) {
+    try {
+      await deleteDoc(doc(db, "console_categories_list", id));
+      if (selectedCategory === name) selectedCategory = "ทั้งหมด";
+      await bumpCloudVersion(); loadMasterData();
+    } catch (error) { alert(error.message); }
+  }
+};
+
+function setupConsoleCategoryDragAndDrop() {
+  const consoleCatItems = document.querySelectorAll("#adminConsoleCategoryList .admin-cat-item");
+  consoleCatItems.forEach(item => {
+    item.addEventListener("dragstart", (e) => { draggedConsoleCategoryId = item.getAttribute("data-consolecatid"); });
+    item.addEventListener("dragover", (e) => e.preventDefault());
+    item.addEventListener("drop", async (e) => {
+      e.preventDefault(); const targetConsoleCategoryId = item.getAttribute("data-consolecatid");
+      if (draggedConsoleCategoryId === targetConsoleCategoryId) return;
+      let currentCats = [...dbConsoleCategories];
+      const dIdx = currentCats.findIndex(c => c.id === draggedConsoleCategoryId), tIdx = currentCats.findIndex(c => c.id === targetConsoleCategoryId);
+      if (dIdx === -1 || tIdx === -1) return;
+      const [removed] = currentCats.splice(dIdx, 1); currentCats.splice(tIdx, 0, removed);
+      dbConsoleCategories = currentCats; renderAdminConsoleCategoryList();
+      try {
+        for (let i = 0; i < currentCats.length; i++) { await updateDoc(doc(db, "console_categories_list", currentCats[i].id), { order: i }); }
+        await bumpCloudVersion();
+      } catch (err) { console.error(err); }
+    });
+  });
+}
+
+/* ========================================================================================= */
 
 window.handleWidgetUpdate = async () => {
   try {
@@ -1106,6 +1282,10 @@ onAuthStateChanged(auth, (user) => {
   if(logoutBtn) logoutBtn.style.display = isAdmin ? "inline-block" : "none";
   if(adminPanel) adminPanel.style.display = dStyle;
   if(adminCategoryPanel) adminCategoryPanel.style.display = dStyle;
+  
+  // ปรับการซ่อนแสดงตามสิทธิ์ผู้ใช้สำหรับกล่องควบคุมคอนโซลใหม่
+  if(adminConsoleCategoryPanel) adminConsoleCategoryPanel.style.display = dStyle;
+  
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
   if(adminDragSortPanel) adminDragSortPanel.style.display = dStyle;
 
@@ -1115,6 +1295,7 @@ onAuthStateChanged(auth, (user) => {
 
   if(!isAdmin) {
     window.cancelProductEdit();
+    window.clearConsoleCategoryForm();
   }
   
   initUserPresenceSystem();
