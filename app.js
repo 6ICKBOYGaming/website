@@ -168,8 +168,9 @@ if (themeToggleBtn) {
 
 if (goToFlashSaleAdminBtn) {
     goToFlashSaleAdminBtn.onclick = () => {
-        // ใช้ location.href แทนการเปิด Tab ใหม่ เพื่อไม่ให้บราวเซอร์มองว่าเป็นป๊อปอัพขยะ
-        window.location.href = "flash-sale-admin.html"; 
+        // ใช้ ./ นำหน้าเพื่อให้เซิร์ฟเวอร์รู้ว่าเป็นไฟล์ที่อยู่ระดับเดียวกัน 
+        // และตรวจดูให้มั่นใจว่าชื่อไฟล์สะกดตรงกับไฟล์จริงของคุณร้อยเปอร์เซ็นต์
+        window.location.href = "./flash-sale-admin.html"; 
     };
 }
 
