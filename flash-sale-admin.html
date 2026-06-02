@@ -113,6 +113,27 @@
             font-size: 13px;
             color: #a3a3a3;
         }
+        /* สไตล์พิเศษสำหรับช่องค้นหาความเร็วสูง */
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: #1c1917;
+            border: 1px solid #262626;
+            border-radius: 6px;
+            padding: 0 10px;
+            height: 34px;
+            box-sizing: border-box;
+            flex-grow: 1;
+            min-width: 200px;
+        }
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 13px;
+            width: 100%;
+            outline: none;
+        }
         .select-control {
             padding: 4px 8px;
             background: #171717;
@@ -203,7 +224,7 @@
             }
             .btn-yellow {
                 width: 100%;
-                height: 44px; /* ขนาดกดง่ายขึ้นบนมือถือ */
+                height: 44px;
             }
             .ctrl-row {
                 display: grid;
@@ -215,6 +236,11 @@
                 padding: 10px;
                 font-size: 12px;
                 text-align: center;
+            }
+            .search-box {
+                grid-column: span 2;
+                width: 100%;
+                height: 40px;
             }
             .filter-box {
                 grid-column: span 2;
@@ -233,7 +259,6 @@
                 height: 40px;
             }
 
-            /* แปลงตารางเป็นบล็อกการ์ดแนวตั้งเพื่อให้พอดีหน้าจอพอดี */
             .table-responsive {
                 background: transparent;
                 border: none;
@@ -243,7 +268,7 @@
                 display: block;
             }
             thead {
-                display: none; /* ซ่อนหัวตารางคอมพิวเตอร์ */
+                display: none;
             }
             #flashProductTableBody tr {
                 background: #1c1917;
@@ -262,8 +287,7 @@
                 font-size: 13px;
             }
             
-            /* ปรับแต่งจุดสำคัญในการจัดหน้ามือถือ */
-            #flashProductTableBody td:nth-child(1) { /* ช่องติ๊กเลือก */
+            #flashProductTableBody td:nth-child(1) {
                 border-bottom: 1px solid #262626;
                 padding-bottom: 10px;
                 margin-bottom: 10px;
@@ -276,20 +300,20 @@
                 color: #a3a3a3;
                 font-size: 12px;
             }
-            #flashProductTableBody td:nth-child(2) { /* รูปภาพ */
+            #flashProductTableBody td:nth-child(2) {
                 justify-content: center;
                 padding: 10px 0;
                 background: #171717;
                 border-radius: 8px;
                 margin-bottom: 8px;
             }
-            #flashProductTableBody td:nth-child(3) { /* ชื่อสินค้า */
+            #flashProductTableBody td:nth-child(3) {
                 flex-direction: column;
                 align-items: flex-start;
                 font-weight: 500;
                 color: #fff;
             }
-            #flashProductTableBody td:nth-child(6) { /* ราคา Flash Sale */
+            #flashProductTableBody td:nth-child(6) {
                 background: rgba(239, 68, 68, 0.05);
                 padding: 8px;
                 border-radius: 8px;
@@ -301,14 +325,13 @@
                 padding: 8px;
             }
             
-            /* สร้าง Label จำลองสำหรับหน้าจอมือถือ */
             #flashProductTableBody td:nth-child(4)::before { content: "หมวดหมู่:"; color: #a3a3a3; }
             #flashProductTableBody td:nth-child(5)::before { content: "ราคาปัจจุบัน:"; color: #a3a3a3; }
             #flashProductTableBody td:nth-child(6)::before { content: "ราคา Flash Sale:"; color: #ef4444; font-weight: bold; }
             #flashProductTableBody td:nth-child(7)::before { content: "นับถอยหลัง:"; color: #a3a3a3; }
             #flashProductTableBody td:nth-child(8)::before { content: "สถานะคลาวด์:"; color: #a3a3a3; }
             
-            #flashProductTableBody td:nth-child(9) { /* ปุ่มจัดการเดี่ยว */
+            #flashProductTableBody td:nth-child(9) {
                 border-top: 1px solid #262626;
                 padding-top: 10px;
                 margin-top: 10px;
@@ -319,7 +342,6 @@
                 padding: 8px;
             }
             
-            /* เคสที่ระบบยังโหลดสตรีมข้อมูลอยู่ */
             #flashProductTableBody tr td[colspan="9"] {
                 display: block;
                 text-align: center;
@@ -356,6 +378,10 @@
             <button id="selectAllBtn" class="btn-outline">✅ เลือกทั้งหมด</button>
             <button id="clearAllSelectBtn" class="btn-outline">❌ ยกเลิกทั้งหมด</button>
             
+            <div class="search-box">
+                <input type="text" id="productSearchInput" placeholder="🔍 ค้นหาชื่อสินค้า หรือ ไอดีคลาวด์...">
+            </div>
+
             <div class="filter-box">
                 <label for="categoryFilter">📁 หมวดหมู่:</label>
                 <select id="categoryFilter" class="select-control">
@@ -396,5 +422,37 @@
     </div>
 
     <script type="module" src="flash-sale-admin.js"></script>
+    
+    <script>
+        /*
+        แนวทางการเขียนในไฟล์ flash-sale-admin.js เพื่อป้องกันข้อมูลที่กรอกไว้หาย:
+        
+        1. เก็บข้อมูลสินค้าทั้งหมดไว้ใน Array (Global State) เช่น:
+           let productsState = [
+               { id: '1', name: 'สินค้า A', category: 'gadget', currentPrice: 500, flashPrice: '', checked: false },
+               ...
+           ];
+
+        2. เมื่อผู้ใช้พิมพ์ที่ #productSearchInput หรือเปลี่ยน #categoryFilter ให้ทำงานผ่านฟังก์ชันกรอง (Filter):
+           function renderTable() {
+               const searchTerm = document.getElementById('productSearchInput').value.toLowerCase();
+               const selectedCat = document.getElementById('categoryFilter').value;
+               
+               const filteredProducts = productsState.filter(p => {
+                   const matchesSearch = p.name.toLowerCase().includes(searchTerm) || p.id.includes(searchTerm);
+                   const matchesCat = selectedCat === 'all' || p.category === selectedCat;
+                   return matchesSearch && matchesCat;
+               });
+               
+               // นำ filteredProducts ไปสร้างเป็น <tr> และนำเอาค่า p.checked และ p.flashPrice ล่าสุดมาใส่ใน HTML Input เสมอ
+           }
+
+        3. ดักจับเหตุการณ์ (Event Listeners) ในตาราง:
+           - เมื่อติ๊ก Checkbox -> อัปเดตค่า p.checked = true/false ลงใน productsState ตัวจริงตาม ID
+           - เมื่อกรอกราคา Flash Sale (oninput) -> อัปเดตค่า p.flashPrice = value ลงใน productsState ตัวจริงตาม ID
+           
+        วิธีนี้จะทำให้ไม่ว่าจะค้นหาไป-มา หรือสลับหมวดหมู่กี่ครั้ง ข้อมูลที่กรอกค้างไว้ก็จะไม่หายไปอย่างแน่นอนครับ!
+        */
+    </script>
 </body>
 </html>

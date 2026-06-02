@@ -22,9 +22,10 @@ const firebaseConfig = {
 };
 
 let app, db, productsRef, analyticsRef;
-let allProductsList = [];
+let allProductsList = []; // โครงสร้างหลัก: เก็บข้อมูลสถานะล่าสุด { id, ..., flashSalePriceInput, checked }
 let selectedProductIds = new Set();
 let currentFilterCategory = "all"; 
+let currentSearchTerm = ""; // 🔍 ตัวแปรเก็บคำค้นหาปัจจุบัน
 
 function showDebugError(title, message) {
   const consoleEl = document.getElementById("debugConsole");
@@ -61,12 +62,24 @@ async function loadFlashSaleManagerData() {
     
     const snap = await getDocs(productsRef);
     allProductsList = [];
+    selectedProductIds.clear(); // เคลียร์ค่าเก่าเมื่อโหลดใหม่
     
     snap.forEach(d => {
-      allProductsList.push({ id: d.id, ...d.data() });
+      const data = d.data();
+      const endTimeStr = data.flashSaleEndTime || "";
+      const isActive = endTimeStr ? (new Date(endTimeStr).getTime() - Date.now() > 0) : false;
+      
+      // กำหนดสถานะเริ่มต้นให้กับสินค้าแต่ละชิ้นเพื่อกันข้อมูลหาย
+      allProductsList.push({ 
+        id: d.id, 
+        ...data,
+        flashSalePriceInput: (isActive && data.flashSalePrice) ? data.flashSalePrice : "", // เก็บราคาที่แสดงในช่องกรอก
+        checked: false
+      });
     });
     
     setupCategoryFilter();
+    setupSearchInput(); // 🔍 เรียกฟังก์ชันเปิดระบบค้นหา
     renderTable();
     updateSelectedCountDisplay();
     
@@ -106,27 +119,49 @@ function setupCategoryFilter() {
   };
 }
 
-// 📊 ฟังก์ชันประกอบตารางรายชื่อสินค้า (ปรับปรุงระบบ Emoji สถานะคลาวด์แล้ว)
+// 🔍 ฟังก์ชันตั้งค่าและตรวจจับการพิมพ์ในช่องค้นหา (Search)
+function setupSearchInput() {
+  const searchInput = document.getElementById("productSearchInput");
+  if (!searchInput) return;
+
+  // เคลียร์ค่าเดิมในช่องกรอกเมื่อโหลดข้อมูลใหม่
+  searchInput.value = currentSearchTerm;
+
+  searchInput.oninput = (e) => {
+    currentSearchTerm = e.target.value.trim().toLowerCase();
+    renderTable(); // ทำการ Re-render ตารางใหม่ตามคำค้นหาทันทีความเร็วสูง
+  };
+}
+
+// 📊 ฟังก์ชันประกอบตารางรายชื่อสินค้า (ระบบกรอง ค้นหา และรักษาค่า Input)
 function renderTable() {
   const tableBody = document.getElementById("flashProductTableBody");
   if (!tableBody) return;
   
-  const filteredProducts = currentFilterCategory === "all" 
-    ? allProductsList 
-    : allProductsList.filter(p => p.category === currentFilterCategory);
+  // 🔄 กรองข้อมูลพร้อมกันทั้ง หมวดหมู่ และ คำค้นหา (ชื่อสินค้า หรือ ไอดีคลาวด์)
+  const filteredProducts = allProductsList.filter(p => {
+    const matchesCategory = currentFilterCategory === "all" || p.category === currentFilterCategory;
+    
+    const productName = (p.name || "").toLowerCase();
+    const productId = (p.id || "").toLowerCase();
+    const matchesSearch = currentSearchTerm === "" || productName.includes(currentSearchTerm) || productId.includes(currentSearchTerm);
+    
+    return matchesCategory && matchesSearch;
+  });
 
   if (filteredProducts.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 25px; color: #eab308;">⚠️ ไม่พบข้อมูลสินค้าในหมวดหมู่นี้</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 25px; color: #eab308;">⚠️ ไม่พบข้อมูลสินค้าที่ตรงกับเงื่อนไขการค้นหา</td></tr>`;
     return;
   }
   
   tableBody.innerHTML = filteredProducts.map(p => {
-    const isChecked = selectedProductIds.has(p.id) ? "checked" : "";
+    // ดึงค่า checked และ flashSalePriceInput ล่าสุดจาก Array เสมอ ข้อมูลจึงไม่หาย
+    const isChecked = p.checked ? "checked" : "";
+    const currentFlashPrice = p.flashSalePriceInput;
+    
     const endTimeStr = p.flashSaleEndTime || "";
     const isActive = endTimeStr ? (new Date(endTimeStr).getTime() - Date.now() > 0) : false;
-    const currentFlashPrice = (isActive && p.flashSalePrice) ? p.flashSalePrice : "";
     
-    // 🎨 ส่วนที่ปรับปรุง: ปรับดีไซน์ข้อความและ Emoji สถานะเปิด/ปิดการทำงาน
     let statusBadge = `
       <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; background:#1f1f1f; font-size:12px; color:#a3a3a3; border: 1px solid #262626; font-weight:500;">
         ❌ ปิดใช้งาน
@@ -158,7 +193,7 @@ function renderTable() {
           ${p.salePrice ? `<span style="color:#eab308; display:block; font-weight:500;">฿${Number(p.salePrice).toLocaleString()}</span>` : ''}
         </td>
         <td style="padding: 8px;">
-          <input type="number" class="input-flash-price" id="flash-input-${p.id}" value="${currentFlashPrice}" placeholder="ตั้งราคาที่นี่">
+          <input type="number" class="input-flash-price-live" data-id="${p.id}" value="${currentFlashPrice}" placeholder="ตั้งราคาที่นี่">
         </td>
         <td style="padding: 8px;">${timeDisplay}</td>
         <td style="padding: 8px;">${statusBadge}</td>
@@ -169,16 +204,36 @@ function renderTable() {
     `;
   }).join("");
   
-  // ตรวจจับกล่อง Checkbox
+  // 🔄 ตรวจจับและบันทึกค่าสถานะ Checkbox ลง Array กลางทันทีเมื่อมีการเปลี่ยนแปลง
   document.querySelectorAll(".row-select-check").forEach(chk => {
     chk.addEventListener("change", (e) => {
       const pId = e.target.getAttribute("data-id");
-      if (e.target.checked) {
+      const isTargetChecked = e.target.checked;
+      
+      // อัปเดตข้อมูลใน Set และ Array ตัวจริง
+      if (isTargetChecked) {
         selectedProductIds.add(pId);
       } else {
         selectedProductIds.delete(pId);
       }
+      
+      const targetProduct = allProductsList.find(item => item.id === pId);
+      if (targetProduct) targetProduct.checked = isTargetChecked;
+
       updateSelectedCountDisplay();
+    });
+  });
+
+  // 🔄 ตรวจจับและบันทึกราคาทุกครั้งที่คุณพิมพ์ (oninput) ป้องกันข้อมูลหายเวลาพิมพ์ค้นหาใหม่
+  document.querySelectorAll(".input-flash-price-live").forEach(input => {
+    input.addEventListener("input", (e) => {
+      const pId = e.target.getAttribute("data-id");
+      const currentVal = e.target.value;
+      
+      const targetProduct = allProductsList.find(item => item.id === pId);
+      if (targetProduct) {
+        targetProduct.flashSalePriceInput = currentVal;
+      }
     });
   });
 
@@ -220,7 +275,7 @@ function parseTimeToMilliseconds(timeStr) {
   return ms;
 }
 
-// ⚡ ฟังก์ชันรันคำสั่งกลุ่มแบบดึงราคาแยกตามแต่ละชิ้น
+// ⚡ ฟังก์ชันรันคำสั่งกลุ่มแบบดึงราคาแยกตามแต่ละชิ้น (ดึงจากอาเรย์ส่วนกลางแทนการดึง DOM)
 async function processBulkFlashSaleUpdate() {
   if (selectedProductIds.size === 0) {
     alert("❌ กรุณาติ๊กเลือกสินค้าที่ต้องการเปิดแคมเปญในตารางอย่างน้อย 1 รายการก่อนครับ");
@@ -242,12 +297,12 @@ async function processBulkFlashSaleUpdate() {
   const targetEndTimeISO = new Date(Date.now() + addedMs).toISOString();
 
   let hasPriceError = false;
+  // ตรวจสอบความถูกต้องของราคาจาก Array หลักโดยตรง (ทำให้ตรวจสอบสินค้าชิ้นที่ถูกซ่อนอยู่จากการ Filter ได้ด้วย)
   selectedProductIds.forEach(productId => {
-    const priceInputEl = document.getElementById(`flash-input-${productId}`);
-    const priceValue = priceInputEl ? parseFloat(priceInputEl.value) : 0;
+    const productData = allProductsList.find(p => p.id === productId);
+    const priceValue = productData ? parseFloat(productData.flashSalePriceInput) : 0;
     
     if (isNaN(priceValue) || priceValue <= 0) {
-      const productData = allProductsList.find(p => p.id === productId);
       alert(`❌ สินค้า "${productData ? productData.name : productId}" ยังไม่ได้ใส่ราคา Flash Sale หรือระบุราคาไม่ถูกต้อง!`);
       hasPriceError = true;
     }
@@ -264,8 +319,7 @@ async function processBulkFlashSaleUpdate() {
 
     selectedProductIds.forEach(productId => {
       const productData = allProductsList.find(p => p.id === productId);
-      const priceInputEl = document.getElementById(`flash-input-${productId}`);
-      const customFlashPrice = priceInputEl ? parseFloat(priceInputEl.value) : 0;
+      const customFlashPrice = productData ? parseFloat(productData.flashSalePriceInput) : 0;
 
       if (productData && customFlashPrice > 0) {
         const productDocRef = doc(db, "products", productId);
@@ -302,6 +356,10 @@ async function processBulkFlashSaleUpdate() {
     alert(`🎉 ประมวลผลสำเร็จ! เปิดใช้งานแคมเปญ Flash Sale สินค้าจำนวน ${counter} รายการ เรียบร้อยแล้วครับ`);
     
     selectedProductIds.clear();
+    currentSearchTerm = "";
+    const searchInput = document.getElementById("productSearchInput");
+    if (searchInput) searchInput.value = "";
+    
     document.getElementById("bulkDurationInput").value = "";
     loadFlashSaleManagerData();
     
@@ -321,7 +379,10 @@ if (document.getElementById("selectAllBtn")) {
       ? allProductsList 
       : allProductsList.filter(p => p.category === currentFilterCategory);
       
-    filteredProducts.forEach(p => selectedProductIds.add(p.id));
+    filteredProducts.forEach(p => {
+      selectedProductIds.add(p.id);
+      p.checked = true; // อัปเดตสถานะในวัตถุหลัก
+    });
     renderTable();
     updateSelectedCountDisplay();
   };
@@ -330,6 +391,7 @@ if (document.getElementById("selectAllBtn")) {
 if (document.getElementById("clearAllSelectBtn")) {
   document.getElementById("clearAllSelectBtn").onclick = () => {
     selectedProductIds.clear();
+    allProductsList.forEach(p => p.checked = false); // เคลียร์สถานะในวัตถุหลักทั้งหมด
     renderTable();
     updateSelectedCountDisplay();
   };
