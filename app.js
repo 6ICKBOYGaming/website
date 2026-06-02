@@ -170,11 +170,10 @@ if (themeToggleBtn) {
     localStorage.setItem("theme", targetTheme);
   };
 }
+
 // ระบบสั่งเปิดหน้าจัดการ Flash Sale และระบบเสริม
 if (goToFlashSaleAdminBtn) {
     goToFlashSaleAdminBtn.onclick = () => {
-        // window.open จะทำหน้าที่เปิดหน้าเว็บใหม่แยกออกไปอีกแท็บหนึ่ง
-        // โดยคุณสามารถสร้างไฟล์ชื่อ flash-sale-admin.html รอไว้ได้เลย
         window.open("flash-sale-admin.html", "_blank");
     };
 }
@@ -244,7 +243,7 @@ async function recordVisitorTraffic() {
   }
 }
 
-/* ================= 📊 ระบบนับยอดคลิกสะสมแบบประหยัด Read ================= */
+/* ================= 📊 ระบบนับยอดคลิกสะสมแบบเรียลไทม์เมื่อกดลิงก์ด่วน ================= */
 function getLocalPendingClicks() {
   const data = localStorage.getItem("pending_clicks");
   return data ? JSON.parse(data) : {};
@@ -258,26 +257,23 @@ async function syncPendingClicksToCloud() {
   const productIds = Object.keys(pendingClicks);
   if (productIds.length === 0) return;
 
-  const lastSync = parseInt(localStorage.getItem("last_click_sync_time") || "0", 10);
-  const now = Date.now();
-  
-  if (now - lastSync >= 14400000) { 
-    try {
-      const batch = writeBatch(db);
-      let hasUpdates = false;
-      productIds.forEach(productId => {
-        if (pendingClicks[productId] > 0) {
-          batch.update(doc(db, "products", productId), { clickCount: increment(pendingClicks[productId]) });
-          hasUpdates = true;
-        }
-      });
-      if (hasUpdates) {
-        await batch.commit();
-        localStorage.setItem("last_click_sync_time", now.toString());
-        saveLocalPendingClicks({});
-        console.log("🔄 [Auto Sync] ซิงค์ยอดคลิกสะสมรอบ 4 ชั่วโมงขึ้น Cloud สำเร็จแล้ว!");
+  try {
+    const batch = writeBatch(db);
+    let hasUpdates = false;
+    productIds.forEach(productId => {
+      if (pendingClicks[productId] > 0) {
+        batch.update(doc(db, "products", productId), { clickCount: increment(pendingClicks[productId]) });
+        hasUpdates = true;
       }
-    } catch (err) { console.error("Auto Sync Error:", err); }
+    });
+    if (hasUpdates) {
+      await batch.commit();
+      localStorage.setItem("last_click_sync_time", Date.now().toString());
+      saveLocalPendingClicks({});
+      console.log("🔄 [Auto Sync] ซิงค์ยอดคลิกสะสมขึ้น Cloud ทันทีเรียบร้อยแล้ว!");
+    }
+  } catch (err) { 
+    console.error("Auto Sync Error:", err); 
   }
 }
 
@@ -285,11 +281,9 @@ window.forceSyncClicksToCloud = async () => {
   const pendingClicks = getLocalPendingClicks();
   const productIds = Object.keys(pendingClicks);
   if (productIds.length === 0) {
-    alert("ℹ️ ไม่มีข้อมูลยอดคลิกค้างสถิติใน LocalStorage ที่ต้องอัปเดตครับ");
     return;
   }
   try {
-    alert("⏳ กำลังนำส่งยอดคลิกสะสมที่ค้างอยู่ทั้งหมดขึ้นสู่ Cloud...");
     const batch = writeBatch(db);
     productIds.forEach(productId => {
       if (pendingClicks[productId] > 0) {
@@ -299,9 +293,8 @@ window.forceSyncClicksToCloud = async () => {
     await batch.commit();
     localStorage.setItem("last_click_sync_time", Date.now().toString());
     saveLocalPendingClicks({});
-    alert("✅ อัปเดตข้อมูลคลิกสะสมขึ้น Cloud สำเร็จเสร็จสิ้น!");
     loadMasterData();
-  } catch (err) { alert(err.message); }
+  } catch (err) { console.error(err); }
 };
 
 window.trackProductClick = async (productId) => {
@@ -309,7 +302,8 @@ window.trackProductClick = async (productId) => {
   pending[productId] = (pending[productId] || 0) + 1;
   saveLocalPendingClicks(pending);
   
-  syncPendingClicksToCloud();
+  // เรียกซิงค์ขึ้น Cloud ทันที เพื่อไม่ให้รีเฟรชแล้วข้อมูลตกหล่น
+  await syncPendingClicksToCloud();
   
   if (typeof gtag !== 'undefined') {
     const found = clientDisplayedProducts.find(x => x.id === productId) || allProducts.find(x => x.id === productId);
@@ -369,9 +363,9 @@ window.addEventListener('storePageView', (e) => {
     recordVisitorTraffic(e.detail);
 });
 
-window.addEventListener('storeProductClick', (e) => {
-    updateProductClickCount(e.detail.productId);
-});
+async function updateProductClickCount(productId) {
+    window.trackProductClick(productId);
+}
 
 async function checkOnlineUsersCountManual() {
   const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
@@ -381,14 +375,12 @@ async function checkOnlineUsersCountManual() {
     const now = Date.now();
     const activeThreshold = now - 60000; // 1 นาที
     
-    // [แก้ไขเพื่อประหยัด Read]: ฝั่งแอดมินนับยอดคนออนไลน์ดึงจากคน Active จริงเท่านั้น
     const activeQuery = query(onlineUsersRef, where("lastActive", ">=", activeThreshold));
     const activeSnapshot = await getDocs(activeQuery);
     
     let onlineCount = activeSnapshot.size;
     realtimeCounterDisplay.innerText = onlineCount;
 
-    // [แก้ไขเพื่อประหยัด Read]: ค้นหาและดึงขยะ (คนออฟไลน์) เพื่อนำไปลบเฉพาะรายการที่หมดอายุจริง
     if (isAdmin) {
       const expiredQuery = query(onlineUsersRef, where("lastActive", "<", activeThreshold), limit(400));
       const expiredSnapshot = await getDocs(expiredQuery);
@@ -410,7 +402,7 @@ async function checkOnlineUsersCountManual() {
 /* ================= ⚙️ โหลดข้อมูลหลัก (Master Data Loader) ================= */
 async function loadMasterData() {
   try {
-    syncPendingClicksToCloud();
+    await syncPendingClicksToCloud();
 
     if (!isAdmin) {
       await checkSmartCacheVersion();
@@ -442,8 +434,9 @@ async function loadMasterData() {
     updateCategoryDropdown();
     applyWidgetSettings(widgetSnap);
 
-    const hotProducts = allProducts.filter(p => p.isHot).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
-    const newProducts = allProducts.filter(p => p.isNew).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
+    // ฝั่งลูกค้าทั่วไป จะไม่เอาสินค้าที่เป็น comingSoon มาสไลด์โชว์ใน HOT / NEW
+    const hotProducts = allProducts.filter(p => p.isHot && (isAdmin || !p.comingSoon)).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
+    const newProducts = allProducts.filter(p => p.isNew && (isAdmin || !p.comingSoon)).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
 
     if (hotEl) {
       hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
@@ -559,10 +552,8 @@ function getOptimizedImageUrl(originalUrl, targetWidth = 350) {
   const trimmedUrl = originalUrl.trim();
   if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) return trimmedUrl;
   
-  // ในโหมด Admin ปล่อยผ่านเพื่อให้ตรวจสอบภาพดั้งเดิมได้ชัดเจน และไม่ทำ Proxy บนเว็บ placeholder
   if (isAdmin || trimmedUrl.includes("via.placeholder.com")) return trimmedUrl;
   
-  // ย่อขนาดความกว้างเหลือ 350px ปรับคุณภาพ 80% บังคับออกเป็น WebP เพื่อความเบาสุดๆ ของหน้า User
   return `https://wsrv.nl/?url=${encodeURIComponent(trimmedUrl)}&w=${targetWidth}&output=webp&q=80&il`;
 }
 
@@ -652,11 +643,8 @@ function card(p, index){
   }
 
   const imageLink = (!isProductComingSoon && (p.shopee1?.trim() || p.shopee2?.trim())) ? (p.shopee1?.trim() || p.shopee2?.trim()) : "";
-  
-  // ⚙️ นำรูปภาพต้นฉบับผ่านระบบบีบอัดขนาด
   const imageSrc = getOptimizedImageUrl(p.image);
   
-  // 🚀 ปรับเป็นระบบผสม: แอดมินให้โหลดสดทันทีเพื่อตรวจเช็ค ส่วนหน้า User บังคับทำ Lazy Loading ด้วย Base64 Placeholder
   let finalImageTag = "";
   if (isAdmin) {
     finalImageTag = `<img src="${imageSrc}" alt="${p.name}" style="width:100%; height:200px; object-fit:cover;">`;
@@ -809,9 +797,7 @@ window.clearQuickFlashPrice = async (productId) => {
 window.clearQuickPrice = async (productId) => {
   try {
     const updateFields = { price: 0, salePrice: 0, comingSoon: true };
-    await updateDoc(doc(db, "products", productId), updateFields);
-    const foundIdx = allProducts.findIndex(p => p.id === productId);
-    if (foundIdx !== -1) allProducts[foundIdx] = { ...allProducts[foundIdx], ...updateFields };
+    await updateDoc(doc(db, "products", productId), { comingSoon: true });
     await bumpCloudVersion(); loadMasterData();
   } catch (err) { alert(err.message); }
 };
@@ -911,7 +897,6 @@ function startFlashSaleClockTicker() {
     const timerElements = document.querySelectorAll(".dynamic-countdown-timer");
     let needReRender = false;
     
-    // ตรวจสอบสินค้าทั้งหมดในแรร์ไทม์เพื่อสับเอาตัวที่เวลาหมดออก
     allProducts.forEach(p => {
       if (p.flashSaleEndTime) {
         const timeRemaining = new Date(p.flashSaleEndTime).getTime() - new Date().getTime();
@@ -963,14 +948,17 @@ function renderMobileView() {
   
   let displayed = [];
   if (selectedCategory === "ทั้งหมด") {
-    displayed = [...clientDisplayedProducts];
+    displayed = clientDisplayedProducts.filter(p => !p.comingSoon);
   } else if (selectedCategory === "⚡ Flash Sale") {
-    displayed = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0));
+    displayed = allProducts.filter(p => !p.comingSoon && p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0));
   } else {
-    displayed = allProducts.filter(p => p.category === selectedCategory);
+    displayed = allProducts.filter(p => !p.comingSoon && p.category === selectedCategory);
   }
 
-  // จัดเรียงสินค้าตามโหมดเรียงลำดับที่แอดมินหรือผู้ใช้ตั้งไว้ปัจจุบันให้กับสินค้าที่กรองด้วย
+  if (currentSortMode === "priceAsc" || currentSortMode === "priceDesc") {
+    displayed = displayed.filter(p => !p.comingSoon);
+  }
+
   if (selectedCategory !== "ทั้งหมด") {
     if (currentSortMode === "priceAsc") {
       displayed.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
@@ -991,8 +979,6 @@ function renderMobileView() {
   renderSidebarCategories();
   renderInfiniteScrollLoader();
   startFlashSaleClockTicker();
-  
-  // 🔥 เรียกคิวควบคุม Lazy Loading ทำงานหลังสร้างการ์ด User เสร็จสิ้น
   observeLazyImages();
 }
 
@@ -1005,6 +991,10 @@ function renderAdminView() {
     filtered = allProducts.filter(p => p.category === selectedCategory);
   }
   
+  if (currentSortMode === "priceAsc" || currentSortMode === "priceDesc") {
+    filtered = filtered.filter(p => !p.comingSoon);
+  }
+
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) filtered = filtered.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
 
@@ -1032,7 +1022,6 @@ function renderAdminView() {
         <span style="flex:1; font-size:13px; color:#10b981;">🟢 <b>ระบบออนไลน์ Realtime:</b> กำลังมีผู้เข้าชมขณะนี้ <strong id="realtimeUsersCountDisplay" style="font-size:18px; text-shadow: 0 0 8px #10b981;">0</strong> คน</span>
         <a href="analytics.html" target="_blank" class="btn edit" style="display: inline-block; text-align: center; text-decoration: none; background: #a855f7; color: #fff;">📊 ดูข้อมูลเชิงลึก</a>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#eab308; color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:bold;' onclick='checkOnlineUsersCountManual()'>👁️ เช็กยอดผู้เข้าชมด่วน</button>
-        <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='forceSyncClicksToCloud()'>🔄 อัปเดตยอดคลิกสะสมขึ้นคลาวด์</button>
         <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#10b981; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้าทั้งหมด</button>
       </div>
     `;
@@ -1040,7 +1029,6 @@ function renderAdminView() {
   }
   setupProductDragAndDrop(filtered);
   startFlashSaleClockTicker();
-  
   checkOnlineUsersCountManual();
 }
 
@@ -1083,18 +1071,15 @@ if(sortProductsSelect) sortProductsSelect.addEventListener("change", (e) => { cu
 
 function renderSidebarCategories() {
   if (!categoriesEl) return;
-  const totalCount = allProducts.length;
   
-  // นับจำนวนสินค้าที่กำลัง Flash Sale อยู่ ณ เวลาปัจจุบัน
-  const flashSaleCount = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0)).length;
+  const totalCount = isAdmin ? allProducts.length : allProducts.filter(p => !p.comingSoon).length;
+  const flashSaleCount = allProducts.filter(p => !p.comingSoon && p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0)).length;
 
   let html = `<div class="category ${selectedCategory === 'ทั้งหมด' ? 'active' : ''}" onclick="filterCategory('ทั้งหมด')">ทั้งหมด (${totalCount})</div>`;
   
-  // ⚡ เงื่อนไข: ถ้ามีสินค้าที่กำลัง Flash Sale ค่อยแทรกเมนูนี้ลงใต้ "ทั้งหมด" ทันที
   if (flashSaleCount > 0) {
     html += `<div class="category flash-sale-menu-item ${selectedCategory === '⚡ Flash Sale' ? 'active' : ''}" onclick="filterCategory('⚡ Flash Sale')">⚡ Flash Sale (${flashSaleCount})</div>`;
   } else {
-    // ถ้าสินค้า Flash Sale เหลือ 0 และผู้ใช้ดันเปิดหน้าหมวดหมู่นี้ค้างไว้ ให้ดีดค่ากลับไปที่หน้าทั้งหมดอัตโนมัติ
     if (selectedCategory === "⚡ Flash Sale") {
       selectedCategory = "ทั้งหมด";
       setTimeout(() => render(), 0);
@@ -1102,7 +1087,7 @@ function renderSidebarCategories() {
   }
 
   dbCategories.forEach(cat => {
-    const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
+    const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim() && (isAdmin || !p.comingSoon)).length;
     html += `<div class="category ${selectedCategory === cat.name ? 'active' : ''}" onclick="filterCategory('${cat.name}')">${cat.name} (${count})</div>`;
   });
   categoriesEl.innerHTML = html;
@@ -1324,7 +1309,6 @@ onAuthStateChanged(auth, (user) => {
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
   if(adminDragSortPanel) adminDragSortPanel.style.display = dStyle;
 
-  // ➕ อัปเดตการแสดงผลปุ่มตั้งค่า Flash Sale & ระบบเสริม
   if(goToFlashSaleAdminBtn) {
     goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
   }
@@ -1336,14 +1320,6 @@ onAuthStateChanged(auth, (user) => {
   initUserPresenceSystem();
   loadMasterData();
 });
-
-// ➕ ระบบสั่งเปิดหน้าจัดการ Flash Sale (ใส่ไว้ด้านล่างของไฟล์ หรือโซน Event Listeners)
-if (goToFlashSaleAdminBtn) {
-  goToFlashSaleAdminBtn.onclick = () => {
-    // เปิดไฟล์ flash-sale-admin.html ในแท็บใหม่
-    window.open("flash-sale-admin.html", "_blank");
-  };
-}
 
 const backToTopBtn = document.getElementById("backToTopBtn");
 if (backToTopBtn) {
@@ -1423,14 +1399,14 @@ function observeLazyImages() {
         if (realSrc) {
           image.src = realSrc;
           image.onload = () => {
-            image.style.opacity = "1"; // แสดงรูปภาพแบบ Fade-in นุ่มๆ เมื่อดาวน์โหลดเสร็จ
+            image.style.opacity = "1"; 
           };
         }
-        observer.unobserve(image); // โหลดเสร็จแล้วสั่งหยุดติดตามทันที
+        imageObserver.unobserve(image); 
       }
     });
   }, {
-    rootMargin: "250px 0px" // สั่งรูปภาพให้แอบโหลดล่วงหน้าก่อนผู้ใช้เลื่อนลงมาเห็น 250 พิกเซล
+    rootMargin: "250px 0px" 
   });
 
   lazyImages.forEach(img => imageObserver.observe(img));
