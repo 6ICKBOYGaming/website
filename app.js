@@ -875,39 +875,68 @@ if (sortProductsSelect) {
   });
 }
 
-/* ================= 📁 แผงแสดงสถิติจำนวนรวมหมวดหมู่บน Sidebar ================= */
+/* ================= 🌓 หน้าแสดงผลแถบหมวดหมู่สินค้า (เฉพาะมือถือสไลด์แนวนอน จอคอมแนวตั้งปกติ) ================= */
 function renderSidebarCategories() {
   if (!categoriesEl) return;
-  
-  const totalCount = allProducts.length; 
-  const now = Date.now();
-  const flashSaleCount = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - now > 0)).length;
 
-  let html = `<div class="category ${selectedCategory === 'ทั้งหมด' ? 'active' : ''}" onclick="filterCategory('ทั้งหมด')">ทั้งหมด (${totalCount})</div>`;
-  
-  if (flashSaleCount > 0) {
-    html += `<div class="category flash-sale-menu-item ${selectedCategory === '⚡ Flash Sale' ? 'active' : ''}" onclick="filterCategory('⚡ Flash Sale')">⚡ Flash Sale (${flashSaleCount})</div>`;
-  } else {
-    if (selectedCategory === "⚡ Flash Sale") {
-      selectedCategory = "ทั้งหมด";
-      setTimeout(() => render(), 0);
-    }
+  const now = Date.now();
+  const flashSaleActiveCount = allProducts.filter(p => {
+    const hasFlashPrice = p.flashSalePrice && Number(p.flashSalePrice) > 0;
+    if (!p.flashSaleEndTime) return hasFlashPrice;
+    return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
+  }).length;
+
+  // ปรับ Container: บนมือถือ (ต่ำกว่า sm) จะเป็น flex แนวนอนและมีแถบเลื่อนสไลด์ซ้ายขวา | บนคอม (sm ขึ้นไป) จะกลับเป็นแนวตั้งปกติ
+  categoriesEl.className = "flex sm:flex-col items-center sm:items-stretch gap-2 overflow-x-auto sm:overflow-x-visible pb-3 sm:pb-0 max-w-full snap-x scrollbar-none";
+
+  let html = "";
+
+  // ปุ่ม: ทั้งหมด (บนมือถือล็อกความกว้างขั้นต่ำไม่ให้บี้ ตัวอักษร text-xs พอดีจอ | บนคอมดีดเป็น sm:w-full text-sm)
+  html += `
+    <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === 'ทั้งหมด' ? 'active' : ''}" 
+         style="border-radius: 10px; cursor: pointer;" 
+         onclick="filterCategory('ทั้งหมด')">
+      ✨ ทั้งหมด (${allProducts.length})
+    </div>
+  `;
+
+  // ปุ่ม: Flash Sale
+  if (flashSaleActiveCount > 0) {
+    html += `
+      <div class="category flash-sale-menu-item shrink-0 snap-center min-w-[110px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === '⚡ Flash Sale' ? 'active' : ''}" 
+           style="border-radius: 10px; cursor: pointer;" 
+           onclick="filterCategory('⚡ Flash Sale')">
+        ⚡ Flash Sale (${flashSaleActiveCount})
+      </div>
+    `;
   }
 
-  // 📝 แสดงผลหมวดหมู่แบบดั้งเดิม
-  // เปลี่ยนตรง color: #f97316; (หรือ #ff9900) เพื่อให้เป็นสีส้มตามต้องการครับ
-  html += `<div style="font-size:14px; font-weight:bold; color:#f97316; padding:14px 14px 8px 14px; text-transform:uppercase; border-top:1px solid rgba(255,255,255,0.05);">หมวดหมู่เกมมิ่งเกียร์</div>`;
+  // วนลูป: หมวดหมู่สินค้าปกติ
   dbCategories.forEach(cat => {
     const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
-    html += `<div class="category ${selectedCategory === cat.name ? 'active' : ''}" onclick="filterCategory('${cat.name}')">${cat.name} (${count})</div>`;
+    html += `
+      <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === cat.name ? 'active' : ''}" 
+           style="border-radius: 10px; cursor: pointer;" 
+           onclick="filterCategory('${cat.name}')">
+        ${cat.name} (${count})
+      </div>
+    `;
   });
 
-  // แสดงผลหมวดหมู่ย่อยเกมคอนโซลเพิ่มลงบนแถบเมนูด้านข้างแยกกลุ่มชัดเจน
+  // วนลูป: หมวดหมู่เกมคอนโซล
   if (dbConsoleCategories.length > 0) {
-    html += `<div style="font-size:14px; font-weight:bold; color:#f97316; padding:14px 14px 8px 14px; text-transform:uppercase; border-top:1px solid rgba(255,255,255,0.05);">หมวดหมู่เกมมิ่งเกียร์</div>`;
+    // หัวข้อกลุ่มคั่น: บนมือถือทำเป็นกล่องปุ่มเล็กๆ กะทัดรัดไม่เกะกะ | บนคอมพิวเตอร์แสดงเป็นตัวอักษรหัวข้อกลุ่มด้านบน
+    html += `<div class="shrink-0 snap-center font-bold text-orange-500 bg-orange-500/10 sm:bg-transparent border border-orange-500/20 sm:border-none px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs uppercase sm:mt-3 sm:pt-3 sm:border-t sm:border-white/5">🎮 คอนโซล</div>`;
+    
     dbConsoleCategories.forEach(cat => {
       const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
-      html += `<div class="category ${selectedCategory === cat.name ? 'active' : ''}" onclick="filterCategory('${cat.name}')"> ${cat.name} (${count})</div>`;
+      html += `
+        <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === cat.name ? 'active' : ''}" 
+             style="border-radius: 10px; cursor: pointer;" 
+             onclick="filterCategory('${cat.name}')">
+          ${cat.name} (${count})
+        </div>
+      `;
     });
   }
 
