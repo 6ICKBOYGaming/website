@@ -113,6 +113,31 @@
             border: 1px solid #000000;
             background: #ffffff;
         }
+
+        /* 🟢 เพิ่มสไตล์สำหรับระบบ Infinite Scroll Loader */
+        .infinite-scroll-loader {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 24px 0;
+            width: 100%;
+            grid-column: 1 / -1; /* สั่งให้ขยายเต็มความกว้างของ Grid สินค้า */
+        }
+        .infinite-scroll-loader.show {
+            display: flex;
+        }
+        .spinner-neon {
+            width: 36px;
+            height: 36px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #eab308; /* สีเหลืองแอดมินตามธีมหลักของร้าน */
+            border-radius: 50%;
+            animation: spin-neon 0.8s linear infinite;
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);
+        }
+        @keyframes spin-neon {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -308,6 +333,10 @@
         </section>
         
         <section id="products" class="grid"></section>
+
+        <div id="infiniteScrollLoaderContainer" class="infinite-scroll-loader">
+            <div class="spinner-neon"></div>
+        </div>
     </main>
 
     <aside class="sidebar-right">
