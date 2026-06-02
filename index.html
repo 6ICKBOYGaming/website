@@ -140,6 +140,19 @@
         }
     </style>
 </head>
+<script>
+  // ⚡ โค้ดบังคับดีดตัวออกไปเปิดบน Chrome/Safari เมื่อลูกค้าเปิดผ่านแอป Facebook หรือ Messenger
+  var ua = navigator.userAgent || navigator.vendor || window.opera;
+  var isFacebookApp = (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1);
+
+  if (isFacebookApp) {
+    // สำหรับมือถือระบบ Android: บังคับปลุกแอป Google Chrome ขึ้นมาเปิดแทนทันที
+    if (/Android/i.test(navigator.userAgent)) {
+      window.location.href = 'intent://' + window.location.host + window.location.pathname + window.location.search + '#Intent;scheme=https;package=com.android.chrome;end';
+    }
+    // สำหรับ iOS (iPhone): หากเกิดอาการค้าง จะช่วยรีเฟรชหรือส่งสัญญาณให้ระบบทำงานได้อย่างถูกต้อง
+  }
+</script>
 <body>
     
 <div id="loading-screen">
