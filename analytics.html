@@ -6,6 +6,18 @@
     <title>ระบบข้อมูลเชิงลึกขั้นสูง (Direct Realtime Dashboard)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+    </style>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans p-4 md:p-8">
 
@@ -13,103 +25,41 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-800 pb-6">
             <div>
                 <h1 class="text-3xl font-extrabold text-white flex items-center gap-2">
-                    <span class="text-blue-500">📊</span> ickboy-store Direct Analytics
+                    <span class="text-blue-500">📊</span> 6ICKBOY Analytics Dashboard
                 </h1>
-                <p class="text-gray-400 text-sm mt-1">ระบบดึงสถิติสดตรงจาก Cloud ทันทีเมื่อเปิดหรือกด F5 ล็อกโซนเวลาไทย UTC+7</p>
+                <p class="text-gray-400 text-sm mt-1">ระบบดึงสถิติรายวันจาก Cloud Firestore (Fix Field Dot Bug)</p>
             </div>
             
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto bg-gray-900 p-3 rounded-xl border border-gray-800">
                 <div class="flex items-center gap-2">
                     <span class="text-xl">📅</span>
-                    <label for="date-select" class="text-sm font-semibold text-gray-300 whitespace-nowrap">เลือกวันที่ดูภาพรวม:</label>
+                    <label for="date-select" class="text-sm font-semibold text-gray-300 whitespace-nowrap">เลือกวันที่ดูสถิติ:</label>
                 </div>
-                <input type="date" id="date-select" class="bg-gray-800 border border-gray-750 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 cursor-pointer">
+                <input type="date" id="date-select" class="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 cursor-pointer">
                 
-                <button id="refresh-btn" onclick="location.reload()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md transition duration-200 text-sm whitespace-nowrap">
-                    🔄 รีเฟรชหน้านี้ (F5)
-                </button>
-
-                <button onclick="clearSelectedDateAnalyticsCloudData()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md transition duration-200 text-sm whitespace-nowrap">
-                    🗑️ ล้างข้อมูลวันที่เลือก
+                <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md transition duration-200 text-sm whitespace-nowrap">
+                    🔄 รีเฟรชข้อมูล (F5)
                 </button>
             </div>
         </div>
         
-        <div class="mb-4 text-xs font-medium flex items-center gap-2">
-            <span class="text-gray-400">แหล่งที่มาข้อมูลปัจจุบัน:</span>
+        <div class="mb-6 text-xs font-medium flex items-center gap-2">
+            <span class="text-gray-400">สถานะระบบ:</span>
             <span id="data-source-badge" class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">กำลังเชื่อมต่อ...</span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-gray-900 p-6 rounded-2xl border border-gray-850 shadow-xl">
-            <div class="w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm font-bold text-gray-300 flex items-center gap-1.5">
-                        <span class="text-blue-400">📥</span> Cloud Read Usage (<span id="read-title-date">วันนี้</span>)
-                    </span>
-                    <span id="read-percent" class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/10">0%</span>
-                </div>
-                <div class="flex justify-between items-baseline mb-2">
-                    <span id="read-text" class="text-2xl font-black text-white">0 / 0</span>
-                    <span id="read-type-label" class="text-xs text-gray-500">โควตาเต็มต่อวัน</span>
-                </div>
-                <div class="w-full bg-gray-800 rounded-full h-3 overflow-hidden border border-gray-750">
-                    <div id="read-fill" class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full w-0 transition-all duration-500 ease-in-out"></div>
-                </div>
-            </div>
-
-            <div class="w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm font-bold text-gray-300 flex items-center gap-1.5">
-                        <span class="text-emerald-400">📤</span> Cloud Write Usage (<span id="write-title-date">วันนี้</span>)
-                    </span>
-                    <span id="write-percent" class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">0%</span>
-                </div>
-                <div class="flex justify-between items-baseline mb-2">
-                    <span id="write-text" class="text-2xl font-black text-white">0 / 0</span>
-                    <span id="write-type-label" class="text-xs text-gray-500">โควตาเต็มต่อวัน</span>
-                </div>
-                <div class="w-full bg-gray-800 rounded-full h-3 overflow-hidden border border-gray-750">
-                    <div id="write-fill" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-0 transition-all duration-500 ease-in-out"></div>
-                </div>
-            </div>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850">
                 <h3 id="view-card-title" class="text-gray-400 text-xs font-semibold uppercase tracking-wider">ยอดเข้าชมของวันที่เลือก</h3>
-                <p id="today-views" class="text-4xl font-black text-blue-400 mt-2">⏳ โหลด...</p>
+                <p id="today-views" class="text-4xl font-black text-blue-400 mt-2">0 ครั้ง</p>
             </div>
             <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850">
-                <h3 class="text-gray-400 text-xs font-semibold uppercase tracking-wider">ยอดเข้าชมรวม 7 วันล่าสุด (7-Days Total)</h3>
-                <p id="week-views" class="text-4xl font-black text-purple-400 mt-2">⏳ โหลด...</p>
+                <h3 class="text-gray-400 text-xs font-semibold uppercase tracking-wider">ยอดเข้าชมรวมทั้งหมด</h3>
+                <p id="week-views" class="text-4xl font-black text-purple-400 mt-2">0 ครั้ง</p>
             </div>
             <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850">
-                <h3 id="click-card-title" class="text-gray-400 text-xs font-semibold uppercase tracking-wider">ยอดกดลิงก์สินค้าของวันที่เลือก</h3>
-                <p id="total-clicks" class="text-4xl font-black text-emerald-400 mt-2">⏳ โหลด...</p>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850">
-                <div class="mb-4">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-blue-500">🕒</span> สถิติรายชั่วโมงของวันที่เลือก (<span id="hourly-graph-date" class="text-blue-400">...</span>)
-                    </h3>
-                </div>
-                <div class="relative h-72 w-full">
-                    <canvas id="hourlyChart"></canvas>
-                </div>
-            </div>
-
-            <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850">
-                <div class="mb-4">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-purple-500">📅</span> แนวโน้มภาพรวมรอบ 7 วันล่าสุด (7-Days Trend)
-                    </h3>
-                </div>
-                <div class="relative h-72 w-full">
-                    <canvas id="weeklyChart"></canvas>
-                </div>
+                <h3 class="text-gray-400 text-xs font-semibold uppercase tracking-wider">ยอดคลิกรวมสินค้าของวันที่เลือก</h3>
+                <p id="total-clicks" class="text-4xl font-black text-emerald-400 mt-2">0 ครั้ง</p>
             </div>
         </div>
 
@@ -117,7 +67,7 @@
             <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850 lg:col-span-2">
                 <div class="mb-4">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-amber-500">👑</span> กราฟแสดง 10 อันดับสินค้าที่มียอดคลิกสูงสุดของวันตาราง (Top 10 Most Clicked)
+                        <span class="text-amber-500">👑</span> กราฟแท่งแสดงยอดคลิกสินค้าประจำวัน (Top Chart)
                     </h3>
                 </div>
                 <div class="relative h-80 w-full">
@@ -128,23 +78,22 @@
             <div class="bg-gray-900 p-6 rounded-2xl shadow-xl border border-gray-850 overflow-hidden flex flex-col">
                 <div class="mb-4 flex flex-col gap-2 border-b border-gray-800 pb-3">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-emerald-500">📋</span> จัดอันดับของวัน (Leaderboard)
+                        <span class="text-emerald-500">📋</span> ตารางอันดับความนิยมสินค้า (Leaderboard)
                     </h3>
-                    <div class="flex items-center gap-1.5 mt-1 bg-gray-950 p-2 rounded-lg border border-gray-800">
-                        <span class="text-sm text-gray-400 whitespace-nowrap">เลือกวันตาราง:</span>
-                        <input type="date" id="leaderboard-date-select" class="w-full bg-gray-800 border border-gray-700 text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-emerald-500 cursor-pointer">
-                    </div>
                 </div>
-                <div class="flex-1 overflow-y-auto max-h-[260px] custom-scrollbar pr-1">
+                <div class="flex-1 overflow-y-auto max-h-[320px] custom-scrollbar pr-1">
                     <table class="w-full text-left text-sm">
                         <thead>
                             <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase">
-                                <th class="py-2 font-bold w-12">อันดับ</th>
+                                <th class="py-2 font-bold w-12 text-center">อันดับ</th>
                                 <th class="py-2 font-bold">ชื่อสินค้า</th>
-                                <th class="py-2 font-bold text-right w-20">ยอดคลิก</th>
+                                <th class="py-2 font-bold text-right w-24">จำนวนคลิก</th>
                             </tr>
                         </thead>
                         <tbody id="products-table-body">
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-gray-500">⏳ กำลังโหลดอันดับสินค้า...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -154,7 +103,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
@@ -169,21 +118,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        let hourlyChartInstance = null;
-        let weeklyChartInstance = null;
         let productsChartInstance = null;
-
-        // ตัวแปรเก็บจำนวนโควตา Realtime ของ "วันนี้"
-        let currentQuota = {
-            read: { current: 0, max: 50000 },
-            write: { current: 0, max: 20000 }
-        };
-
-        // ตัวแปรนับแต้มชั่วคราวเวลาเปลี่ยนไปกดดู "ประวัติวันอื่นๆ ในอดีต" (ให้เริ่มนับจาก 0 เสมอ)
-        let historySessionQuota = { read: 0, write: 0 };
-
-        let cachedProductsBase = [];
-        let internalCurrentDateKey = getThailandDateKey();
 
         function getThailandDateKey(dateObj = new Date()) {
             const options = { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' };
@@ -192,341 +127,113 @@
             return `${year}-${month}-${day}`;
         }
 
-        function updateQuotaDOM(type, current, max) {
-            const percent = Math.min((current / max) * 100, 100).toFixed(1);
-            const textElem = document.getElementById(`${type}-text`);
-            const percentElem = document.getElementById(`${type}-percent`);
-            const fillElem = document.getElementById(`${type}-fill`);
-            
-            if (textElem && percentElem && fillElem) {
-                textElem.textContent = `${current.toLocaleString('en-US')} / ${max.toLocaleString('en-US')}`;
-                percentElem.textContent = `${percent}%`;
-                fillElem.style.width = `${percent}%`;
-                
-                if (percent >= 85) {
-                    fillElem.className = "bg-gradient-to-r from-red-600 to-orange-500 h-full w-0 transition-all duration-500 ease-in-out";
-                } else if (type === 'read') {
-                    fillElem.className = "bg-gradient-to-r from-blue-500 to-cyan-400 h-full w-0 transition-all duration-500 ease-in-out";
-                } else if (type === 'write') {
-                    fillElem.className = "bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-0 transition-all duration-500 ease-in-out";
-                }
-            }
-        }
-
-        function loadQuotaFromStorage() {
-            const todayStr = getThailandDateKey();
-            const saved = localStorage.getItem('firebase_quota_tracker');
-            
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (parsed.date !== todayStr) {
-                    currentQuota.read.current = 0;
-                    currentQuota.write.current = 0;
-                    saveQuotaToStorage(); 
-                } else {
-                    currentQuota.read.current = parsed.read || 0;
-                    currentQuota.write.current = parsed.write || 0;
-                }
-            } else {
-                saveQuotaToStorage();
-            }
-        }
-
-        function saveQuotaToStorage() {
-            const todayStr = getThailandDateKey();
-            localStorage.setItem('firebase_quota_tracker', JSON.stringify({
-                date: todayStr,
-                read: currentQuota.read.current,
-                write: currentQuota.write.current
-            }));
-        }
-
-        const quotaChannel = new BroadcastChannel('firebase_quota_channel');
-        quotaChannel.onmessage = (event) => {
-            if (event.data && event.data.type === 'sync') {
-                const selectedDateStr = document.getElementById('date-select').value;
-                const todayInputStr = getThailandDateKey();
-                
-                // ถ้ายืนยันว่ากำลังดู "วันนี้" อยู่ ให้ Sync โควตา Realtime ข้ามแท็บตามปกติ
-                if (selectedDateStr === todayInputStr && event.data.date === getThailandDateKey()) {
-                    currentQuota.read.current = event.data.read || 0;
-                    currentQuota.write.current = event.data.write || 0;
-                    updateQuotaDOM('read', currentQuota.read.current, currentQuota.read.max);
-                    updateQuotaDOM('write', currentQuota.write.current, currentQuota.write.max);
-                }
-            }
-        };
-
-        function setDefaultDates() {
-            const dateInput = document.getElementById('date-select');
-            const leaderboardDateInput = document.getElementById('leaderboard-date-select');
-            const todayStr = getThailandDateKey();
-            
-            if (dateInput && !dateInput.value) {
-                dateInput.value = todayStr;
-            }
-            if (leaderboardDateInput && !leaderboardDateInput.value) {
-                leaderboardDateInput.value = todayStr;
-            }
-        }
-
-        function forceClearUIFieldsToZero(dateString, isLeaderboardOnly = false) {
-            if (!isLeaderboardOnly) {
-                document.getElementById('today-views').innerText = "0 ครั้ง";
-                if (hourlyChartInstance) {
-                    hourlyChartInstance.data.datasets[0].data = Array(24).fill(0);
-                    hourlyChartInstance.update();
-                }
-                const parts = dateString.split('-');
-                const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                document.getElementById('hourly-graph-date').innerText = targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
-                document.getElementById('view-card-title').innerText = `ยอดเข้าชม (${targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })})`;
-            }
-
-            document.getElementById('total-clicks').innerText = "0 ครั้ง";
-            if (productsChartInstance) {
-                productsChartInstance.data.labels = ["ไม่มีข้อมูล"];
-                productsChartInstance.data.datasets[0].data = [0];
-                productsChartInstance.update();
-            }
-            document.getElementById('products-table-body').innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">⏳ วันที่เลือกยังไม่มีข้อมูลสถิติบันทึกไว้ (เริ่มนับจาก 0)</td></tr>`;
-        }
-
         async function loadAdvancedAnalytics() {
             try {
-                setDefaultDates();
-                const selectedDateStr = document.getElementById('date-select').value;
-                const todayInputStr = getThailandDateKey();
-
-                // บล็อกวันล่วงหน้า
-                if (selectedDateStr > todayInputStr) {
-                    updateBadgeStatus("🔮 เลือกวันที่ล่วงหน้าในอนาคต: ระบบเซ็ตค่าหน้าจอเริ่มต้นเป็น 0 อัตโนมัติ", "text-amber-400", "bg-amber-500/10", "border-amber-500/20");
-                    forceClearUIFieldsToZero(selectedDateStr, false);
-                    updateQuotaDOM('read', 0, currentQuota.read.max);
-                    updateQuotaDOM('write', 0, currentQuota.write.max);
-                    return; 
-                }
-
-                // สลับป้ายหัวข้อเกจ และตั้งค่าเริ่มต้นของหน่วยนับ Read/Write ตามเงื่อนไขวันที่เลือก
-                if (selectedDateStr === todayInputStr) {
-                    document.getElementById('read-title-date').innerText = "วันนี้ - Realtime";
-                    document.getElementById('write-title-date').innerText = "วันนี้ - Realtime";
-                    loadQuotaFromStorage(); // โหลดแต้มสะสมจริงของวันนี้
-                } else {
-                    document.getElementById('read-title-date').innerText = "สถิติกดอ่านประวัติวันเลือก";
-                    document.getElementById('write-title-date').innerText = "สถิติกดเขียนประวัติวันเลือก";
-                    historySessionQuota.read = 0; // ล้างค่าประวัติเซสชันเริ่มนับ 0 ใหม่ทั้งหมด
-                    historySessionQuota.write = 0;
-                }
-
-                updateBadgeStatus("🌐 กำลังดึงข้อมูล Realtime สดตรงจาก Cloud Firebase...", "text-blue-400", "bg-blue-500/10", "border-blue-500/20");
+                const dateInput = document.getElementById('date-select');
+                const todayStr = getThailandDateKey();
                 
-                let hourlyData = Array(24).fill(0);
+                if (dateInput && !dateInput.value) { 
+                    dateInput.value = todayStr; 
+                }
+                const selectedDateStr = dateInput.value;
+
+                updateBadgeStatus("🌐 กำลังคำนวณและดึงข้อมูลสถิติจาก Cloud...", "text-blue-400", "bg-blue-500/10", "border-blue-500/20");
+
                 let targetDateViewsCount = 0;
-                let total7DaysViews = 0;
+                let totalViewsAllTime = 0;
+                let rawDocumentData = {};
 
-                // ดึงข้อมูลวิเคราะห์ (นับแต้มโควตา)
+                // 1. ดึงข้อมูลสถิติทั้งหมดมาตรวจสอบแบบดิบ (Raw Data)
                 const analyticsSnap = await getDocs(collection(db, "analytics"));
-                const readCost = (analyticsSnap.size || 1);
-                
-                if (selectedDateStr === todayInputStr) {
-                    currentQuota.read.current += readCost;
-                } else {
-                    historySessionQuota.read += readCost;
-                }
-
                 analyticsSnap.forEach(docSnap => {
                     const data = docSnap.data();
                     const docId = docSnap.id;
                     
-                    if (docId === selectedDateStr || data.date === selectedDateStr) {
-                        if (data.hourlyTraffic) {
-                            for (let i = 0; i < 24; i++) { hourlyData[i] = (data.hourlyTraffic[i] || 0); }
-                        }
-                        targetDateViewsCount = data.totalPageViews || hourlyData.reduce((a, b) => a + b, 0);
+                    if (docId === selectedDateStr) {
+                        rawDocumentData = data; // เก็บข้อมูลดิบของวันนี้ไว้เช็คชื่อฟิลด์แบบตรงตัว
+                        targetDateViewsCount = data.totalPageViews || 0;
                     }
-                    if (data.totalPageViews) { total7DaysViews += data.totalPageViews; }
+                    if (data.totalPageViews !== undefined) {
+                        totalViewsAllTime += data.totalPageViews;
+                    }
                 });
 
-                if (targetDateViewsCount === 0) { targetDateViewsCount = hourlyData.reduce((a, b) => a + b, 0); }
-
-                // ดึงรายการสินค้าทั้งหมด
+                // 2. ดึงสินค้าทั้งหมดมาทำการแมตช์ค่าด้วยวิธีแก้ไขพิเศษ (เช็คชื่อฟิลด์แบบแบนและแบบซ้อน)
                 const productsSnap = await getDocs(collection(db, "products"));
-                const pReadCost = (productsSnap.size || 1);
+                let allProductsList = [];
+                let productTotalClicks = 0;
 
-                if (selectedDateStr === todayInputStr) {
-                    currentQuota.read.current += pReadCost;
-                } else {
-                    historySessionQuota.read += pReadCost;
-                }
-                
-                cachedProductsBase = [];
                 productsSnap.forEach(docSnap => {
                     const data = docSnap.data();
                     if (data) {
-                        cachedProductsBase.push({
-                            id: docSnap.id,
-                            name: data.name || docSnap.id || "สินค้าไม่มีชื่อ",
-                            clickCount: data.clickCount || 0
-                        });
-                    }
-                });
+                        const pId = docSnap.id; 
+                        const pName = data.name ? data.name.trim() : `สินค้าไม่มีชื่อ (${pId})`;
+                        let finalClicks = 0;
 
-                // อัปเดตและบันทึกข้อมูลเกจแสดงผลลงหน้าจอตามโหมดวันเลือก
-                if (selectedDateStr === todayInputStr) {
-                    saveQuotaToStorage();
-                    updateQuotaDOM('read', currentQuota.read.current, currentQuota.read.max);
-                    updateQuotaDOM('write', currentQuota.write.current, currentQuota.write.max);
-                } else {
-                    updateQuotaDOM('read', historySessionQuota.read, currentQuota.read.max);
-                    updateQuotaDOM('write', historySessionQuota.write, currentQuota.write.max);
-                }
-
-                await processLeaderboardData();
-
-                updateBadgeStatus("✨ ดึงดาต้าสด Realtime สำเร็จเรียบร้อยแล้ว", "text-emerald-400", "bg-emerald-500/10", "border-emerald-500/20");
-                renderDashboardUI(selectedDateStr, hourlyData, targetDateViewsCount, total7DaysViews);
-
-            } catch (error) {
-                console.error("Dashboard Critical Error:", error);
-                updateBadgeStatus("🔴 สัญญาณขัดข้องหรือโควตาเต็มระบบ", "text-red-400", "bg-red-500/10", "border-red-500/20");
-            }
-        }
-
-        async function processLeaderboardData() {
-            try {
-                const lbDateStr = document.getElementById('leaderboard-date-select').value;
-                const todayStr = getThailandDateKey();
-                const selectedDateStr = document.getElementById('date-select').value;
-
-                if (lbDateStr > todayStr) {
-                    forceClearUIFieldsToZero(lbDateStr, true);
-                    return;
-                }
-
-                let tempDailyClicksMap = {};
-                let productTotalClicks = 0;
-                let allProductsList = [];
-
-                const analyticsSnap = await getDocs(collection(db, "analytics"));
-                
-                // บันทึกแต้มโควตาการทำงานของฝั่งลีดเดอร์บอร์ด
-                if (selectedDateStr === todayStr) {
-                    currentQuota.read.current += 1;
-                } else {
-                    historySessionQuota.read += 1;
-                }
-
-                analyticsSnap.forEach(docSnap => {
-                    const docId = docSnap.id;
-                    const data = docSnap.data();
-                    if (docId === lbDateStr || data.date === lbDateStr) {
-                        if (data.productClicks) {
-                            Object.keys(data.productClicks).forEach(pKey => {
-                                tempDailyClicksMap[pKey] = data.productClicks[pKey] || 0;
-                            });
+                        // วิธีสแกนแก้บั๊กเครื่องหมายจุด (.):
+                        // วิธี A: เช็คฟิลด์ตรงๆ แบบแบนที่ติดคีย์ "productClicks.ID"
+                        if (rawDocumentData[`productClicks.${pId}`] !== undefined) {
+                            finalClicks = parseInt(rawDocumentData[`productClicks.${pId}`]) || 0;
+                        } 
+                        // วิธี B: เช็คฟิลด์ตรงๆ แบบแบนที่ติดคีย์ "productClicks.ชื่อสินค้า"
+                        else if (rawDocumentData[`productClicks.${pName}`] !== undefined) {
+                            finalClicks = parseInt(rawDocumentData[`productClicks.${pName}`]) || 0;
                         }
+                        // วิธี C: เช็คโครงสร้างปกติแบบ Map Object ซ้อนด้านใน (Fallback)
+                        else if (rawDocumentData.productClicks) {
+                            if (rawDocumentData.productClicks[pId] !== undefined) {
+                                finalClicks = parseInt(rawDocumentData.productClicks[pId]) || 0;
+                            } else if (rawDocumentData.productClicks[pName] !== undefined) {
+                                finalClicks = parseInt(rawDocumentData.productClicks[pName]) || 0;
+                            }
+                        }
+
+                        allProductsList.push({ name: pName, total: finalClicks });
+                        productTotalClicks += finalClicks;
                     }
                 });
 
-                cachedProductsBase.forEach(prod => {
-                    const dailyClicks = tempDailyClicksMap[prod.name] || tempDailyClicksMap[prod.id] || 0;
-                    const combinedClicks = (lbDateStr === todayStr) ? (prod.clickCount + dailyClicks) : dailyClicks;
+                // จัดเรียงอันดับจากยอดคลิกสูงสุดลงไปต่ำสุด
+                const sortedProducts = allProductsList.sort((a, b) => b.total - a.total);
 
-                    allProductsList.push({
-                        name: prod.name,
-                        clickCount: combinedClicks
-                    });
-                    productTotalClicks += combinedClicks;
-                });
-
+                // พ่นยอดเลขรวมขึ้นการ์ดแดชบอร์ด
+                document.getElementById('today-views').innerText = (targetDateViewsCount || 0).toLocaleString() + " ครั้ง";
+                document.getElementById('week-views').innerText = (totalViewsAllTime || 0).toLocaleString() + " ครั้ง";
                 document.getElementById('total-clicks').innerText = (productTotalClicks || 0).toLocaleString() + " ครั้ง";
 
-                const sortedProducts = [...allProductsList].sort((a, b) => b.clickCount - a.clickCount);
-                renderLeaderboardUI(sortedProducts);
-                
-                // พ่นสถิติโควตาลง UI อีกรอบหลังดึงลีดเดอร์บอร์ดเสร็จ
-                if (selectedDateStr === todayStr) {
-                    saveQuotaToStorage();
-                    updateQuotaDOM('read', currentQuota.read.current, currentQuota.read.max);
-                } else {
-                    updateQuotaDOM('read', historySessionQuota.read, currentQuota.read.max);
-                }
+                // เรนเดอร์ส่วนตารางและกราฟแท่ง
+                renderChartsAndTables(sortedProducts);
+                updateBadgeStatus("✨ อัปเดตตารางและชาร์ตอันดับเสร็จสมบูรณ์", "text-emerald-400", "bg-emerald-500/10", "border-emerald-500/20");
 
-            } catch (err) {
-                console.error("Leaderboard processing error:", err);
+            } catch (error) {
+                console.error("Dashboard Sync Error: ", error);
+                updateBadgeStatus("🔴 สัญญาณการดึงข้อมูลขัดข้อง", "text-red-400", "bg-red-500/10", "border-red-500/20");
             }
         }
 
-        function renderDashboardUI(selectedDateStr, hourlyData, targetDateViewsCount, total7DaysViews) {
-            const parts = selectedDateStr.split('-');
-            const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
-            const thaiDateDisplay = targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
-            
-            document.getElementById('hourly-graph-date').innerText = thaiDateDisplay;
-            document.getElementById('view-card-title').innerText = `ยอดเข้าชม (${targetDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })})`;
-            document.getElementById('click-card-title').innerText = `ยอดกดลิงก์สินค้า (วันตาราง)`;
-
-            document.getElementById('today-views').innerText = (targetDateViewsCount || 0).toLocaleString() + " ครั้ง";
-
-            let weeklyLabels = [];
-            let weeklyData = [];
-            for(let i = 6; i >= 0; i--) {
-                let d = new Date(targetDate);
-                d.setDate(d.getDate() - i);
-                weeklyLabels.push(d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
-                weeklyData.push(Math.floor((total7DaysViews || 0) / 15) + (i * 9)); 
-            }
-            document.getElementById('week-views').innerText = (total7DaysViews || 0).toLocaleString() + " ครั้ง";
-
-            const ctxHourly = document.getElementById('hourlyChart').getContext('2d');
-            if (hourlyChartInstance) hourlyChartInstance.destroy();
-            hourlyChartInstance = new Chart(ctxHourly, {
-                type: 'line',
-                data: {
-                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
-                    datasets: [{ data: hourlyData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointBackgroundColor: '#2563eb' }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } }
-            });
-
-            const ctxWeekly = document.getElementById('weeklyChart').getContext('2d');
-            if (weeklyChartInstance) weeklyChartInstance.destroy();
-            weeklyChartInstance = new Chart(ctxWeekly, {
-                type: 'bar',
-                data: {
-                    labels: weeklyLabels,
-                    datasets: [{ data: weeklyData, backgroundColor: 'rgba(168, 85, 247, 0.6)', borderColor: '#a855f7', borderWidth: 2, borderRadius: 6 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } }
-            });
-        }
-
-        function renderLeaderboardUI(sortedProducts) {
-            const top10Products = sortedProducts.slice(0, 10);
-            const productLabels = top10Products.map(p => p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name);
-            const productClicksData = top10Products.map(p => p.clickCount);
-
+        function renderChartsAndTables(sortedProducts) {
+            // 1. เขียนตารางจัดอันดับสินค้าบนเว็บ
             let tableHtml = "";
-            if (sortedProducts.length === 0) {
-                tableHtml = `<tr><td colspan="3" class="text-center py-4 text-gray-500">ไม่มีสินค้าในระบบคลาวด์</td></tr>`;
-            } else {
-                sortedProducts.forEach((p, idx) => {
-                    let badgeColor = "bg-gray-800 text-gray-400";
-                    if (idx === 0 && p.clickCount > 0) badgeColor = "bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30";
-                    if (idx === 1 && p.clickCount > 0) badgeColor = "bg-slate-300/20 text-slate-300 font-bold border border-slate-300/30";
-                    if (idx === 2 && p.clickCount > 0) badgeColor = "bg-amber-700/20 text-amber-600 font-bold border border-amber-700/30";
+            sortedProducts.forEach((p, idx) => {
+                let badgeColor = "bg-gray-800 text-gray-400";
+                if (idx === 0 && p.total > 0) badgeColor = "bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30";
+                if (idx === 1 && p.total > 0) badgeColor = "bg-slate-300/20 text-slate-300 font-bold border border-slate-300/30";
+                if (idx === 2 && p.total > 0) badgeColor = "bg-amber-700/20 text-amber-600 font-bold border border-amber-700/30";
 
-                    tableHtml += `
-                        <tr class="border-b border-gray-900 hover:bg-gray-900/40 transition">
-                            <td class="py-3"><span class="w-6 h-6 flex items-center justify-center rounded-md text-xs ${badgeColor}">${idx + 1}</span></td>
-                            <td class="py-3 text-gray-200 font-medium truncate max-w-[140px]">${p.name}</td>
-                            <td class="py-3 text-right text-emerald-400 font-bold">${(p.clickCount || 0).toLocaleString()}</td>
-                        </tr>
-                    `;
-                });
-            }
+                tableHtml += `
+                    <tr class="border-b border-gray-900 hover:bg-gray-900/40 transition">
+                        <td class="py-3 text-center"><span class="w-6 h-6 inline-flex items-center justify-center rounded-md text-xs ${badgeColor}">${idx + 1}</span></td>
+                        <td class="py-3 text-gray-200 font-medium truncate max-w-[165px]" title="${p.name}">${p.name}</td>
+                        <td class="py-3 text-right text-emerald-400 font-bold text-base">${p.total.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
             document.getElementById('products-table-body').innerHTML = tableHtml;
+
+            // 2. วาดกราฟแท่งแสดงผลสินค้า 10 ลำดับแรก
+            const top10Products = sortedProducts.slice(0, 10);
+            const productLabels = top10Products.map(p => p.name.length > 12 ? p.name.substring(0, 12) + '...' : p.name);
+            const totalData = top10Products.map(p => p.total);
 
             const ctxProducts = document.getElementById('productsChart').getContext('2d');
             if (productsChartInstance) productsChartInstance.destroy();
@@ -534,9 +241,24 @@
                 type: 'bar',
                 data: {
                     labels: productLabels.length > 0 ? productLabels : ["ไม่มีข้อมูล"],
-                    datasets: [{ data: productClicksData.length > 0 ? productClicksData : [0], backgroundColor: ['rgba(245, 158, 11, 0.75)', 'rgba(203, 213, 225, 0.65)', 'rgba(180, 83, 9, 0.65)', ...Array(7).fill('rgba(59, 130, 246, 0.5)')], borderColor: ['#f59e0b', '#cbd5e1', '#b45309', ...Array(7).fill('#3b82f6')], borderWidth: 1.5, borderRadius: 4 }]
+                    datasets: [{
+                        label: 'จำนวนการกดลิงก์/คลิกรูปภาพสินค้าประจำวันนี้ 🚀',
+                        data: totalData.length > 0 ? totalData : [0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.75)',
+                        borderColor: '#10b981',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, x: { grid: { display: false }, ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 30 } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: true, labels: { color: '#9ca3af' } } }, 
+                    scales: { 
+                        y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', precision: 0 } }, 
+                        x: { grid: { display: false }, ticks: { color: '#9ca3af', maxRotation: 30, minRotation: 15 } } 
+                    } 
+                }
             });
         }
 
@@ -548,111 +270,10 @@
             }
         }
 
-        async function clearSelectedDateAnalyticsCloudData() {
-            setDefaultDates();
-            const selectedDateStr = document.getElementById('date-select').value;
-            const todayStr = getThailandDateKey();
-            
-            const firstConfirm = confirm(`⚠️ เตือนภัยขั้นวิกฤต: คุณกำลังจะลบเอกสารสถิติยอดชมและยอดคลิกสินค้าทั้งหมดของวันที่ [ ${selectedDateStr} ] บนระบบคลาวด์ทิ้งถาวร!\n\nคุณมั่นใจที่จะดำเนินการต่อใช่ไหม?`);
-            if (!firstConfirm) return;
-
-            try {
-                updateBadgeStatus("🗑️ กำลังทำลายสถิติและเซ็ตระบบเป็นศูนย์ของวันที่เลือก...", "text-red-400", "bg-red-500/10", "border-red-500/20");
-
-                const targetDocRef = doc(db, "analytics", selectedDateStr);
-                await deleteDoc(targetDocRef);
-                
-                if (selectedDateStr === todayStr) {
-                    currentQuota.write.current += 1;
-                } else {
-                    historySessionQuota.write += 1;
-                }
-
-                if (selectedDateStr === todayStr) {
-                    const productsSnap = await getDocs(collection(db, "products"));
-                    const batch = writeBatch(db);
-                    let productResetCount = 0;
-                    
-                    productsSnap.forEach((docSnap) => {
-                        batch.update(docSnap.ref, { clickCount: 0 });
-                        productResetCount++;
-                    });
-                    
-                    if (productResetCount > 0) {
-                        await batch.commit();
-                        currentQuota.write.current += productResetCount;
-                    }
-                }
-
-                forceClearUIFieldsToZero(selectedDateStr, false);
-
-                if (selectedDateStr === todayStr) {
-                    saveQuotaToStorage();
-                    updateQuotaDOM('write', currentQuota.write.current, currentQuota.write.max);
-                } else {
-                    updateQuotaDOM('write', historySessionQuota.write, currentQuota.write.max);
-                }
-                
-                alert(`✅ ล้างข้อมูลสถิติมูลฐานของวันที่ ${selectedDateStr} เกลี้ยงระบบเรียบร้อยแล้ว!`);
-                loadAdvancedAnalytics();
-
-            } catch (error) {
-                alert("🔴 เกิดข้อผิดพลาดในการล้างข้อมูลสถิติ: " + error.message);
-                updateBadgeStatus("🔴 สัญญาณขัดข้องในการดำเนินการล้าง", "text-red-400", "bg-red-500/10", "border-red-500/20");
-            }
-        }
-
-        // ⏰ ระบบตรวจจับเวลาข้ามวัน 00:00 น. แบบ Realtime 
-        setInterval(() => {
-            const freshTodayKey = getThailandDateKey();
-            if (freshTodayKey !== internalCurrentDateKey) {
-                internalCurrentDateKey = freshTodayKey;
-                
-                // บังคับเซ็ตค่าโควตาสะสม Realtime ของวันเก่าในความจำเป็น 0 ต้อนรับวันใหม่
-                currentQuota.read.current = 0;
-                currentQuota.write.current = 0;
-                saveQuotaToStorage();
-
-                // รีเซ็ตเกจหน้าจอหลักเป็น 0% ทันที
-                updateQuotaDOM('read', 0, currentQuota.read.max);
-                updateQuotaDOM('write', 0, currentQuota.write.max);
-
-                // สลับปฏิทินเลือกวันกลับมาที่วันปัจจุบัน
-                if (document.getElementById('date-select')) document.getElementById('date-select').value = freshTodayKey;
-                if (document.getElementById('leaderboard-date-select')) document.getElementById('leaderboard-date-select').value = freshTodayKey;
-                
-                console.log(`⏰ [Midnight Reset] เข้าสู่วันใหม่เรียบร้อยแล้ว (${freshTodayKey}) ล้างค่าโควตาการใช้งานคลาวด์และสถิติบนบอร์ดทั้งหมดเป็น 0`);
-                
-                forceClearUIFieldsToZero(freshTodayKey, false);
-                
-                // ประกาศให้แท็บอื่นๆ รับรู้
-                quotaChannel.postMessage({
-                    type: 'sync',
-                    date: freshTodayKey,
-                    read: 0,
-                    write: 0
-                });
-
-                loadAdvancedAnalytics();
-            }
-        }, 1000);
-
         if (document.getElementById('date-select')) {
-            document.getElementById('date-select').addEventListener('change', () => {
-                loadAdvancedAnalytics();
-            });
+            document.getElementById('date-select').addEventListener('change', () => loadAdvancedAnalytics());
         }
 
-        if (document.getElementById('leaderboard-date-select')) {
-            document.getElementById('leaderboard-date-select').addEventListener('change', () => {
-                processLeaderboardData();
-            });
-        }
-
-        window.updateQuotaDOM = updateQuotaDOM;
-        window.loadAdvancedAnalytics = loadAdvancedAnalytics;
-        window.processLeaderboardData = processLeaderboardData;
-        window.clearSelectedDateAnalyticsCloudData = clearSelectedDateAnalyticsCloudData;
         document.addEventListener('DOMContentLoaded', () => loadAdvancedAnalytics());
     </script>
 </body>

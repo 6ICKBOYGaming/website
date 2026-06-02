@@ -198,95 +198,6 @@ async function recordVisitorTraffic() {
   }
 }
 
-/* ================= 📊 ระบบนับยอดคลิกสะสมแบบเรียลไทม์เมื่อกดลิงก์ด่วน ================= */
-function getLocalPendingClicks() {
-  const data = localStorage.getItem("pending_clicks");
-  return data ? JSON.parse(data) : {};
-}
-function saveLocalPendingClicks(clicks) {
-  localStorage.setItem("pending_clicks", JSON.stringify(clicks));
-}
-
-async function syncPendingClicksToCloud() {
-  const pendingClicks = getLocalPendingClicks();
-  const productIds = Object.keys(pendingClicks);
-  if (productIds.length === 0) return;
-
-  try {
-    const batch = writeBatch(db);
-    let hasUpdates = false;
-    productIds.forEach(productId => {
-      if (pendingClicks[productId] > 0) {
-        batch.update(doc(db, "products", productId), { clickCount: increment(pendingClicks[productId]) });
-        hasUpdates = true;
-      }
-    });
-    if (hasUpdates) {
-      await batch.commit();
-      localStorage.setItem("last_click_sync_time", Date.now().toString());
-      saveLocalPendingClicks({});
-      console.log("🔄 [Auto Sync] ซิงค์ยอดคลิกสะสมขึ้น Cloud ทันทีเรียบร้อยแล้ว!");
-    }
-  } catch (err) { 
-    console.error("Auto Sync Error:", err); 
-  }
-}
-
-window.forceSyncClicksToCloud = async () => {
-  const pendingClicks = getLocalPendingClicks();
-  const productIds = Object.keys(pendingClicks);
-  if (productIds.length === 0) {
-    return;
-  }
-  try {
-    const batch = writeBatch(db);
-    productIds.forEach(productId => {
-      if (pendingClicks[productId] > 0) {
-        batch.update(doc(db, "products", productId), { clickCount: increment(pendingClicks[productId]) });
-      }
-    });
-    await batch.commit();
-    localStorage.setItem("last_click_sync_time", Date.now().toString());
-    saveLocalPendingClicks({});
-    loadMasterData();
-  } catch (err) { console.error(err); }
-};
-
-window.trackProductClick = async (productId) => {
-  const pending = getLocalPendingClicks();
-  pending[productId] = (pending[productId] || 0) + 1;
-  saveLocalPendingClicks(pending);
-  
-  await syncPendingClicksToCloud();
-  
-  if (typeof gtag !== 'undefined') {
-    const found = allProducts.find(x => x.id === productId);
-    gtag('event', 'click_affiliate_link', { 'product_id': productId, 'product_name': found?.name || "สินค้า" });
-  }
-};
-
-window.resetProductClick = async (productId) => {
-  if (confirm("คุณแน่ใจใช่ไหมว่าจะรีเซ็ตสถิติชิ้นนี้ให้เป็น 0 บนคลาวด์?")) {
-    try {
-      const pending = getLocalPendingClicks(); delete pending[productId]; saveLocalPendingClicks(pending);
-      await updateDoc(doc(db, "products", productId), { clickCount: 0, lastUpdated: Date.now() });
-      alert("🗑️ ล้างสถิติเรียบร้อยครับ!"); loadMasterData();
-    } catch (err) { alert(err.message); }
-  }
-};
-
-window.resetAllProductsClick = async () => {
-  if (!confirm("🚨 คุณแน่ใจใช่ไหมที่จะรีเซ็ตสถิติสินค้าทุกตัวในระบบให้เป็น 0 บนคลาวด์?")) return;
-  try {
-    localStorage.setItem("pending_clicks", "{}");
-    const batch = writeBatch(db);
-    const snap = await getDocs(productsRef);
-    const nowTime = Date.now();
-    snap.forEach(d => { batch.update(doc(db, "products", d.id), { clickCount: 0, lastUpdated: nowTime }); });
-    await batch.commit(); alert("✅ รีเซ็ตสถิติยอดคลิกทุกชิ้นสะอาดเรียบร้อย!"); loadMasterData();
-  } catch (err) { alert(err.message); }
-};
-
 /* ================= 👑 ระบบติดตามจำนวนผู้เข้าชมแบบประหยัด Read ================= */
 function initUserPresenceSystem() {
   if (userPresenceInterval) clearInterval(userPresenceInterval);
@@ -319,10 +230,6 @@ initUserPresenceSystem();
 window.addEventListener('storePageView', (e) => {
     recordVisitorTraffic(e.detail);
 });
-
-async function updateProductClickCount(productId) {
-    window.trackProductClick(productId);
-}
 
 async function checkOnlineUsersCountManual() {
   const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
@@ -373,8 +280,6 @@ function getEffectivePrice(p) {
 /* ================= ⚙️ โหลดข้อมูลหลัก (Master Data Loader - Smart Cache System) ================= */
 async function loadMasterData() {
   try {
-    await syncPendingClicksToCloud();
-
     // ฟังก์ชันย่อยสำหรับไป Fetch ข้อมูลจริงจาก Firebase Cloud (ถูกเรียกใช้เมื่อไม่มีแคชหรือข้อมูลเก่าไป)
     const fetchLiveDocsFromCloud = async () => {
       let products = [];
@@ -501,20 +406,21 @@ function card(p, index){
     let shopeeBtns = "";
     
     if (link1 && link2) {
-      shopeeBtns += `<a class="btn shopee" href="${link1}" target="_blank" onclick="trackProductClick('${p.id}')">${cartIconSvg}Shopee 1</a>`;
-      shopeeBtns += `<a class="btn shopee" href="${link2}" target="_blank" onclick="trackProductClick('${p.id}')">${cartIconSvg}Shopee 2</a>`;
+      shopeeBtns += `<a class="btn shopee" href="${link1}" target="_blank">${cartIconSvg}Shopee 1</a>`;
+      shopeeBtns += `<a class="btn shopee" href="${link2}" target="_blank">${cartIconSvg}Shopee 2</a>`;
     } else if (link1 || link2) {
-      shopeeBtns += `<a class="btn shopee" href="${link1 || link2}" target="_blank" onclick="trackProductClick('${p.id}')">${cartIconSvg}Shopee</a>`;
+      shopeeBtns += `<a class="btn shopee" href="${link1 || link2}" target="_blank">${cartIconSvg}Shopee</a>`;
     } else {
       shopeeBtns += `<a class="btn disabled" href="javascript:void(0);">${cartIconSvg}Shopee</a>`;
     }
     
-    const lazadaBtn = p.lazada?.trim() ? `<a class="btn lazada" href="${p.lazada.trim()}" target="_blank" onclick="trackProductClick('${p.id}')">${cartIconSvg}Lazada</a>` : `<a class="btn disabled" href="javascript:void(0);">${cartIconSvg}Lazada</a>`;
+    const lazadaBtn = p.lazada?.trim() ? `<a class="btn lazada" href="${p.lazada.trim()}" target="_blank">${cartIconSvg}Lazada</a>` : `<a class="btn disabled" href="javascript:void(0);">${cartIconSvg}Lazada</a>`;
     btnsContent = shopeeBtns + lazadaBtn;
   }
 
+  // 💡 [แก้ไขแล้ว] ตรวจสอบและฝัง data-id ทั้งสำหรับโหมด Admin และผู้ใช้งานปกติ (Mobile View) เพื่อส่งข้อมูลให้ Click.js
   const canDrag = isAdmin && currentSortMode === "tierlist";
-  const dragAttr = canDrag ? `draggable="true" data-id="${p.id}" class="card admin-draggable"` : `class="card"`;
+  const dragAttr = canDrag ? `draggable="true" data-id="${p.id}" class="card admin-draggable"` : `class="card" data-id="${p.id}"`;
 
   let tierBadgeHtml = "";
   if (p.tier) {
@@ -557,7 +463,7 @@ function card(p, index){
   }
 
   const imageHtml = imageLink ? 
-    `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);" onclick="trackProductClick('${p.id}')">${adminLogoBadgeHtml}${finalImageTag}</a>` : 
+    `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${finalImageTag}</a>` : 
     `<div style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${finalImageTag}</div>`;
 
   let flashSaleTimerHtml = "";
@@ -587,16 +493,6 @@ function card(p, index){
       <div class="btns">
         ${btnsContent}
         ${isAdmin ? `
-          <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed var(--admin-yellow); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; color: var(--admin-yellow); width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-              <span>📊 ยอดคลิกสะสมคลาวด์:</span>
-              <strong>${p.clickCount || 0} ครั้ง</strong>
-            </div>
-            <button class="btn-reset-clicks" onclick="resetProductClick('${p.id}')" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s; width: 100%; text-align: center;">
-              🗑️ ล้างจำนวนสถิตคลิกชิ้นนี้
-            </button>
-          </div>
-
           <div class="admin-card-actions">
             <button class="btn edit" onclick='editProduct("${p.id}")'>Edit</button>
             <button class="btn delete" onclick='deleteProduct("${p.id}")'>Delete</button>
@@ -851,7 +747,7 @@ function render() {
   if (isAdmin) { renderAdminView(); } else { renderMobileView(); }
 }
 
-/* ================= 📦 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป ================= */
+/* ================= 🌓 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป ================= */
 function renderMobileView() {
   if (dragNoticeEl) {
     dragNoticeEl.style.display = "none";
@@ -1126,7 +1022,7 @@ window.handleProductSubmit = async () => {
       productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
       productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
       productData.newOrder = allProducts.reduce((max, p) => ((p.newOrder ?? 0) > max ? p.newOrder : max), 0) + 1;
-      productData.flashSaleEndTime = ""; productData.flashSalePrice = 0; productData.clickCount = 0;
+      productData.flashSaleEndTime = ""; productData.flashSalePrice = 0;
       await addDoc(productsRef, productData);
     }
     await bumpCloudVersion(); clearProductForm(); alert("บันทึกสินค้าเรียบร้อย!"); loadMasterData();
