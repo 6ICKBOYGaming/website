@@ -154,7 +154,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { initializeFirestore, collection, getDocs, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
@@ -167,7 +167,7 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = initializeFirestore(app, {});
+        const db = getFirestore(app);
 
         let hourlyChartInstance = null;
         let weeklyChartInstance = null;
@@ -618,8 +618,8 @@
                 updateQuotaDOM('write', 0, currentQuota.write.max);
 
                 // สลับปฏิทินเลือกวันกลับมาที่วันปัจจุบัน
-                document.getElementById('date-select').value = freshTodayKey;
-                document.getElementById('leaderboard-date-select').value = freshTodayKey;
+                if (document.getElementById('date-select')) document.getElementById('date-select').value = freshTodayKey;
+                if (document.getElementById('leaderboard-date-select')) document.getElementById('leaderboard-date-select').value = freshTodayKey;
                 
                 console.log(`⏰ [Midnight Reset] เข้าสู่วันใหม่เรียบร้อยแล้ว (${freshTodayKey}) ล้างค่าโควตาการใช้งานคลาวด์และสถิติบนบอร์ดทั้งหมดเป็น 0`);
                 
@@ -637,13 +637,17 @@
             }
         }, 1000);
 
-        document.getElementById('date-select').addEventListener('change', () => {
-            loadAdvancedAnalytics();
-        });
+        if (document.getElementById('date-select')) {
+            document.getElementById('date-select').addEventListener('change', () => {
+                loadAdvancedAnalytics();
+            });
+        }
 
-        document.getElementById('leaderboard-date-select').addEventListener('change', () => {
-            processLeaderboardData();
-        });
+        if (document.getElementById('leaderboard-date-select')) {
+            document.getElementById('leaderboard-date-select').addEventListener('change', () => {
+                processLeaderboardData();
+            });
+        }
 
         window.updateQuotaDOM = updateQuotaDOM;
         window.loadAdvancedAnalytics = loadAdvancedAnalytics;
