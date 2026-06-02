@@ -695,8 +695,8 @@ function card(p, index){
           </div>
 
           <div class="admin-card-actions">
-            <button class="btn edit" onclick='editProduct("${p.id}")'>Edit</button>
-            <button class="btn delete" onclick='deleteProduct("${p.id}")'>Delete</button>
+            <button class="btn edit" onclick='editProduct("` + p.id + `")'>Edit</button>
+            <button class="btn delete" onclick='deleteProduct("` + p.id + `")'>Delete</button>
           </div>
           
           <div class="quick-admin-controls-wrapper" style="display: flex; flex-direction: column; gap: 8px;">
@@ -711,7 +711,7 @@ function card(p, index){
             <div class="quick-price-box" style="border-top: 1px dotted rgba(255,255,255,0.1); padding-top: 6px;">
               <label style="color: #ff6b6b; font-weight: bold;">🏷️ ตั้งราคาพิเศษ Flash Sale:</label>
               <div class="quick-price-row">
-                <input type="text" class="quick-flash-price-input" value="${currentQuickFlashPriceVal}" placeholder="เช่น 990 (เว้นว่าง = ใช้ราคาปกติ)" onkeydown="handleQuickFlashPriceKey(event, '${p.id}') style="border-color: rgba(239, 68, 68, 0.4);">
+                <input type="text" class="quick-flash-price-input" value="${currentQuickFlashPriceVal}" placeholder="เช่น 990 (เว้นว่าง = ใช้ราคาปกติ)" onkeydown="handleQuickFlashPriceKey(event, '${p.id}')" style="border-color: rgba(239, 68, 68, 0.4);">
                 <button class="quick-price-clear-btn" title="ลบราคา Flash" onclick="clearQuickFlashPrice('${p.id}')">✕</button>
               </div>
             </div>
