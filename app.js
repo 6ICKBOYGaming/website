@@ -1,3 +1,5 @@
+// เพิ่มบรรทัดนี้ไว้ด้านบนสุดของไฟล์ app.js ร่วมกับพวกประกาศตั้งค่า Firebase อื่นๆ ครับ
+import { getSmartCachedData } from "./cache.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
@@ -368,39 +370,50 @@ function getEffectivePrice(p) {
   return priceSale > 0 ? priceSale : priceNormal;
 }
 
-/* ================= ⚙️ โหลดข้อมูลหลัก (Master Data Loader - ❌ NO CACHE VERSION) ================= */
+/* ================= ⚙️ โหลดข้อมูลหลัก (Master Data Loader - Smart Cache System) ================= */
 async function loadMasterData() {
   try {
     await syncPendingClicksToCloud();
 
-    let finalProducts = [];
+    // ฟังก์ชันย่อยสำหรับไป Fetch ข้อมูลจริงจาก Firebase Cloud (ถูกเรียกใช้เมื่อไม่มีแคชหรือข้อมูลเก่าไป)
+    const fetchLiveDocsFromCloud = async () => {
+      let products = [];
+      const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
+      prodSnap.forEach(d => products.push({ id: d.id, ...d.data() }));
 
-    // 🔥 ดึงตรงจากคลาวด์ Firebase เสมอ 100% ไม่เช็ค Local Cache แล้ว
-    console.log("📥 [Firebase] กำลังโหลดข้อมูลใหม่เต็มระบบตรงจากคลาวด์...");
-    const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
-    prodSnap.forEach(d => finalProducts.push({ id: d.id, ...d.data() }));
+      let categories = [];
+      const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: 'default' });
+      catSnap.forEach(d => categories.push({ id: d.id, ...d.data() }));
 
-    allProducts = finalProducts;
+      const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: 'default' });
+      let widget = widgetSnap.exists() ? widgetSnap.data() : null;
 
-    // ดึงหมวดหมู่และตั้งค่าวิดเจ็ตตรงจาก Cloud เสมอ
-    const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: 'default' });
-    const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: 'default' });
+      return { products, categories, widget };
+    };
 
-    dbCategories = [];
-    catSnap.forEach(d => dbCategories.push({ id: d.id, ...d.data() }));
+    // 🔥 เรียกใช้งานระบบดึงข้อมูลผ่านระบบ Smart Cache ที่เราแยกไฟล์ไว้
+    const result = await getSmartCachedData(db, fetchLiveDocsFromCloud, isAdmin);
 
+    // นำข้อมูลที่ได้ (ไม่ว่าจะมาจากเครื่องหรือคลาวด์) มากระจายลงตัวแปรของระบบตามเดิม
+    allProducts = result.products;
+    dbCategories = result.categories;
+
+    // อัปเดตโครงสร้างหน้าเว็บและวิดเจ็ตตามปกติ
     updateCategoryDropdown();
-    applyWidgetSettings(widgetSnap);
+    
+    // จำลองโครงสร้างเพื่อให้ฟังก์ชัน applyWidgetSettings ทำงานร่วมกันได้เหมือนเดิม
+    const mockWidgetSnap = {
+      exists: () => !!result.widget,
+      data: () => result.widget
+    };
+    applyWidgetSettings(mockWidgetSnap);
 
+    // ประมวลผลกลุ่มสินค้าพิเศษ HOT / NEW
     const hotProducts = allProducts.filter(p => p.isHot && (isAdmin || !p.comingSoon)).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
     const newProducts = allProducts.filter(p => p.isNew && (isAdmin || !p.comingSoon)).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
 
-    if (hotEl) {
-      hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
-    }
-    if (newEl) {
-      newEl.innerHTML = newProducts.map(p => card(p)).join("");
-    }
+    if (hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
+    if (newEl) newEl.innerHTML = newProducts.map(p => card(p)).join("");
 
     initAutoSliders();
     render();
