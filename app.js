@@ -78,25 +78,24 @@ let allowCacheRead = false;
 async function checkSmartCacheVersion() {
   if (isAdmin) {
     allowCacheRead = false;
+    // บังคับเคลียร์ก้อนแคช Local ทันทีหากเป็นแอดมินเพื่อป้องกันข้อมูลเพี้ยน
+    localStorage.removeItem("incremental_products_cache");
     return false;
   }
   try {
-    const cachedVersionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'cache' });
+    const serverVersionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'default' });
     const localVersion = parseInt(localStorage.getItem("local_data_version") || "0", 10);
 
-    if (cachedVersionSnap.exists() && localVersion > 0) {
-      const cachedCloudVersion = cachedVersionSnap.data().lastUpdated || 0;
-      
-      if (cachedCloudVersion === localVersion) {
-        const serverVersionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'default' });
-        if (serverVersionSnap.exists()) {
-          const currentServerVersion = serverVersionSnap.data().lastUpdated || 0;
-          if (currentServerVersion === localVersion) {
-            allowCacheRead = true;
-            console.log("⚡ [Smart Cache] ข้อมูลสมบูรณ์และเป็นเวอร์ชันล่าสุด! เปิดใช้งานการอ่านจาก Local Cache 100%");
-            return true;
-          }
-        }
+    if (serverVersionSnap.exists()) {
+      const currentServerVersion = serverVersionSnap.data().lastUpdated || 0;
+      if (localVersion > 0 && currentServerVersion === localVersion) {
+        allowCacheRead = true;
+        console.log("⚡ [Smart Cache] ข้อมูลสมบูรณ์และเป็นเวอร์ชันล่าสุด! เปิดใช้งานการอ่านจาก Local Cache 100%");
+        return true;
+      } else if (currentServerVersion > localVersion) {
+        // หากเวอร์ชันบนเซิร์ฟเวอร์ใหม่กว่าอย่างมีนัยสำคัญ บังคับปิด Cache Read รอส่วนต่าง
+        allowCacheRead = false;
+        return false;
       }
     }
   } catch (err) {
@@ -168,8 +167,6 @@ if (themeToggleBtn) {
 
 if (goToFlashSaleAdminBtn) {
     goToFlashSaleAdminBtn.onclick = () => {
-        // ใช้ ./ นำหน้าเพื่อให้เซิร์ฟเวอร์รู้ว่าเป็นไฟล์ที่อยู่ระดับเดียวกัน 
-        // และตรวจดูให้มั่นใจว่าชื่อไฟล์สะกดตรงกับไฟล์จริงของคุณร้อยเปอร์เซ็นต์
         window.location.href = "./flash-sale-admin.html"; 
     };
 }
@@ -414,7 +411,6 @@ async function loadMasterData() {
   try {
     await syncPendingClicksToCloud();
 
-    // ดึงค่าเวอร์ชันล่าสุดบน Server เสมอเพื่อตรวจสอบส่วนต่างความเปลี่ยนแปลง
     let currentServerVersion = 0;
     try {
       const serverVersionSnap = await getDoc(doc(db, "settings", "version_control"), { source: 'default' });
@@ -429,58 +425,52 @@ async function loadMasterData() {
     let cachedProductsRaw = localStorage.getItem("incremental_products_cache");
     let localProductsList = cachedProductsRaw ? JSON.parse(cachedProductsRaw) : [];
 
-    // ตัวแปรตัดสินใจว่าเปิดการอ่านแคชถาวรได้สมบูรณ์หรือไม่
+    // แก้ไขจุดบอด: เช็คว่าข้อมูลต้องแมตช์กันจริง และไม่ใช่โหมดแอดมิน ถึงจะเปิดใช้งานแคชสมบูรณ์ได้
     if (!isAdmin && currentServerVersion > 0 && localVersion === currentServerVersion && localProductsList.length > 0) {
       allowCacheRead = true;
       console.log("⚡ [Smart Cache] เวอร์ชันตรงกัน 100%! เรียกใช้งานฐานข้อมูลสินค้าแบบออฟไลน์ด่วน");
     } else {
       allowCacheRead = false;
+      // หากเกิดสภาวะ Version Mismatch หรือเป็น Admin ให้เคลียร์ตัวแปรแคชในเครื่องทันทีเพื่อป้องกันข้อมูลค้าง
+      if (currentServerVersion > localVersion || isAdmin) {
+        localStorage.removeItem("incremental_products_cache");
+        localProductsList = [];
+      }
     }
 
     const useCache = allowCacheRead;
     let finalProducts = [];
 
     if (isAdmin) {
-      // โหมดแอดมิน: ดึงข้อมูลสดใหม่ทั้งหมดจาก Firestore เสมอ ป้องกันปัญหาในการจัดการโครงสร้างข้อมูล
       const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
       prodSnap.forEach(d => finalProducts.push({ id: d.id, ...d.data() }));
     } else {
       if (useCache && localProductsList.length > 0) {
-        // กรณีแคชตรงกับเซิร์ฟเวอร์แบบสมบูรณ์: โหลดข้อมูลจาก LocalStorage ได้ทันทีโดยไม่ต้องเรียกเน็ตเวิร์ก
         finalProducts = localProductsList;
         console.log(`📦 [Incremental Cache] อ่านข้อมูลจากแคชในเครื่องสำเร็จ (${finalProducts.length} ชิ้น)`);
       } else if (localVersion > 0 && localProductsList.length > 0 && currentServerVersion > localVersion) {
-        // 🔄 กรณีพิเศษ [Delta Sync]: มีข้อมูลเดิมอยู่ในเครื่องแต่ระบบบนคลาวด์อัปเดตใหม่ ให้ดึงเฉพาะข้อมูลส่วนต่างที่เปลี่ยนเข้ามาเติม
         console.log(`🔄 [Incremental Cache] กำลังดึงข้อมูลอัปเดตเฉพาะส่วนต่างตั้งแต่เวอร์ชัน: ${localVersion}`);
         
-        // 1. ดึงสินค้าที่เพิ่มหรือแก้ไขหลังจากเวอร์ชันในเครื่อง
         const deltaProdSnap = await getDocs(query(productsRef, where("lastUpdated", ">", localVersion)));
         let updatedItems = [];
         deltaProdSnap.forEach(d => updatedItems.push({ id: d.id, ...d.data() }));
 
-        // 2. ตรวจสอบประวัติสินค้าที่ถูกลบออกจากฐานข้อมูลเพื่อให้เครื่อง Client ลบออกตามอย่างถูกต้อง
         const deletedLogSnap = await getDocs(query(deletedLogRef, where("deletedAt", ">", localVersion)));
         let deletedIds = [];
         deletedLogSnap.forEach(d => deletedIds.push(d.data().productId));
 
-        // 3. ควบรวมข้อมูลส่วนต่างเข้ากับข้อมูลหลักก้อนเดิมที่มีอยู่
         let existingMap = new Map(localProductsList.map(p => [p.id, p]));
         
-        // ลบสินค้าตามประวัติบันทึกการลบ
         deletedIds.forEach(id => existingMap.delete(id));
-        
-        // เพิ่มหรือบันทึกข้อมูลแก้ไขทับตัวเก่า
         updatedItems.forEach(p => existingMap.set(p.id, p));
 
         finalProducts = Array.from(existingMap.values());
         finalProducts.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-        // เขียนบันทึกข้อมูลชุดใหม่เก็บลงคลังของ Client
         localStorage.setItem("incremental_products_cache", JSON.stringify(finalProducts));
         localStorage.setItem("local_data_version", currentServerVersion.toString());
         console.log(`💾 [Incremental Cache] ซิงค์ส่วนต่างเรียบร้อย! ข้อมูลปัจจุบัน: ${finalProducts.length} ชิ้น`);
       } else {
-        // กรณีเข้ามาครั้งแรกหรือข้อมูลเสียหาย: โหลดข้อมูลใหม่ทั้งหมดแบบ Full Load เพื่อตั้งต้นระบบแคช
         console.log("📥 [Incremental Cache] ไม่พบแคชที่ใช้งานได้ กำลังทำการโหลดข้อมูลใหม่เต็มระบบ...");
         const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
         prodSnap.forEach(d => finalProducts.push({ id: d.id, ...d.data() }));
@@ -494,7 +484,6 @@ async function loadMasterData() {
 
     allProducts = finalProducts;
 
-    // โหลดหมวดหมู่และวิดเจ็ตกิจกรรมผ่าน Cache ปกติของ Firestore SDK
     const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: useCache ? 'cache' : 'default' });
     const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: useCache ? 'cache' : 'default' });
 
@@ -713,7 +702,7 @@ function card(p, index){
             <div class="quick-price-box" style="border-top: 1px dotted rgba(255,255,255,0.1); padding-top: 6px;">
               <label style="color: #ff6b6b; font-weight: bold;">🏷️ ตั้งราคาพิเศษ Flash Sale:</label>
               <div class="quick-price-row">
-                <input type="text" class="quick-flash-price-input" value="${currentQuickFlashPriceVal}" placeholder="เช่น 990 (เว้นว่าง = ใช้ราคาปกติ)" onkeydown="handleQuickFlashPriceKey(event, '${p.id}') style="border-color: rgba(239, 68, 68, 0.4);">
+                <input type="text" class="quick-flash-price-input" value="${currentQuickFlashPriceVal}" placeholder="เช่น 990 (เว้นว่าง = ใช้ราคาปกติ)" onkeydown="handleQuickFlashPriceKey(event, '${p.id}')" style="border-color: rgba(239, 68, 68, 0.4);">
                 <button class="quick-price-clear-btn" title="ลบราคา Flash" onclick="clearQuickFlashPrice('${p.id}')">✕</button>
               </div>
             </div>
@@ -906,10 +895,11 @@ function startFlashSaleClockTicker() {
   globalFlashSaleTimerInterval = setInterval(() => {
     const timerElements = document.querySelectorAll(".dynamic-countdown-timer");
     let needReRender = false;
+    const now = Date.now();
     
     allProducts.forEach(p => {
       if (p.flashSaleEndTime) {
-        const timeRemaining = new Date(p.flashSaleEndTime).getTime() - new Date().getTime();
+        const timeRemaining = new Date(p.flashSaleEndTime).getTime() - now;
         if (timeRemaining <= 0) {
           p.flashSaleEndTime = "";
           p.flashSalePrice = 0;
@@ -933,7 +923,7 @@ function startFlashSaleClockTicker() {
       const endTimeAttr = el.getAttribute("data-endtime");
       if (!endTimeAttr) return;
       
-      const timeRemaining = new Date(endTimeAttr).getTime() - new Date().getTime();
+      const timeRemaining = new Date(endTimeAttr).getTime() - Date.now();
       
       if (timeRemaining > 0) {
         const hours = Math.floor(timeRemaining / 3600000);
@@ -949,7 +939,7 @@ function render() {
   if (isAdmin) { renderAdminView(); } else { renderMobileView(); }
 }
 
-/* ================= 📦 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป (User Mobile View) ================= */
+/* ================= 📦 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป (User Mobile & Desktop View) ================= */
 function renderMobileView() {
   if (dragNoticeEl) {
     dragNoticeEl.style.display = "none";
@@ -958,10 +948,18 @@ function renderMobileView() {
   if (document.getElementById("categoryTitle")) document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + selectedCategory;
   
   let displayed = [];
+  const now = Date.now();
+
   if (selectedCategory === "ทั้งหมด") {
     displayed = [...allProducts]; 
   } else if (selectedCategory === "⚡ Flash Sale") {
-    displayed = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0));
+    displayed = allProducts.filter(p => {
+        const hasFlashPrice = p.flashSalePrice && Number(p.flashSalePrice) > 0;
+        if (!p.flashSaleEndTime) {
+            return hasFlashPrice; 
+        }
+        return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
+    });
   } else {
     displayed = allProducts.filter(p => p.category === selectedCategory);
   }
@@ -992,8 +990,10 @@ function renderMobileView() {
 function renderAdminView() {
   if (document.getElementById("categoryTitle")) document.getElementById("categoryTitle").innerText = "🛠️ โหมดแอดมิน (แสดงฐานข้อมูลคลาวด์ทั้งหมด)";
   let filtered = [...allProducts];
+  const now = Date.now();
+
   if (selectedCategory === "⚡ Flash Sale") {
-    filtered = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0));
+    filtered = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - now > 0));
   } else if (selectedCategory !== "ทั้งหมด") {
     filtered = allProducts.filter(p => p.category === selectedCategory);
   }
@@ -1054,7 +1054,8 @@ function renderSidebarCategories() {
   if (!categoriesEl) return;
   
   const totalCount = allProducts.length; 
-  const flashSaleCount = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - new Date().getTime() > 0)).length;
+  const now = Date.now();
+  const flashSaleCount = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - now > 0)).length;
 
   let html = `<div class="category ${selectedCategory === 'ทั้งหมด' ? 'active' : ''}" onclick="filterCategory('ทั้งหมด')">ทั้งหมด (${totalCount})</div>`;
   
@@ -1264,7 +1265,6 @@ window.editProduct = (id) => {
 window.deleteProduct = async (id) => {
   if (confirm("ต้องการลบสินค้าถาวรออกจากฐานข้อมูลคลาวด์?")) {
     try { 
-      // บันทึกประวัติการลบลง log คลาวด์เพื่อให้เครื่อง Client สามารถตรวจสอบส่วนต่างและลบ ID สินค้านี้ออกจากแคชได้อย่างถูกต้อง
       const nowTime = Date.now();
       await addDoc(deletedLogRef, { productId: id, deletedAt: nowTime });
 
