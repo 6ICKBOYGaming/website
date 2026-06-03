@@ -94,7 +94,7 @@ const lazada = document.getElementById("lazada");
 const isNew = document.getElementById("isNew");
 const isHot = document.getElementById("isHot");
 const comingSoon = document.getElementById("comingSoon");
-const isAdminRecommend = document.getElementById("isAdminRecommend"); 
+const isAdminRecommendInput = document.getElementById("isAdminRecommend"); 
 const submitBtn = document.getElementById("submitBtn");
 
 const adminCategoryTitle = document.getElementById("adminCategoryTitle");
@@ -105,7 +105,7 @@ const categorySubmitBtn = document.getElementById("categorySubmitBtn");
 const categoryCancelBtn = document.getElementById("categoryCancelBtn");
 const searchInput = document.getElementById("search");
 
-// 🎮 สร้างหรือดึง Element สำหรับแผงจัดการหมวดหมู่เกมคอนโซล (ดึงจาก HTML ถ้ามี หรือจะ Render อัตโนมัติในส่วนแสดงผล)
+// 🎮 สร้างหรือดึง Element สำหรับแผงจัดการหมวดหมู่เกมคอนโซล
 let adminConsoleCategoryTitle = document.getElementById("adminConsoleCategoryTitle");
 let adminConsoleCategoryInput = document.getElementById("adminConsoleCategoryInput");
 let adminConsoleCategoryList = document.getElementById("adminConsoleCategoryList");
@@ -146,7 +146,7 @@ if (goToFlashSaleAdminBtn) {
     };
 }
 
-/* ================= 🔄 ระบบจัดการเวอร์ชันข้อมูล (เปิดทิ้งไว้สำหรับยิงอัปเดตโครงสร้างโครงข่าย) ================= */
+/* ================= 🔄 ระบบจัดการเวอร์ชันข้อมูล ================= */
 async function bumpCloudVersion() {
   try {
     const nowTimestamp = Date.now();
@@ -155,7 +155,7 @@ async function bumpCloudVersion() {
   } catch (err) { console.error(err); }
 }
 
-/* ================= 🌓 สไตล์ชีทพิเศษสำหรับหมวดหมู่ Flash Sale สีแดงเด่นๆ ================= */
+/* ================= 🌓 สไตล์ชีทพิเศษสำหรับหมวดหมู่ Flash Sale ================= */
 if (!document.getElementById("flash-sale-custom-style")) {
   const styleEl = document.createElement("style");
   styleEl.id = "flash-sale-custom-style";
@@ -292,7 +292,6 @@ function getEffectivePrice(p) {
 /* ================= ⚙️ โหลดข้อมูลหลัก (Master Data Loader - Smart Cache System) ================= */
 async function loadMasterData() {
   try {
-    // ฟังก์ชันย่อยสำหรับไป Fetch ข้อมูลจริงจาก Firebase Cloud
     const fetchLiveDocsFromCloud = async () => {
       let products = [];
       const prodSnap = await getDocs(query(productsRef, orderBy("order", "asc")), { source: 'default' });
@@ -302,33 +301,24 @@ async function loadMasterData() {
       const catSnap = await getDocs(query(categoriesRef, orderBy("order")), { source: 'default' });
       catSnap.forEach(d => categories.push({ id: d.id, ...d.data() }));
 
-      // 🎮 ดึงข้อมูล Live ของหมวดหมู่คอนโซลเกมเพิ่มเติม
       let consoleCategories = [];
       const consoleCatSnap = await getDocs(query(consoleCategoriesRef, orderBy("order")), { source: 'default' });
       consoleCatSnap.forEach(d => consoleCategories.push({ id: d.id, ...d.data() }));
 
-      // อัปเดตเพื่อให้ชื่อคีย์ตรงกับเอกสาร shopee_promo_widget ในฐานข้อมูลของคุณ
       const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: 'default' });
       let widget = widgetSnap.exists() ? widgetSnap.data() : null;
 
-      // 🎯 คืนค่าออปเจกต์รูปแบบใหม่ที่สมบูรณ์แบบ ส่งต่อให้ cache.js นำไปเซฟลงเครื่อง User ทันที
       return { products, categories, consoleCategories, widget };
     };
 
-    // 🔥 เรียกใช้งานระบบดึงข้อมูลผ่านระบบ Smart Cache
     const result = await getSmartCachedData(db, fetchLiveDocsFromCloud, isAdmin);
 
-    // หลังจากระบบดึงเสร็จ (ไม่ว่าจะดึงจากแคชหรือคลาวด์) ให้กระจายค่าลงตัวแปร Global ของหน้าเว็บ
     allProducts = result.products || [];
     dbCategories = result.categories || [];
-    dbConsoleCategories = result.consoleCategories || []; // 🎮 นำข้อมูลกลุ่มคอนโซลมาใส่ตัวแปรหลักเพื่อใช้วาดเมนู
+    dbConsoleCategories = result.consoleCategories || []; 
 
-    // ตรวจสอบโครงสร้าง Element ปลายทางของกล่องควบคุมแผงควบคุมเกมคอนโซล
-    if (typeof ensureConsoleCategoryElementsExist === "function") {
-      ensureConsoleCategoryElementsExist();
-    }
+    ensureConsoleCategoryElementsExist();
 
-    // อัปเดตโครงสร้างหน้าเว็บและวิดเจ็ตตามปกติ
     if (typeof updateCategoryDropdown === "function") {
       updateCategoryDropdown();
     }
@@ -337,24 +327,19 @@ async function loadMasterData() {
       exists: () => !!result.widget,
       data: () => result.widget
     };
-    if (typeof applyWidgetSettings === "function") {
-      applyWidgetSettings(mockWidgetSnap);
-    }
+    applyWidgetSettings(mockWidgetSnap);
 
-    // ประมวลผลกลุ่มสินค้าพิเศษ HOT / NEW
     const hotProducts = allProducts.filter(p => p.isHot && (isAdmin || !p.comingSoon)).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
     const newProducts = allProducts.filter(p => p.isNew && (isAdmin || !p.comingSoon)).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
 
     if (hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
     if (newEl) newEl.innerHTML = newProducts.map(p => card(p)).join("");
 
-    if (typeof initAutoSliders === "function") {
-      initAutoSliders();
-    }
+    initAutoSliders();
     
     render();
 
-    if (!isAdmin && typeof recordVisitorTraffic === "function") {
+    if (!isAdmin) {
       recordVisitorTraffic(); 
     }
 
@@ -777,13 +762,12 @@ function render() {
   if (isAdmin) { renderAdminView(); } else { renderMobileView(); }
 }
 
-/* ================= 🌓 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป (เวอร์ชันแก้ไขสมบูรณ์) ================= */
+/* ================= 🌓 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป ================= */
 function renderMobileView() {
   if (dragNoticeEl) {
     dragNoticeEl.style.display = "none";
   }
 
-  // ป้องกัน Error กรณีไม่มี Element หัวข้อแสดงชื่อหมวดหมู่
   if (document.getElementById("categoryTitle")) {
     document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + (selectedCategory || "ทั้งหมด");
   }
@@ -791,7 +775,6 @@ function renderMobileView() {
   let displayed = [];
   const now = Date.now();
 
-  // ปรับการตรวจสอบเงื่อนไขให้ยืดหยุ่นและรองรับความผิดพลาดของข้อมูล (Defensive Programing)
   if (!selectedCategory || selectedCategory === "ทั้งหมด") {
     displayed = [...allProducts];
   } else if (selectedCategory === "⚡ Flash Sale") {
@@ -803,14 +786,12 @@ function renderMobileView() {
       return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
     });
   } else {
-    // ✨ ปรับปรุงจุดนี้: ใช้ .trim() ทั้งสองฝั่งและป้องกันกรณีสินค้าไม่มีหมวดหมู่ (Null-Safe)
     displayed = allProducts.filter(p => {
       if (!p.category) return false;
       return p.category.toString().trim() === selectedCategory.toString().trim();
     });
   }
 
-  // การจัดเรียงลำดับราคาสินค้าตามโหมดที่เลือก
   if (currentSortMode === "priceAsc") {
     displayed = displayed.filter(p => !p.comingSoon && (p.price > 0 || p.salePrice > 0));
     displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
@@ -824,7 +805,6 @@ function renderMobileView() {
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
-  // ระบบค้นหาคำสำคัญ (Search)
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
     displayed = displayed.filter(p => 
@@ -833,14 +813,47 @@ function renderMobileView() {
     );
   }
 
-  // นำข้อมูลสินค้าไปวาดลงบนหน้าจออินเตอร์เฟส
   if (allEl) {
     allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
   }
   
-  // เรียกฟังก์ชันอัปเดตแถบเมนูด้านข้างและระบบโหลดรูปภาพอัจฉริยะ
-  if (typeof renderSidebarCategories === "function") renderSidebarCategories();
-  if (typeof observeLazyImages === "function") observeLazyImages();
+  renderSidebarCategories();
+  observeLazyImages();
+}
+
+/* ================= ⚙️ [เพิ่มฟังก์ชันหลักที่ขาดหาย] ระบบเรนเดอร์จัดการหลังบ้านสำหรับ Admin ================= */
+function renderAdminView() {
+  if (dragNoticeEl) {
+    dragNoticeEl.style.display = currentSortMode === "tierlist" ? "block" : "none";
+  }
+
+  let displayed = [...allProducts];
+  const now = Date.now();
+
+  if (selectedCategory && selectedCategory !== "ทั้งหมด") {
+    if (selectedCategory === "⚡ Flash Sale") {
+      displayed = allProducts.filter(p => p.flashSalePrice > 0 && (!p.flashSaleEndTime || new Date(p.flashSaleEndTime).getTime() - now > 0));
+    } else {
+      displayed = allProducts.filter(p => p.category && p.category.toString().trim() === selectedCategory.toString().trim());
+    }
+  }
+
+  displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const kw = searchInput?.value.trim().toLowerCase();
+  if (kw) {
+    displayed = displayed.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
+  }
+
+  if (allEl) {
+    allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
+  }
+
+  renderSidebarCategories();
+  renderAdminCategoryList();
+  renderAdminConsoleCategoryList();
+  renderAdminDragSortLists();
+  setupProductDragAndDrop(displayed);
 }
 
 /* ================= 🌓 หน้าแสดงผลแถบหมวดหมู่สินค้า ================= */
@@ -848,7 +861,6 @@ function renderSidebarCategories() {
   if (!categoriesEl) return;
   const now = Date.now();
   
-  // นับจำนวนสินค้า Flash Sale ที่ยังไม่หมดเวลา
   const flashSaleActiveCount = allProducts.filter(p => {
     const hasFlashPrice = p.flashSalePrice && Number(p.flashSalePrice) > 0;
     if (!p.flashSaleEndTime) return hasFlashPrice; 
@@ -857,51 +869,46 @@ function renderSidebarCategories() {
 
   let html = "";
 
-  // 1. ปุ่ม "ทั้งหมด"
   html += `
     <div class="category shrink-0 snap-center min-w-[80px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${(!selectedCategory || selectedCategory === "ทั้งหมด") ? 'active' : ''}" 
          style="border-radius: 10px; cursor: pointer;" 
-         onclick="filterCategory('ทั้งหมด')">
+         onclick="window.filterCategory('ทั้งหมด')">
       ทั้งหมด (${allProducts.length})
     </div>
   `;
 
-  // 2. ปุ่ม "Flash Sale" (ปรับชื่อไอคอนให้ตรงกับฝังก์ชัน Render หลัก)
   if (flashSaleActiveCount > 0) {
     html += `
       <div class="category shrink-0 snap-center min-w-[100px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold animate-pulse ${selectedCategory === "⚡ Flash Sale" ? 'active' : ''}" 
            style="border-radius: 10px; cursor: pointer; background: linear-gradient(90deg, #ff4e50, #f9d423); color: white; border: none;" 
-           onclick="filterCategory('⚡ Flash Sale')">
+           onclick="window.filterCategory('⚡ Flash Sale')">
         ⚡ Flash Sale (${flashSaleActiveCount})
       </div>
     `;
   }
 
-  // 3. หมวดหมู่สินค้าทั่วไป
   dbCategories.forEach(cat => {
-    const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
+    const count = allProducts.filter(p => p.category && p.category.toString().trim() === cat.name.trim()).length;
     const isActive = selectedCategory && selectedCategory.trim() === cat.name.trim();
     html += `
       <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${isActive ? 'active' : ''}" 
            style="border-radius: 10px; cursor: pointer;" 
-           onclick="filterCategory('${cat.name.trim()}')">
+           onclick="window.filterCategory('${cat.name.trim()}')">
         ${cat.name} (${count})
       </div>
     `;
   });
 
-  // 4. 🔥 แสดงหมวดหมู่คอนโซลให้ทั้ง User และ Admin เห็นเหมือนกัน
   if (dbConsoleCategories && dbConsoleCategories.length > 0) {
-    // หัวข้อกลุ่มคั่นคอนโซล
     html += `<div class="shrink-0 snap-center font-bold text-orange-500 bg-orange-500/10 sm:bg-transparent border border-orange-500/20 sm:border-none px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs uppercase sm:mt-3 sm:pt-3 sm:border-t sm:border-white/5">🎮 คอนโซล</div>`;
     
     dbConsoleCategories.forEach(cat => {
-      const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
+      const count = allProducts.filter(p => p.category && p.category.toString().trim() === cat.name.trim()).length;
       const isActive = selectedCategory && selectedCategory.trim() === cat.name.trim();
       html += `
         <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${isActive ? 'active' : ''}" 
              style="border-radius: 10px; cursor: pointer;" 
-             onclick="filterCategory('${cat.name.trim()}')">
+             onclick="window.filterCategory('${cat.name.trim()}')">
           ${cat.name} (${count})
         </div>
       `;
@@ -910,9 +917,14 @@ function renderSidebarCategories() {
 
   categoriesEl.innerHTML = html;
 }
+
+window.filterCategory = (catName) => {
+  selectedCategory = catName;
+  render();
+};
+
 function updateCategoryDropdown() {
   if (!productCategory) return;
-  // ผสานตัวเลือกทั้งหมวดหมู่ปกติและหมวดหมู่เกมคอนโซลให้เลือกเพิ่มสินค้าเข้าหมวดหมู่ได้ทั้งหมด
   let optionsHtml = dbCategories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join("");
   if (dbConsoleCategories.length > 0) {
     optionsHtml += `<optgroup label="🎮 หมวดหมู่เกมคอนโซล">`;
@@ -994,23 +1006,14 @@ function setupCategoryDragAndDrop() {
 }
 
 function ensureConsoleCategoryElementsExist() {
-  // ตรวจสอบและสร้าง UI แผงจัดการระบบหมวดหมู่คอนโซลเกมอัตโนมัติหากยังไม่มี Element ในหน้า HTML
   if (!document.getElementById("adminConsoleCategoryPanel")) {
-    
-    // 💡 ค้นหากล่องนอกสุด (กล่องพ่อ) เพื่อที่เราจะเอา "กล่องใหม่" ไปต่อแถวข้างนอก ไม่ใช่ข้างในกรอบเทาเดิม
     const adminCategoryPanelEl = document.getElementById("adminCategoryPanel");
-    
     if (adminCategoryPanelEl) {
       const consolePanelHTML = document.createElement("div");
       consolePanelHTML.id = "adminConsoleCategoryPanel";
-      
-      // ใช้ Class "admin-panel" เพื่อให้ได้ดีไซน์กรอบมนสีเทาเข้มแบบเดียวกับอันเก่าเป๊ะๆ แยกชิ้นออกมา
       consolePanelHTML.className = "admin-panel"; 
-      
-      // เพิ่มระยะห่างด้านบน (Margin Top) ให้เว้นสเปซห่างออกจากกล่องเทาเดิมแบบในภาพวาดเป๊ะๆ
       consolePanelHTML.style.marginTop = "20px";
       consolePanelHTML.style.display = isAdmin ? "block" : "none";
-      
       consolePanelHTML.innerHTML = `
         <div class="panel-header">
           <h3 id="adminConsoleCategoryTitle" style="display:flex; align-items:center; gap:8px; margin:0;">
@@ -1026,11 +1029,8 @@ function ensureConsoleCategoryElementsExist() {
         </div>
         <div id="adminConsoleCategoryList" style="margin-top:18px; display:flex; flex-direction:column; gap:8px;"></div>
       `;
-      
-      // 🔥 [จุดสำคัญ] สั่งวางกล่องใหม่ "afterend" (ต่อท้ายข้างนอกกรอบเทาอันเก่าเด็ดขาด ไม่เข้าล็อกเดิม)
       adminCategoryPanelEl.insertAdjacentElement('afterend', consolePanelHTML);
       
-      // ผูกค่า Element กลับเข้าตัวแปรระบบของแอปตามปกติ
       adminConsoleCategoryTitle = document.getElementById("adminConsoleCategoryTitle");
       adminConsoleCategoryInput = document.getElementById("adminConsoleCategoryInput");
       adminConsoleCategoryList = document.getElementById("adminConsoleCategoryList");
@@ -1041,7 +1041,6 @@ function ensureConsoleCategoryElementsExist() {
   }
 }
 
-/* ================= 📁 [แก้ไข] โครงสร้างแถวเรียงสวยงาม ชิดขวา พร้อมระบบลากจัดลำดับ (Drag & Drop) ================= */
 function renderAdminConsoleCategoryList() {
   if (!adminConsoleCategoryList) return;
   
@@ -1057,17 +1056,13 @@ function renderAdminConsoleCategoryList() {
       </span>
       
       <div class="admin-cat-actions" style="display: flex; gap: 8px; align-items: center;">
-        <button class="btn edit" onclick="window.editConsoleCategory('${cat.id}', '${cat.name}')">แก้ไข</button>
-        <button class="btn delete" onclick="window.deleteConsoleCategory('${cat.id}')">ลบ</button>
+        <button class="btn edit" onclick="window.editConsoleCategory('${cat.id}')">แก้ไข</button>
+        <button class="btn delete" onclick="window.deleteConsoleCategory('${cat.id}', '${cat.name}')">ลบ</button>
       </div>
-      
     </div>
   `).join("");
   
-  // เรียกฟังก์ชันเปิดใช้งานระบบลากวางดั้งเดิมของโปรแกรม
-  if (typeof setupConsoleCategoryDragAndDrop === 'function') {
-    setupConsoleCategoryDragAndDrop();
-  }
+  setupConsoleCategoryDragAndDrop();
 }
 
 window.clearConsoleCategoryForm = () => {
@@ -1129,8 +1124,6 @@ function setupConsoleCategoryDragAndDrop() {
   });
 }
 
-/* ========================================================================================= */
-
 window.handleWidgetUpdate = async () => {
   try {
     await setDoc(doc(db, "settings", "shopee_promo_widget"), { imageUrl: widgetImageInput.value.trim(), buttonLink: widgetLinkInput.value.trim(), visible: widgetVisibleCheck.checked });
@@ -1183,7 +1176,7 @@ window.handleProductSubmit = async () => {
     category: productCategory.value, tier: productTier.value, shopee1: shopee1.value.trim(),
     shopee2: shopee2.value.trim(), lazada: lazada.value.trim(), isNew: isNew.checked,
     isHot: isHot.checked, comingSoon: comingSoon.checked || (price === 0 && salePrice === 0),
-    isAdminRecommend: isAdminRecommend ? isAdminRecommend.checked : false,
+    isAdminRecommend: isAdminRecommendInput ? isAdminRecommendInput.checked : false,
     lastUpdated: nowTime
   };
 
@@ -1204,7 +1197,7 @@ window.handleProductSubmit = async () => {
 function clearProductForm() {
   productName.value = ""; productImage.value = ""; productPrice.value = ""; productSalePrice.value = ""; productDescription.value = "";
   if(productTier) productTier.value = ""; shopee1.value = ""; shopee2.value = ""; lazada.value = ""; isNew.checked = false; isHot.checked = false; comingSoon.checked = false;
-  if(isAdminRecommend) isAdminRecommend.checked = false; 
+  if(isAdminRecommendInput) isAdminRecommendInput.checked = false; 
 }
 
 function removeProductCancelButton() {
@@ -1223,7 +1216,7 @@ window.editProduct = (id) => {
   const p = allProducts.find(item => item.id === id); if (!p) return;
   currentEditId = id; productName.value = p.name || ""; productImage.value = p.image || ""; productPrice.value = p.price || ""; productSalePrice.value = p.salePrice || ""; productDescription.value = p.description || ""; productCategory.value = p.category || "";
   if(productTier) productTier.value = p.tier || ""; shopee1.value = p.shopee1 || ""; shopee2.value = p.shopee2 || ""; lazada.value = p.lazada || ""; isNew.checked = !!p.isNew; isHot.checked = !!p.isHot; comingSoon.checked = !!p.comingSoon;
-  if(isAdminRecommend) isAdminRecommend.checked = !!p.isAdminRecommend; 
+  if(isAdminRecommendInput) isAdminRecommendInput.checked = !!p.isAdminRecommend; 
   
   submitBtn.innerText = "บันทึกการแก้ไขสินค้า"; 
   let wrapper = document.getElementById("submitBtnWrapper");
@@ -1279,7 +1272,6 @@ onAuthStateChanged(auth, (user) => {
   if(adminPanel) adminPanel.style.display = dStyle;
   if(adminCategoryPanel) adminCategoryPanel.style.display = dStyle;
   
-  // ปรับการซ่อนแสดงตามสิทธิ์ผู้ใช้สำหรับกล่องควบคุมคอนโซลใหม่
   if(adminConsoleCategoryPanel) adminConsoleCategoryPanel.style.display = dStyle;
   
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
@@ -1309,6 +1301,7 @@ window.scrollSlide = (elementId, direction) => {
   const cardWidth = el.children[0].offsetWidth + 10;
   el.scrollTo({ left: direction === "right" ? el.scrollLeft + cardWidth : el.scrollLeft - cardWidth, behavior: "smooth" });
 };
+
 function initAutoSliders() {
   if (hotSlideInterval) clearInterval(hotSlideInterval); if (newSlideInterval) clearInterval(newSlideInterval);
   hotSlideInterval = setInterval(() => window.scrollSlide("hotProducts", "right"), 6000);
@@ -1390,3 +1383,6 @@ function observeLazyImages() {
 
   lazyImages.forEach(img => imageObserver.observe(img));
 }
+
+// เริ่มต้นระบบนับถอยหลังราคาสินค้าแบบ Global แฟลชเซลล์
+startFlashSaleClockTicker();
