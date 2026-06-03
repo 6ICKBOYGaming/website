@@ -869,11 +869,12 @@ function renderSidebarCategories() {
 
   let html = "";
 
+  // ⭐️ ใส่ emoji ดาวแค่นำหน้าคำว่า "ทั้งหมด" จุดเดียวตามที่ต้องการครับ
   html += `
     <div class="category shrink-0 snap-center min-w-[80px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${(!selectedCategory || selectedCategory === "ทั้งหมด") ? 'active' : ''}" 
          style="border-radius: 10px; cursor: pointer;" 
          onclick="window.filterCategory('ทั้งหมด')">
-      ทั้งหมด (${allProducts.length})
+      ⭐ ทั้งหมด (${allProducts.length})
     </div>
   `;
 
