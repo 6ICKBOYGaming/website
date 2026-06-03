@@ -11,9 +11,10 @@
 const CACHE_KEYS = {
   PRODUCTS: "ickboy_products_cache",
   CATEGORIES: "ickboy_categories_cache",
+  CONSOLE_CATEGORIES: "ickboy_console_categories_cache", // 🔥 คีย์สำหรับเก็บหน่วยความจำแคชหมวดหมู่คอนโซล
   WIDGET: "ickboy_widget_cache",
   VERSION: "ickboy_data_version",
-  TIMESTAMP: "ickboy_cache_timestamp" // คีย์ใหม่สำหรับบันทึกเวลาที่เก็บแคช
+  TIMESTAMP: "ickboy_cache_timestamp" 
 };
 
 // กำหนดอายุของแคชสูงสุด: 4 ชั่วโมง (4 * 60 * 60 * 1000 มิลลิวินาที)
@@ -48,40 +49,56 @@ export async function getSmartCachedData(db, fetchLiveDocs, isAdmin = false) {
 
     // 3. ดึงค่าเวอร์ชันล่าสุดจาก Firebase Cloud (ใช้ยอด Read เพียง 1 Doc เสมอเมื่อเปิดหน้าเว็บ/F5/รีโหลด)
     const { getDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-    const versionSnap = await getDoc(doc(db, "settings", "version_control"));
     
     let cloudVersion = null;
-    if (versionSnap && versionSnap.exists()) {
-      cloudVersion = versionSnap.data().lastUpdated;
+    try {
+      // พยายามดึงจาก settings/version_control ตามโครงสร้างระบบ
+      const versionSnap = await getDoc(doc(db, "settings", "version_control"));
+      if (versionSnap && versionSnap.exists()) {
+        cloudVersion = versionSnap.data().lastUpdated || versionSnap.data().version;
+      } else {
+        // หากไม่พบ ให้ลองดึงจาก system/version สำรอง (โครงสร้างระบบเก่า)
+        const altVersionSnap = await getDoc(doc(db, "system", "version"));
+        if (altVersionSnap && altVersionSnap.exists()) {
+          cloudVersion = altVersionSnap.data().version || 1;
+        }
+      }
+    } catch (vErr) {
+      console.warn("⚠️ ไม่สามารถโหลดเวอร์ชันควบคุมได้:", vErr);
     }
 
     // 4. อ่านค่าแคชเดิมที่เหลืออยู่มาตรวจสอบ
     const localVersion = localStorage.getItem(CACHE_KEYS.VERSION);
     const cachedProducts = localStorage.getItem(CACHE_KEYS.PRODUCTS);
     const cachedCategories = localStorage.getItem(CACHE_KEYS.CATEGORIES);
+    const cachedConsoleCategories = localStorage.getItem(CACHE_KEYS.CONSOLE_CATEGORIES); // 🔥 อ่านแคชคอนโซลของเครื่อง
     const cachedWidget = localStorage.getItem(CACHE_KEYS.WIDGET);
 
-    // 5. [🎯 ตรวจสอบความสดใหม่และความสมบูรณ์] 
-    // แคชต้องยังไม่หมดอายุ เวอร์ชันตรงกัน และโครงสร้างข้อมูลต้องสมบูรณ์ครบถ้วน
+    // 5. [🎯 ตรวจสอบความสดใหม่และความสมบูรณ์ของโครงสร้างระบบ]
+    // หากข้อมูลในเครื่องมีครบ และเลขเวอร์ชันตรงกับคลาวด์ ดึงจากแคชใช้งานทันทีใน 0.01 วินาที
     if (
       cloudVersion && 
       localVersion === cloudVersion.toString() && 
       cachedProducts && 
-      cachedCategories
+      cachedCategories &&
+      cachedConsoleCategories // 🔥 บังคับเช็ค: หากลูกค้าเก่า "ไม่มีคีย์นี้" เงื่อนไขจะเป็นเท็จ เพื่อบังคับให้ไปดึงข้อมูลสด
     ) {
       try {
         const parsedProducts = JSON.parse(cachedProducts);
         const parsedCategories = JSON.parse(cachedCategories);
+        const parsedConsoleCategories = JSON.parse(cachedConsoleCategories); // 🔥 แปลงค่าแคชคอนโซล
         
         if (
           Array.isArray(parsedProducts) && 
           Array.isArray(parsedCategories) && 
+          Array.isArray(parsedConsoleCategories) &&
           parsedProducts.length > 0
         ) {
-          console.log("%c⚡ [Cache Hit] แคชอายุยังไม่เกิน 4 ชม. + เวอร์ชันตรงกันล่าสุด! โหลดจากเครื่องใน 0.01 วินาที", "color: #10b981; font-weight: bold;");
+          console.log("%c⚡ [Cache Hit] แคชอายุยังไม่เกิน 4 ชม. + ข้อมูลสมบูรณ์! โหลดใช้งานทันทีไม่ต้องรอเน็ต", "color: #10b981; font-weight: bold;");
           return {
             products: parsedProducts,
             categories: parsedCategories,
+            consoleCategories: parsedConsoleCategories, // 🔥 ส่งค่าหมวดหมู่คอนโซลที่แคชไว้ออกไปให้สคริปต์หลักวาดหน้าจอ
             widget: cachedWidget ? JSON.parse(cachedWidget) : null,
             isFromCache: true
           };
@@ -91,23 +108,24 @@ export async function getSmartCachedData(db, fetchLiveDocs, isAdmin = false) {
       }
     }
 
-    // 6. [🔄 Force Sync] ถ้าแคชหมดอายุ / เวอร์ชันไม่ตรง / หรือลูกค้าเก่าไม่มีแคชพึ่งกลับมา -> ยิงโหลดสดชุดเต็ม
-    console.log("%c📥 [Cache Miss/Expired/Sync] ระบบกำลังดึงข้อมูลสดชุดใหม่จาก Cloud...", "color: #3b82f6; font-weight: bold;");
+    // 6. [🔄 Force Sync] ถ้าแคชหมดอายุ / เวอร์ชันไม่ตรง / หรือลูกค้าเก่าไม่มีแคชคอนโซล -> ยิงโหลดสดชุดเต็มจาก Cloud
+    console.log("%c📥 [Cache Miss/Expired/Sync] ระบบตรวจพบความเปลี่ยนแปลงหรือไม่มีแคชคอนโซล กำลังดึงข้อมูลสดใหม่ให้ผู้ใช้...", "color: #3b82f6; font-weight: bold;");
     const liveData = await fetchLiveDocs();
 
-    // 7. บันทึกข้อมูลชุดใหม่ลงแคช พร้อมปั๊มเวลาเริ่มต้น (Timestamp) เอาไว้นับถอยหลัง 4 ชั่วโมง
+    // 7. บันทึกข้อมูลชุดใหม่ลงแคช พร้อมบันทึกเวลาเริ่มต้น (Timestamp) เอาไว้นับถอยหลัง 4 ชั่วโมง
     if (liveData && liveData.products && liveData.categories) {
       try {
         localStorage.setItem(CACHE_KEYS.PRODUCTS, JSON.stringify(liveData.products));
         localStorage.setItem(CACHE_KEYS.CATEGORIES, JSON.stringify(liveData.categories));
+        // 🔥 ทำการบันทึกหมวดหมู่คอนโซลลงแคชของเครื่องไว้ใช้รอบถัดไป
+        localStorage.setItem(CACHE_KEYS.CONSOLE_CATEGORIES, JSON.stringify(liveData.consoleCategories || []));
         localStorage.setItem(CACHE_KEYS.WIDGET, JSON.stringify(liveData.widget || null));
         localStorage.setItem(CACHE_KEYS.TIMESTAMP, now.toString()); // บันทึกเวลาปัจจุบัน
         if (cloudVersion) {
           localStorage.setItem(CACHE_KEYS.VERSION, cloudVersion.toString());
         }
-        console.log("💾 [Cache] เริ่มนับถอยหลังอายุแคช 4 ชั่วโมง และบันทึกลงอุปกรณ์สำเร็จ");
+        console.log("💾 [Cache] เริ่มนับถอยหลังอายุแคช 4 ชั่วโมง และบันทึกข้อมูลคอนโซลลงอุปกรณ์สำเร็จ");
       } catch (storageError) {
-        // ดักจับกรณีเครื่องลูกค้าหน่วยความจำเต็ม หรือเปิดโหมด Private Web ท่องเว็บต่อได้ปกติ ไม่ค้าง
         console.error("⚠️ [Cache Storage Blocked] ไม่สามารถบันทึกแคชได้ (พื้นที่เต็มหรืออยู่ในโหมดไม่จำตัวตน):", storageError);
       }
     }
@@ -115,7 +133,6 @@ export async function getSmartCachedData(db, fetchLiveDocs, isAdmin = false) {
     return { ...liveData, isFromCache: false };
 
   } catch (error) {
-    // 🚨 กรณีฉุกเฉิน เช่น เน็ตมือถือหลุดชั่วขณะ ให้ดึงข้อมูลสดหน้าร้านมาสำรอง เพื่อป้องกันหน้าเว็บค้าง
     console.error("🚨 [Cache System Error] ระบบแคชขัดข้อง ดึงข้อมูลสดสำรองแทนเพื่อความปลอดภัย...", error);
     return await fetchLiveDocs();
   }

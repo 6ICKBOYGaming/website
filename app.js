@@ -307,30 +307,39 @@ async function loadMasterData() {
       const consoleCatSnap = await getDocs(query(consoleCategoriesRef, orderBy("order")), { source: 'default' });
       consoleCatSnap.forEach(d => consoleCategories.push({ id: d.id, ...d.data() }));
 
+      // อัปเดตเพื่อให้ชื่อคีย์ตรงกับเอกสาร shopee_promo_widget ในฐานข้อมูลของคุณ
       const widgetSnap = await getDoc(doc(db, "settings", "shopee_promo_widget"), { source: 'default' });
       let widget = widgetSnap.exists() ? widgetSnap.data() : null;
 
+      // 🎯 คืนค่าออปเจกต์รูปแบบใหม่ที่สมบูรณ์แบบ ส่งต่อให้ cache.js นำไปเซฟลงเครื่อง User ทันที
       return { products, categories, consoleCategories, widget };
     };
 
     // 🔥 เรียกใช้งานระบบดึงข้อมูลผ่านระบบ Smart Cache
     const result = await getSmartCachedData(db, fetchLiveDocsFromCloud, isAdmin);
 
-    allProducts = result.products;
-    dbCategories = result.categories;
-    dbConsoleCategories = result.consoleCategories || []; // 🎮 เก็บสถานะลงตัวแปรกลางคลาวด์
+    // หลังจากระบบดึงเสร็จ (ไม่ว่าจะดึงจากแคชหรือคลาวด์) ให้กระจายค่าลงตัวแปร Global ของหน้าเว็บ
+    allProducts = result.products || [];
+    dbCategories = result.categories || [];
+    dbConsoleCategories = result.consoleCategories || []; // 🎮 นำข้อมูลกลุ่มคอนโซลมาใส่ตัวแปรหลักเพื่อใช้วาดเมนู
 
     // ตรวจสอบโครงสร้าง Element ปลายทางของกล่องควบคุมแผงควบคุมเกมคอนโซล
-    ensureConsoleCategoryElementsExist();
+    if (typeof ensureConsoleCategoryElementsExist === "function") {
+      ensureConsoleCategoryElementsExist();
+    }
 
     // อัปเดตโครงสร้างหน้าเว็บและวิดเจ็ตตามปกติ
-    updateCategoryDropdown();
+    if (typeof updateCategoryDropdown === "function") {
+      updateCategoryDropdown();
+    }
     
     const mockWidgetSnap = {
       exists: () => !!result.widget,
       data: () => result.widget
     };
-    applyWidgetSettings(mockWidgetSnap);
+    if (typeof applyWidgetSettings === "function") {
+      applyWidgetSettings(mockWidgetSnap);
+    }
 
     // ประมวลผลกลุ่มสินค้าพิเศษ HOT / NEW
     const hotProducts = allProducts.filter(p => p.isHot && (isAdmin || !p.comingSoon)).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
@@ -339,10 +348,13 @@ async function loadMasterData() {
     if (hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
     if (newEl) newEl.innerHTML = newProducts.map(p => card(p)).join("");
 
-    initAutoSliders();
+    if (typeof initAutoSliders === "function") {
+      initAutoSliders();
+    }
+    
     render();
 
-    if (!isAdmin) {
+    if (!isAdmin && typeof recordVisitorTraffic === "function") {
       recordVisitorTraffic(); 
     }
 
@@ -765,31 +777,40 @@ function render() {
   if (isAdmin) { renderAdminView(); } else { renderMobileView(); }
 }
 
-/* ================= 🌓 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป ================= */
+/* ================= 🌓 หน้าแสดงผลสินค้าฝั่งผู้ใช้ทั่วไป (เวอร์ชันแก้ไขสมบูรณ์) ================= */
 function renderMobileView() {
   if (dragNoticeEl) {
     dragNoticeEl.style.display = "none";
   }
 
-  if (document.getElementById("categoryTitle")) document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + selectedCategory;
+  // ป้องกัน Error กรณีไม่มี Element หัวข้อแสดงชื่อหมวดหมู่
+  if (document.getElementById("categoryTitle")) {
+    document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + (selectedCategory || "ทั้งหมด");
+  }
   
   let displayed = [];
   const now = Date.now();
 
-  if (selectedCategory === "ทั้งหมด") {
-    displayed = [...allProducts]; 
+  // ปรับการตรวจสอบเงื่อนไขให้ยืดหยุ่นและรองรับความผิดพลาดของข้อมูล (Defensive Programing)
+  if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+    displayed = [...allProducts];
   } else if (selectedCategory === "⚡ Flash Sale") {
     displayed = allProducts.filter(p => {
-        const hasFlashPrice = p.flashSalePrice && Number(p.flashSalePrice) > 0;
-        if (!p.flashSaleEndTime) {
-            return hasFlashPrice; 
-        }
-        return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
+      const hasFlashPrice = p.flashSalePrice && Number(p.flashSalePrice) > 0;
+      if (!p.flashSaleEndTime) {
+        return hasFlashPrice;
+      }
+      return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
     });
   } else {
-    displayed = allProducts.filter(p => p.category === selectedCategory);
+    // ✨ ปรับปรุงจุดนี้: ใช้ .trim() ทั้งสองฝั่งและป้องกันกรณีสินค้าไม่มีหมวดหมู่ (Null-Safe)
+    displayed = allProducts.filter(p => {
+      if (!p.category) return false;
+      return p.category.toString().trim() === selectedCategory.toString().trim();
+    });
   }
 
+  // การจัดเรียงลำดับราคาสินค้าตามโหมดที่เลือก
   if (currentSortMode === "priceAsc") {
     displayed = displayed.filter(p => !p.comingSoon && (p.price > 0 || p.salePrice > 0));
     displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
@@ -803,137 +824,84 @@ function renderMobileView() {
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
+  // ระบบค้นหาคำสำคัญ (Search)
   const kw = searchInput?.value.trim().toLowerCase();
-  if (kw) displayed = displayed.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
+  if (kw) {
+    displayed = displayed.filter(p => 
+      p.name?.toLowerCase().includes(kw) || 
+      p.description?.toLowerCase().includes(kw)
+    );
+  }
 
-  if (allEl) allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
+  // นำข้อมูลสินค้าไปวาดลงบนหน้าจออินเตอร์เฟส
+  if (allEl) {
+    allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
+  }
   
-  renderSidebarCategories();
-  observeLazyImages();
+  // เรียกฟังก์ชันอัปเดตแถบเมนูด้านข้างและระบบโหลดรูปภาพอัจฉริยะ
+  if (typeof renderSidebarCategories === "function") renderSidebarCategories();
+  if (typeof observeLazyImages === "function") observeLazyImages();
 }
 
-function renderAdminView() {
-  if (document.getElementById("categoryTitle")) document.getElementById("categoryTitle").innerText = "🛠️ โหมดแอดมิน (แสดงฐานข้อมูลคลาวด์ทั้งหมด)";
-  let filtered = [...allProducts];
-  const now = Date.now();
-
-  if (selectedCategory === "⚡ Flash Sale") {
-    filtered = allProducts.filter(p => p.flashSaleEndTime && (new Date(p.flashSaleEndTime).getTime() - now > 0));
-  } else if (selectedCategory !== "ทั้งหมด") {
-    filtered = allProducts.filter(p => p.category === selectedCategory);
-  }
-
-  const kw = searchInput?.value.trim().toLowerCase();
-  if (kw) filtered = filtered.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
-
-  if (currentSortMode === "priceAsc") {
-    filtered.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
-  } else if (currentSortMode === "priceDesc") {
-    filtered.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
-  } else if (currentSortMode === "adminRecommend") {
-    filtered = filtered.filter(p => !!p.isAdminRecommend);
-    filtered.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  } else {
-    filtered.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }
-
-  if (allEl) allEl.innerHTML = filtered.map((p, index) => card(p, index)).join("");
-  renderSidebarCategories();
-  renderAdminCategoryList();
-  renderAdminConsoleCategoryList();
-  renderAdminDragSortLists();
-  
-  if (dragNoticeEl) {
-    dragNoticeEl.innerHTML = `
-      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:rgba(16, 185, 129, 0.1); border:1px solid #10b981; padding:12px; border-radius:8px; margin-bottom:15px; width:100%; box-sizing:border-box;">
-        <span style="flex:1; font-size:13px; color:#10b981;">🟢 <b>ระบบออนไลน์ Realtime:</b> กำลังมีผู้เข้าชมขณะนี้ <strong id="realtimeUsersCountDisplay" style="font-size:18px; text-shadow: 0 0 8px #10b981;">0</strong> คน</span>
-        <a href="analytics.html" target="_blank" class="btn edit" style="display: inline-block; text-align: center; text-decoration: none; background: #a855f7; color: #fff;">📊 ดูข้อมูลเชิงลึก</a>
-        <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#eab308; color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:bold;' onclick='checkOnlineUsersCountManual()'>👁️ เช็กยอดผู้เข้าชมด่วน</button>
-        <button class='btn edit' style='padding:6px 12px; font-size:12px; background:#10b981; color:#fff; border:none; border-radius:6px; cursor:pointer;' onclick='saveAllProductsOrderManually()'>💾 บันทึกลำดับสินค้าทั้งหมด</button>
-      </div>
-    `;
-    dragNoticeEl.style.display = "block";
-  }
-  setupProductDragAndDrop(filtered);
-  startFlashSaleClockTicker();
-  checkOnlineUsersCountManual();
-}
-
-window.filterCategory = (category) => { 
-  selectedCategory = category; 
-  render();
-};
-
-if (searchInput) {
-  searchInput.addEventListener("input", () => { render(); });
-}
-
-if (sortProductsSelect) {
-  sortProductsSelect.addEventListener("change", (e) => { 
-    currentSortMode = e.target.value; 
-    render();
-  });
-}
-
-/* ================= 🌓 หน้าแสดงผลแถบหมวดหมู่สินค้า (เฉพาะมือถือสไลด์แนวนอน จอคอมแนวตั้งปกติ) ================= */
+/* ================= 🌓 หน้าแสดงผลแถบหมวดหมู่สินค้า ================= */
 function renderSidebarCategories() {
   if (!categoriesEl) return;
-
   const now = Date.now();
+  
+  // นับจำนวนสินค้า Flash Sale ที่ยังไม่หมดเวลา
   const flashSaleActiveCount = allProducts.filter(p => {
     const hasFlashPrice = p.flashSalePrice && Number(p.flashSalePrice) > 0;
-    if (!p.flashSaleEndTime) return hasFlashPrice;
+    if (!p.flashSaleEndTime) return hasFlashPrice; 
     return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
   }).length;
 
-  // ปรับ Container: บนมือถือ (ต่ำกว่า sm) จะเป็น flex แนวนอนและมีแถบเลื่อนสไลด์ซ้ายขวา | บนคอม (sm ขึ้นไป) จะกลับเป็นแนวตั้งปกติ
-  categoriesEl.className = "flex sm:flex-col items-center sm:items-stretch gap-2 overflow-x-auto sm:overflow-x-visible pb-3 sm:pb-0 max-w-full snap-x scrollbar-none";
-
   let html = "";
 
-  // ปุ่ม: ทั้งหมด (บนมือถือล็อกความกว้างขั้นต่ำไม่ให้บี้ ตัวอักษร text-xs พอดีจอ | บนคอมดีดเป็น sm:w-full text-sm)
+  // 1. ปุ่ม "ทั้งหมด"
   html += `
-    <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === 'ทั้งหมด' ? 'active' : ''}" 
+    <div class="category shrink-0 snap-center min-w-[80px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${(!selectedCategory || selectedCategory === "ทั้งหมด") ? 'active' : ''}" 
          style="border-radius: 10px; cursor: pointer;" 
          onclick="filterCategory('ทั้งหมด')">
-      ✨ ทั้งหมด (${allProducts.length})
+      ทั้งหมด (${allProducts.length})
     </div>
   `;
 
-  // ปุ่ม: Flash Sale
+  // 2. ปุ่ม "Flash Sale" (ปรับชื่อไอคอนให้ตรงกับฝังก์ชัน Render หลัก)
   if (flashSaleActiveCount > 0) {
     html += `
-      <div class="category flash-sale-menu-item shrink-0 snap-center min-w-[110px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === '⚡ Flash Sale' ? 'active' : ''}" 
-           style="border-radius: 10px; cursor: pointer;" 
+      <div class="category shrink-0 snap-center min-w-[100px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold animate-pulse ${selectedCategory === "⚡ Flash Sale" ? 'active' : ''}" 
+           style="border-radius: 10px; cursor: pointer; background: linear-gradient(90deg, #ff4e50, #f9d423); color: white; border: none;" 
            onclick="filterCategory('⚡ Flash Sale')">
         ⚡ Flash Sale (${flashSaleActiveCount})
       </div>
     `;
   }
 
-  // วนลูป: หมวดหมู่สินค้าปกติ
+  // 3. หมวดหมู่สินค้าทั่วไป
   dbCategories.forEach(cat => {
     const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
+    const isActive = selectedCategory && selectedCategory.trim() === cat.name.trim();
     html += `
-      <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === cat.name ? 'active' : ''}" 
+      <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${isActive ? 'active' : ''}" 
            style="border-radius: 10px; cursor: pointer;" 
-           onclick="filterCategory('${cat.name}')">
+           onclick="filterCategory('${cat.name.trim()}')">
         ${cat.name} (${count})
       </div>
     `;
   });
 
-  // วนลูป: หมวดหมู่เกมคอนโซล
-  if (dbConsoleCategories.length > 0) {
-    // หัวข้อกลุ่มคั่น: บนมือถือทำเป็นกล่องปุ่มเล็กๆ กะทัดรัดไม่เกะกะ | บนคอมพิวเตอร์แสดงเป็นตัวอักษรหัวข้อกลุ่มด้านบน
+  // 4. 🔥 แสดงหมวดหมู่คอนโซลให้ทั้ง User และ Admin เห็นเหมือนกัน
+  if (dbConsoleCategories && dbConsoleCategories.length > 0) {
+    // หัวข้อกลุ่มคั่นคอนโซล
     html += `<div class="shrink-0 snap-center font-bold text-orange-500 bg-orange-500/10 sm:bg-transparent border border-orange-500/20 sm:border-none px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs uppercase sm:mt-3 sm:pt-3 sm:border-t sm:border-white/5">🎮 คอนโซล</div>`;
     
     dbConsoleCategories.forEach(cat => {
       const count = allProducts.filter(p => p.category && p.category.trim() === cat.name.trim()).length;
+      const isActive = selectedCategory && selectedCategory.trim() === cat.name.trim();
       html += `
-        <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${selectedCategory === cat.name ? 'active' : ''}" 
+        <div class="category shrink-0 snap-center min-w-[95px] sm:w-full text-center sm:text-left px-3 py-2 text-xs sm:text-sm font-bold ${isActive ? 'active' : ''}" 
              style="border-radius: 10px; cursor: pointer;" 
-             onclick="filterCategory('${cat.name}')">
+             onclick="filterCategory('${cat.name.trim()}')">
           ${cat.name} (${count})
         </div>
       `;
@@ -942,7 +910,6 @@ function renderSidebarCategories() {
 
   categoriesEl.innerHTML = html;
 }
-
 function updateCategoryDropdown() {
   if (!productCategory) return;
   // ผสานตัวเลือกทั้งหมวดหมู่ปกติและหมวดหมู่เกมคอนโซลให้เลือกเพิ่มสินค้าเข้าหมวดหมู่ได้ทั้งหมด
