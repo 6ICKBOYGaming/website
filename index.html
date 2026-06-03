@@ -458,7 +458,18 @@
     }
 </script>
 
-<script type="module" src="./app.js"></script>
 <script type="module" src="./click.js"></script>
+<script type="module" src="app.js"></script>
+
+<script>
+  // บังคับให้เบราว์เซอร์ล้าง HTTP Cache ของสคริปต์อัตโนมัติในเบื้องหลัง เพื่อให้รันโค้ดใหม่เสมอ
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for(let registration of registrations) {
+        registration.update();
+      }
+    });
+  }
+</script>
 </body>
 </html>
