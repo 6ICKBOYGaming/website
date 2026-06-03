@@ -41,8 +41,8 @@
                     🔄 รีเฟรชข้อมูล (F5)
                 </button>
 
-                <button id="clear-clicks-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md transition duration-200 text-sm whitespace-nowrap">
-                    🧹 เคลียร์ยอดคลิกสินค้า
+                <button id="clear-clicks-btn" class="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 font-bold py-1.5 px-4 rounded-lg shadow-md transition duration-200 text-sm whitespace-nowrap">
+                    🧹 เคลียร์ยอดคลิกทั้งหมดของวัน
                 </button>
             </div>
         </div>
@@ -91,12 +91,13 @@
                             <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase">
                                 <th class="py-2 font-bold w-12 text-center">อันดับ</th>
                                 <th class="py-2 font-bold">ชื่อสินค้า</th>
-                                <th class="py-2 font-bold text-right w-24">จำนวนคลิก</th>
+                                <th class="py-2 font-bold text-right w-20">จำนวนคลิก</th>
+                                <th class="py-2 font-bold text-center w-12">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody id="products-table-body">
                             <tr>
-                                <td colspan="3" class="text-center py-4 text-gray-500">⏳ กำลังโหลดอันดับสินค้า...</td>
+                                <td colspan="4" class="text-center py-4 text-gray-500">⏳ กำลังโหลดอันดับสินค้า...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -109,8 +110,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        // เปลี่ยนมาใช้ setDoc เพื่อรองรับการเซ็ตข้อมูลลงเอกสารใหม่ที่ยังไม่เคยมีอยู่
-        import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
@@ -189,7 +189,7 @@
                             }
                         }
 
-                        allProductsList.push({ name: pName, total: finalClicks });
+                        allProductsList.push({ id: pId, name: pName, total: finalClicks });
                         productTotalClicks += finalClicks;
                     }
                 });
@@ -209,7 +209,63 @@
             }
         }
 
-        // 🔥 ฟังก์ชันแก้ไขจุดบกพร่อง: ใช้ setDoc + merge แทน updateDoc ป้องกันปัญหาเอกสารไม่มีในระบบ
+        /**
+         * 🔥 ฟังก์ชันแก้ไขสำเร็จ 100%: ล้างยอดคลิกเฉพาะชิ้นผ่านระบบ Memory Overwrite 
+         * ทำลายบั๊กยอดค้างจากคีย์จุดทศนิยม (.) ทั้งกรณีอิงชื่อสินค้าและอิงรหัส ID
+         */
+        async function deleteSingleProductClick(productId, productName) {
+            const dateInput = document.getElementById('date-select');
+            if (!dateInput || !dateInput.value || !productId) return;
+            
+            const selectedDateStr = dateInput.value;
+            const isConfirm = confirm(`🧹 คุณแน่ใจใช่ไหมที่จะลบข้อมูลคลิกของ "${productName}" \nเฉพาะของวันที่ ${selectedDateStr} ให้เป็น 0?`);
+            if (!isConfirm) return;
+
+            try {
+                updateBadgeStatus("⏳ กำลังทำการเคลียร์ข้อมูลในระดับโครงสร้าง...", "text-amber-400", "bg-amber-500/10", "border-amber-500/20");
+                const docRef = doc(db, "analytics", selectedDateStr);
+                
+                // ดึงเอกสารจริงของวันนั้นขึ้นมาก่อน เพื่อรื้อโครงสร้าง JavaScript เคลียร์คีย์ที่บั๊กค้างคาให้หมด
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) {
+                    alert("ℹ️ ไม่พบข้อมูลสถิติของวันที่กำหนด ไม่จำเป็นต้องล้างข้อมูล");
+                    await loadAdvancedAnalytics();
+                    return;
+                }
+
+                let docData = docSnap.data();
+
+                // 1. เคลียร์คีย์ลักษณะ Field String ตรงๆ นอกแรปเปอร์
+                const keyById = `productClicks.${productId}`;
+                const keyByName = `productClicks.${productName.trim()}`;
+                if (docData[keyById] !== undefined) docData[keyById] = 0;
+                if (docData[keyByName] !== undefined) docData[keyByName] = 0;
+
+                // 2. เจาะลึกเคลียร์ค่าภายในกลุ่ม Map Object ของระบบเก็บข้อมูลดั้งเดิม
+                if (docData.productClicks && typeof docData.productClicks === 'object') {
+                    if (docData.productClicks[productId] !== undefined) docData.productClicks[productId] = 0;
+                    if (docData.productClicks[productName.trim()] !== undefined) docData.productClicks[productName.trim()] = 0;
+                }
+
+                // สั่งเซ็ตข้อมูลทับทั้งแผงกลับไปที่ Cloud บังคับทุกช่องทางให้สับสวิตช์เป็นเลข 0 ทันที
+                await setDoc(docRef, docData);
+
+                // บันทึกและซิงค์โควตาฝั่ง Local
+                if (typeof incrementLocalQuota === 'function') {
+                    incrementLocalQuota('write', 1);
+                }
+
+                alert(`✅ ล้างยอดคลิกของ "${productName}" ในวันที่ระบุให้กลายเป็น 0 สำเร็จแล้ว`);
+                await loadAdvancedAnalytics();
+            } catch (error) {
+                console.error("Delete Single Click Error: ", error);
+                alert("❌ เกิดข้อผิดพลาดในระบบ ไม่สามารถเขียนทับข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
+            }
+        }
+
+        // ลงทะเบียนฟังก์ชันไว้ที่ window object เพื่อให้ปุ่ม ❌ ในตารางเรียกใช้งานข้าม Tag ได้
+        window.deleteSingleProductClick = deleteSingleProductClick;
+
         async function clearProductClicksByDate() {
             const dateInput = document.getElementById('date-select');
             if (!dateInput || !dateInput.value) return;
@@ -226,10 +282,8 @@
                 const productsSnap = await getDocs(collection(db, "products"));
                 let updateData = {};
 
-                // รีเซ็ตโครงสร้างออบเจกต์ย่อยหลัก
                 updateData["productClicks"] = {}; 
 
-                // ป้องกันและเคลียร์โครงสร้างคีย์ทุกรูปแบบที่เป็นไปได้เพื่อเคลียร์จุดบั๊ก (.) ให้หมดจด
                 productsSnap.forEach(docSnap => {
                     const data = docSnap.data();
                     if (data) {
@@ -245,7 +299,6 @@
                     }
                 });
 
-                // ใช้ setDoc ร่วมกับ { merge: true } เพื่อคุ้มครองกรณีไม่มีเอกสารตั้งต้น
                 await setDoc(docRef, updateData, { merge: true });
 
                 if (typeof incrementLocalQuota === 'function') {
@@ -273,8 +326,13 @@
                 tableHtml += `
                     <tr class="border-b border-gray-900 hover:bg-gray-900/40 transition">
                         <td class="py-3 text-center"><span class="w-6 h-6 inline-flex items-center justify-center rounded-md text-xs ${badgeColor}">${idx + 1}</span></td>
-                        <td class="py-3 text-gray-200 font-medium truncate max-w-[165px]" title="${p.name}">${p.name}</td>
-                        <td class="py-3 text-right text-emerald-400 font-bold text-base">${p.total.toLocaleString()}</td>
+                        <td class="py-3 text-gray-200 font-medium truncate max-w-[150px]" title="${p.name}">${p.name}</td>
+                        <td class="py-3 text-right text-emerald-400 font-bold text-base px-1">${p.total.toLocaleString()}</td>
+                        <td class="py-3 text-center">
+                            <button onclick="window.deleteSingleProductClick('${p.id}', '${p.name.replace(/'/g, "\\'")}')" class="text-gray-500 hover:text-red-400 p-1 rounded transition duration-150" title="ล้างยอดคลิกเฉพาะชิ้นนี้">
+                                ❌
+                            </button>
+                        </td>
                     </tr>
                 `;
             });

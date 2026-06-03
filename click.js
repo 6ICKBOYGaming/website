@@ -1,5 +1,5 @@
-// click.js - เวอร์ชันเสถียรสูงสุด: เพิ่มเงื่อนไขไม่นับยอดคลิกรูปภาพที่เป็น Coming Soon / ลิงก์เสีย
-import { getFirestore, doc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// click.js - เวอร์ชันเสถียรสูงสุด: เพิ่มเงื่อนไข Coming Soon + เคลียร์ยอดคลิกรายชิ้นผ่านระบบ Memory Overwrite (แก้บั๊กยอดค้าง 100%)
+import { getFirestore, doc, updateDoc, increment, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 const app = getApp();
@@ -13,6 +13,9 @@ function getThailandDateKey(dateObj = new Date()) {
     return `${year}-${month}-${day}`;
 }
 
+/**
+ * ฟังก์ชันบันทึกยอดคลิกสินค้า
+ */
 async function trackProductClick(productId, productName) {
     if (!productId) return;
     const todayStr = getThailandDateKey();
@@ -37,6 +40,63 @@ async function trackProductClick(productId, productName) {
     }
 }
 
+/**
+ * 🔥 ฟังก์ชันล้างยอดคลิกแบบ "เฉพาะชิ้น" (เวอร์ชันแก้ไขบั๊กยอดค้างสำเร็จ 100%)
+ * @param {string} productId - รหัสไอดีของสินค้า
+ * @param {string} productName - ชื่อของสินค้า
+ * @param {string} targetDateStr - วันที่ที่เลือกจากหน้า Analytics (YYYY-MM-DD)
+ */
+export async function resetProductClick(productId, productName, targetDateStr) {
+    if (!productId || !targetDateStr) {
+        console.warn("⚠️ ไม่สามารถล้างข้อมูลได้: ข้อมูล productId หรือระบุวันที่ไม่ครบถ้วน");
+        return false;
+    }
+
+    try {
+        const docRef = doc(db, "analytics", targetDateStr);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            console.log("ℹ️ ไม่พบเอกสารข้อมูลของวันที่ระบุ ไม่จำเป็นต้องเคลียร์");
+            return true;
+        }
+
+        // ดึงข้อมูลเดิมทั้งหมดของวันนั้นขึ้นมาจัดการใน Javascript เพื่อล้างข้อมูลที่ค้างคา
+        let currentData = docSnap.data();
+
+        // คลีนข้อมูลรูปแบบที่ 1: เคลียร์คีย์ที่เป็นฟิลด์ตรงๆ ในรูปแบบ `productClicks.ID` หรือ `productClicks.ชื่อ`
+        const directFieldKey1 = `productClicks.${productId}`;
+        const directFieldKey2 = productName ? `productClicks.${productName.trim()}` : null;
+
+        if (currentData[directFieldKey1] !== undefined) currentData[directFieldKey1] = 0;
+        if (directFieldKey2 && currentData[directFieldKey2] !== undefined) currentData[directFieldKey2] = 0;
+
+        // คลีนข้อมูลรูปแบบที่ 2: เจาะลึกเข้าไปใน Map Object ชื่อ `productClicks` (ถ้ามี)
+        if (currentData.productClicks && typeof currentData.productClicks === 'object') {
+            // ล้างโดยอิงรหัสสินค้า (ID)
+            if (currentData.productClicks[productId] !== undefined) {
+                currentData.productClicks[productId] = 0;
+            }
+            // ล้างโดยอิงชื่อสินค้า (Name) เผื่อสคริปต์เก่าเคยบันทึกไว้
+            if (productName && currentData.productClicks[productName.trim()] !== undefined) {
+                currentData.productClicks[productName.trim()] = 0;
+            }
+        }
+
+        // ใช้ setDoc เขียนข้อมูลที่จัดระเบียบและเคลียร์เป็น 0 ใหม่ทับลงไปใน Firestore (ป้องกันการค้างคาของคีย์บั๊ก)
+        await setDoc(docRef, currentData);
+        
+        console.log(`🧹 [Reset Click] เคลียร์ยอดคลิกของ "${productName || productId}" ในวันที่ ${targetDateStr} ให้เป็น 0 สำเร็จแล้ว`);
+        return true;
+    } catch (error) {
+        console.error(`❌ [Reset Click] เกิดข้อผิดพลาดในการล้างข้อมูลยอดคลิก:`, error);
+        return false;
+    }
+}
+
+// ผูกฟังก์ชันนี้ไว้บน window object เพื่อให้หน้า HTML เรียกใช้ข้ามไฟล์สคริปต์ได้สะดวกขึ้น
+window.resetProductClick = resetProductClick;
+
 // ระบบดักจับการคลิกบนหน้าเว็บแบบยืดหยุ่นสูง
 document.addEventListener("click", (event) => {
     // 1. ค้นหากรอบการ์ดสินค้า (รองรับทั้งคลาส .card, .product-card หรือแท็กที่มี data-id ติดอยู่)
@@ -49,7 +109,7 @@ document.addEventListener("click", (event) => {
     const anchorLink = clickedElement.closest("a");
     let isBuyButton = false;
     
-    // ตรวจสอบลิงก์สั่งซื้อ (ดักจับคำว่า shopee, lazada จากคลาส หรือจาก href ปลายทางโดยตรงเพื่อความชัวร์)
+    // ตรวจสอบลิงก์สั่งซื้อ
     if (anchorLink) {
         const hrefStr = anchorLink.getAttribute("href") || "";
         const classStr = anchorLink.className || "";
@@ -64,43 +124,36 @@ document.addEventListener("click", (event) => {
     // ตรวจสอบรูปภาพหรือกล่องครอบรูปภาพสินค้า
     const isProductImage = clickedElement.tagName === "IMG" || clickedElement.closest(".product-img") || clickedElement.closest(".card-img-top") || clickedElement.closest(".image-wrapper");
 
-    // 🔥 [เงื่อนไขเพิ่มเติม] ตรวจสอบว่าเป็นรูปภาพที่เป็น Coming Soon หรือกดเข้าลิงก์ไม่ได้หรือไม่
+    // ตรวจสอบว่าเป็นรูปภาพที่เป็น Coming Soon หรือกดเข้าลิงก์ไม่ได้หรือไม่
     if (isProductImage) {
-        // ดึงรูปภาพเพื่อมาเช็กชื่อไฟล์หรือ Attribute
         const imgEl = clickedElement.tagName === "IMG" ? clickedElement : clickedElement.querySelector("img");
         const imgSrc = imgEl ? (imgEl.getAttribute("src") || "").toLowerCase() : "";
         const imgAlt = imgEl ? (imgEl.getAttribute("alt") || "").toLowerCase() : "";
         
-        // เช็กว่าลิงก์ที่ครอบรูปภาพอยู่ (ถ้ามี) เป็นลิงก์ว่าง/ลิงก์เสีย หรือเข้าไม่ได้หรือไม่
         let isInvalidLink = false;
         if (anchorLink) {
             const hrefStr = anchorLink.getAttribute("href") || "";
-            // ถ้าลิงก์เป็น #, javascript:, ว่างเปล่า หรือไม่มีค่า ให้ถือว่ากดเข้าลิงก์ไม่ได้
             if (hrefStr === "#" || hrefStr.trim() === "" || hrefStr.startsWith("javascript:")) {
                 isInvalidLink = true;
             }
         } else {
-            // ถ้ารูปนั้นไม่ได้ถูกครอบด้วยลิงก์เลย ก็แปลว่ากดแล้วไม่ไปไหน
             isInvalidLink = true;
         }
 
-        // หากชื่อไฟล์รูป, alt text มีคำว่า "coming" หรือ "soon" หรือตัวลิงก์กดเข้าไม่ได้ -> ไม่ต้องนับคลิก
         if (imgSrc.includes("coming") || imgSrc.includes("soon") || imgAlt.includes("coming") || imgAlt.includes("soon") || isInvalidLink) {
             console.log("⏭️ [Skip Click] ข้ามการบันทึกเนื่องจากเป็นรูป Coming Soon หรือเป็นลิงก์ที่กดเข้าไม่ได้");
-            return; // เด้งออกจากการทำงานทันที ไม่นับคลิก
+            return; 
         }
     }
 
-    // 3. ถ้าเข้าเงื่อนไข (และผ่านการกรอง Coming Soon แล้ว) ให้ทำกระบวนการดึงไอดีและชื่อสินค้าไปบันทึกลงคลาวด์
+    // 3. กระบวนการดึงไอดีและชื่อสินค้าไปบันทึกลงคลาวด์
     if (isBuyButton || isProductImage) {
-        // ดึงไอดีสินค้า (ค้นหาไล่ระดับจากจุดที่มี data-id เผื่อสคริปต์หน้าแรกแปะไว้คนละชั้น)
         let productId = cardEl.getAttribute("data-id");
         if (!productId) {
             const innerDataEl = cardEl.querySelector("[data-id]");
             if (innerDataEl) productId = innerDataEl.getAttribute("data-id");
         }
         
-        // ดึงชื่อสินค้าแบบเผื่อหลาย Selector
         let productName = "ไม่ระบุชื่อสินค้า";
         const nameHeader = cardEl.querySelector("h4") || cardEl.querySelector("h3") || cardEl.querySelector(".product-name") || cardEl.querySelector(".card-title");
         if (nameHeader) {
@@ -108,7 +161,6 @@ document.addEventListener("click", (event) => {
         }
 
         if (productId) {
-            // สั่งบันทึกยอดคลิกทันที
             trackProductClick(productId, productName);
         } else {
             console.warn("⚠️ ไม่พบรหัสสินค้า (data-id) บนโครงสร้างการ์ดนี้:", cardEl);
