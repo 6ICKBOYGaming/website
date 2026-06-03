@@ -1,4 +1,4 @@
-// click.js - เวอร์ชันเสถียรสูงสุด: ปรับปรุง Selector ดักจับการคลิกให้ยืดหยุ่น ครอบคลุมทุกการ์ดสินค้าและทุกลิงก์
+// click.js - เวอร์ชันเสถียรสูงสุด: เพิ่มเงื่อนไขไม่นับยอดคลิกรูปภาพที่เป็น Coming Soon / ลิงก์เสีย
 import { getFirestore, doc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
@@ -46,10 +46,10 @@ document.addEventListener("click", (event) => {
     const clickedElement = event.target;
     
     // 2. ตรวจสอบเงื่อนไขว่าสิ่งที่คลิกคือ "ปุ่มสั่งซื้อ/ลิงก์ภายนอก" หรือ "รูปภาพสินค้า" หรือไม่
-    // ตรวจสอบลิงก์สั่งซื้อ (ดักจับคำว่า shopee, lazada จากคลาส หรือจาก href ปลายทางโดยตรงเพื่อความชัวร์)
     const anchorLink = clickedElement.closest("a");
     let isBuyButton = false;
     
+    // ตรวจสอบลิงก์สั่งซื้อ (ดักจับคำว่า shopee, lazada จากคลาส หรือจาก href ปลายทางโดยตรงเพื่อความชัวร์)
     if (anchorLink) {
         const hrefStr = anchorLink.getAttribute("href") || "";
         const classStr = anchorLink.className || "";
@@ -64,7 +64,34 @@ document.addEventListener("click", (event) => {
     // ตรวจสอบรูปภาพหรือกล่องครอบรูปภาพสินค้า
     const isProductImage = clickedElement.tagName === "IMG" || clickedElement.closest(".product-img") || clickedElement.closest(".card-img-top") || clickedElement.closest(".image-wrapper");
 
-    // 3. ถ้าเข้าเงื่อนไข ให้ทำกระบวนการดึงไอดีและชื่อสินค้าไปบันทึกลงคลาวด์
+    // 🔥 [เงื่อนไขเพิ่มเติม] ตรวจสอบว่าเป็นรูปภาพที่เป็น Coming Soon หรือกดเข้าลิงก์ไม่ได้หรือไม่
+    if (isProductImage) {
+        // ดึงรูปภาพเพื่อมาเช็กชื่อไฟล์หรือ Attribute
+        const imgEl = clickedElement.tagName === "IMG" ? clickedElement : clickedElement.querySelector("img");
+        const imgSrc = imgEl ? (imgEl.getAttribute("src") || "").toLowerCase() : "";
+        const imgAlt = imgEl ? (imgEl.getAttribute("alt") || "").toLowerCase() : "";
+        
+        // เช็กว่าลิงก์ที่ครอบรูปภาพอยู่ (ถ้ามี) เป็นลิงก์ว่าง/ลิงก์เสีย หรือเข้าไม่ได้หรือไม่
+        let isInvalidLink = false;
+        if (anchorLink) {
+            const hrefStr = anchorLink.getAttribute("href") || "";
+            // ถ้าลิงก์เป็น #, javascript:, ว่างเปล่า หรือไม่มีค่า ให้ถือว่ากดเข้าลิงก์ไม่ได้
+            if (hrefStr === "#" || hrefStr.trim() === "" || hrefStr.startsWith("javascript:")) {
+                isInvalidLink = true;
+            }
+        } else {
+            // ถ้ารูปนั้นไม่ได้ถูกครอบด้วยลิงก์เลย ก็แปลว่ากดแล้วไม่ไปไหน
+            isInvalidLink = true;
+        }
+
+        // หากชื่อไฟล์รูป, alt text มีคำว่า "coming" หรือ "soon" หรือตัวลิงก์กดเข้าไม่ได้ -> ไม่ต้องนับคลิก
+        if (imgSrc.includes("coming") || imgSrc.includes("soon") || imgAlt.includes("coming") || imgAlt.includes("soon") || isInvalidLink) {
+            console.log("⏭️ [Skip Click] ข้ามการบันทึกเนื่องจากเป็นรูป Coming Soon หรือเป็นลิงก์ที่กดเข้าไม่ได้");
+            return; // เด้งออกจากการทำงานทันที ไม่นับคลิก
+        }
+    }
+
+    // 3. ถ้าเข้าเงื่อนไข (และผ่านการกรอง Coming Soon แล้ว) ให้ทำกระบวนการดึงไอดีและชื่อสินค้าไปบันทึกลงคลาวด์
     if (isBuyButton || isProductImage) {
         // ดึงไอดีสินค้า (ค้นหาไล่ระดับจากจุดที่มี data-id เผื่อสคริปต์หน้าแรกแปะไว้คนละชั้น)
         let productId = cardEl.getAttribute("data-id");
