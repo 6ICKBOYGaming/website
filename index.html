@@ -139,10 +139,87 @@
             to { transform: rotate(360deg); }
         }
     </style>
-    
 </head>
 <body>
     
+<div id="promoPopupModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background-color: rgba(0, 0, 0, 0.82); z-index: 999999; display: none; justify-content: center; align-items: center; padding: 40px 20px; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);">
+    
+    <style>
+        /* กล่องคุมพื้นที่หลัก: ล็อกความสูงสูงสุดให้สัมพันธ์กับตัวรูปภาพ */
+        .shopee-popup-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: auto;
+            max-width: 920px;
+            height: auto;
+            max-height: 75vh;
+        }
+        .shopee-popup-container {
+            position: relative; 
+            width: auto;
+            height: auto;
+            max-height: 75vh;
+            background-color: transparent; 
+            border: none; 
+            box-shadow: none;
+        }
+        /* 🎯 ปุ่มกากบาทเวอร์ชันใหม่: ลอยเด่นตรงกลางด้านบนรูปภาพ ไม่บังเนื้อหาซ้ายขวา และกดง่ายมาก */
+        .shopee-popup-close-btn {
+            position: absolute; 
+            top: -55px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            background-color: rgba(11, 11, 12, 0.85); 
+            border: 2px solid rgba(255, 255, 255, 0.8); 
+            color: #ffffff; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 10; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4); 
+            transition: all 0.2s ease;
+        }
+        
+        /* 📱 ปรับแต่งขนาดในจอมือถือเล็กๆ ให้กระชับ ไม่หลุดขอบบนล่าง */
+        @media (max-width: 576px) {
+            .shopee-popup-wrapper {
+                max-height: 70vh;
+            }
+            .shopee-popup-container {
+                max-height: 70vh;
+            }
+            .shopee-popup-close-btn {
+                top: -50px;
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+        }
+    </style>
+
+    <div class="shopee-popup-wrapper">
+        <div class="shopee-popup-container">
+            
+            <button id="closePromoPopupBtn" type="button" class="shopee-popup-close-btn" onmouseover="this.style.backgroundColor='var(--admin-yellow, #f59e0b)'; this.style.color='#0b0b0c'; this.style.borderColor='#f59e0b';" onmouseout="this.style.backgroundColor='rgba(11, 11, 12, 0.85)'; this.style.color='#ffffff'; this.style.borderColor='rgba(255, 255, 255, 0.8)';">
+                ✕
+            </button>
+
+            <a id="promoPopupLink" target="_blank" style="display: block; width: 100%; height: auto; text-decoration: none;">
+                <img id="promoPopupImg" src="" alt="Promotion Popup" style="display: block; width: auto; max-width: 100%; height: auto; max-height: 75vh; object-fit: contain; margin: 0 auto; border-radius: 12px; filter: drop-shadow(0 15px 35px rgba(0,0,0,0.6));">
+            </a>
+
+        </div>
+    </div>
+</div>
 <div id="loading-screen">
     <div class="spinner-container">
         <div class="loading-spinner"></div>
@@ -158,14 +235,14 @@
             <h1 style="margin: 0;"> 6ICK BOY</h1>
         </div>
         <div class="top-buttons">
-            <button id="goToFlashSaleAdminBtn" style="display: none; margin-right: 8px; background: #ef4444; color: #ffffff; font-weight: bold; border: 1px solid #ffffff; border-radius: 4px; padding: 4px 10px; cursor: pointer;">
-            ⚙️ ตั้งค่า Flash Sale & ระบบเสริม
-            </button>
+            <button id="goToFlashSaleAdminBtn" style="display: none; margin-right: 8px;"> ⚙️ ตั้งค่า Flash Sale & ระบบเสริม</button>
+            <button id="goToPopupAdminBtn" style="display: none; margin-right: 8px;">📢 ตั้งค่าระบบ Popup</button>
             <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
             <button id="loginBtn" class="btn-admin-yellow">🔒 ผู้ดูแล</button>
             <button id="logoutBtn" style="display: none;">Logout</button>
         </div>
     </div>
+    
 
     <input id="search" placeholder="ค้นหาสินค้า...">
 </header>
@@ -473,5 +550,15 @@
     });
   }
 </script>
+<div id="promoPopupModal" class="fixed inset-0 z-[100000] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="relative w-full max-w-[400px] bg-transparent animate-fade-in">
+        <button id="closePromoPopupBtn" class="absolute -top-10 right-0 md:-right-10 bg-white/10 hover:bg-white/20 text-white w-8 h-8 rounded-full flex items-center justify-center text-xl font-bold transition focus:outline-none" title="ปิดหน้านี้">
+            ✕
+        </button>
+        <a id="promoPopupLink" href="#" target="_blank" class="block w-full aspect-square bg-[#121214] border border-[#222226] rounded-2xl overflow-hidden shadow-2xl">
+            <img id="promoPopupImg" src="" alt="โปรโมชันพิเศษ" class="w-full h-full object-cover select-none">
+        </a>
+    </div>
+</div>
 </body>
 </html>

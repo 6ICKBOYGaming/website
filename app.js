@@ -179,7 +179,88 @@ if (!document.getElementById("flash-sale-custom-style")) {
   `;
   document.head.appendChild(styleEl);
 }
+// =========================================================================
+// 🚀 ADD-ON SYSTEM: Realtime Dynamic Promotion Popup (1:1 400x400px)
+// =========================================================================
+async function initPromotionPopupSystem(dbInstance) {
+    const CACHE_KEY = "ickboy_popup_cache";
+    const CACHE_TIME_KEY = "ickboy_popup_cache_ts";
+    const ONE_HOUR = 1 * 60 * 60 * 1000;
 
+    let config = null;
+    const now = Date.now();
+    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedTs = localStorage.getItem(CACHE_TIME_KEY);
+
+    if (cachedData && cachedTs && (now - parseInt(cachedTs) < ONE_HOUR)) {
+        config = JSON.parse(cachedData);
+    } else {
+        try {
+            // ใช้คำสั่ง doc และ getDoc ตัวหลักของไฟล์โดยตรง ไม่โหลดซ้ำซ้อน
+            const docRef = doc(dbInstance, "system_settings", "popup_config");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                config = docSnap.data();
+                localStorage.setItem(CACHE_KEY, JSON.stringify(config));
+                localStorage.setItem(CACHE_TIME_KEY, now.toString());
+            }
+        } catch (error) {
+            console.error("🚨 ระบบคิว Popup ขัดข้องแต่หน้าร้านทำงานต่อได้ปกติ:", error);
+            return;
+        }
+    }
+
+    if (config && config.isActive && config.imgUrl) {
+        const modalEl = document.getElementById("promoPopupModal");
+        const imgEl = document.getElementById("promoPopupImg");
+        const linkEl = document.getElementById("promoPopupLink");
+        const closeBtn = document.getElementById("closePromoPopupBtn");
+
+        if (!modalEl || !imgEl || !linkEl || !closeBtn) return;
+        imgEl.src = config.imgUrl;
+        
+        if (config.targetUrl) {
+            linkEl.href = config.targetUrl;
+            linkEl.style.cursor = "pointer";
+        } else {
+            linkEl.removeAttribute("href");
+            linkEl.style.cursor = "default";
+        }
+
+        setTimeout(() => {
+            modalEl.style.setProperty("display", "flex", "important");
+            modalEl.classList.remove("hidden");
+        }, 1500);
+
+        closeBtn.onclick = () => {
+            modalEl.style.setProperty("display", "none", "important");
+            modalEl.classList.add("hidden");
+        };
+
+        modalEl.onclick = (e) => {
+            if (e.target === modalEl) {
+                closeBtn.click();
+            }
+        };
+
+        // 🔥 แก้ไขจุดบอด: เปลี่ยนมาดักจับผ่าน document และสั่งเคลียร์ Event เก่าเพื่อความแม่นยำ
+        if (document._hasPromoEscapeListener) {
+            document.removeEventListener("keyup", document._hasPromoEscapeListener);
+        }
+        
+        document._hasPromoEscapeListener = (e) => {
+            // เช็กทั้ง e.key และ e.keyCode (27 คือปุ่ม ESC) เพื่อรองรับเบราว์เซอร์ทุกเวอร์ชัน
+            if ((e.key === "Escape" || e.key === "Esc" || e.keyCode === 27) && !modalEl.classList.contains("hidden")) {
+                console.log("⌨️ [Hotkey Active] ลูกค้ากดปุ่ม ESC ทำการปิดหน้าต่าง Popup โฆษณาให้ทันที");
+                e.preventDefault(); // ป้องกันไม่ให้ปุ่ม ESC ไปทำงานซ้ำซ้อนกับระบบอื่นของเบราว์เซอร์
+                closeBtn.click();
+            }
+        };
+
+        // สั่งให้เริ่มดักจับปุ่มทันทีบนหน้าเว็บ
+        document.addEventListener("keyup", document._hasPromoEscapeListener);
+    }
+}
 /* ================= 📈 ระบบบันทึกสถิติ PageViews รายชั่วโมงแบบประหยัด ================= */
 async function recordVisitorTraffic() {
   if (isAdmin) return; 
@@ -337,12 +418,22 @@ async function loadMasterData() {
 
     const hotProducts = allProducts.filter(p => p.isHot && (isAdmin || !p.comingSoon)).sort((a, b) => (a.hotOrder ?? 0) - (b.hotOrder ?? 0));
     const newProducts = allProducts.filter(p => p.isNew && (isAdmin || !p.comingSoon)).sort((a, b) => (a.newOrder ?? 0) - (b.newOrder ?? 0));
-
+    
     if (hotEl) hotEl.innerHTML = hotProducts.map(p => card(p)).join("");
     if (newEl) newEl.innerHTML = newProducts.map(p => card(p)).join("");
 
     initAutoSliders();
-    
+    console.log("✅ โหลดข้อมูลสินค้าและหมวดหมู่หลักเสร็จสิ้น"); // แถว ๆ บรรทัดจบเดิมของคุณ
+
+    // 🔥 ฝากปุ่มกดแอดมินและคำสั่งรันระบบไว้ตรงนี้ เพื่อให้มั่นใจว่าสินค้าขึ้นครบก่อนแล้วค่อยทำ Popup
+    const goToPopupAdminBtn = document.getElementById("goToPopupAdminBtn");
+    if (goToPopupAdminBtn && !goToPopupAdminBtn.dataset.listenerAdded) {
+        goToPopupAdminBtn.addEventListener("click", () => { window.location.href = "popup.html"; });
+        goToPopupAdminBtn.dataset.listenerAdded = "true";
+    }
+
+    // เรียกฟังก์ชันป๊อปอัพโดยส่งตัวแปรฐานข้อมูล db หลักของโปรเจกต์เข้าไปตรงๆ
+    initPromotionPopupSystem(db);
     render();
 
     if (!isAdmin) {
@@ -1284,17 +1375,21 @@ onAuthStateChanged(auth, (user) => {
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
   if(adminDragSortPanel) adminDragSortPanel.style.display = dStyle;
 
-  if(goToFlashSaleAdminBtn) {
-    goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
+  // ⚙️ ระบบควบคุมปุ่มกดฝั่งแอดมิน (Flash Sale, สถิติ, และ Popup)
   if(goToFlashSaleAdminBtn) {
     goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
   }
   
-  // 🔥 เพิ่มเข้าไปช่วงนี้เพื่อควบคุมการเปิด/ปิดปุ่มสถิติ
+  // 📊 ควบคุมการเปิด/ปิดปุ่มสถิติระบบ
   const analyticsBtn = document.getElementById("goToAnalyticsBtn");
   if(analyticsBtn) {
     analyticsBtn.style.display = isAdmin ? "inline-flex" : "none";
   }
+
+  // 📢 เพิ่มระบบควบคุมการเปิด/ปิดปุ่มตั้งค่า Popup โปรโมชัน
+  const goToPopupAdminBtn = document.getElementById("goToPopupAdminBtn");
+  if(goToPopupAdminBtn) {
+    goToPopupAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
   }
 
   if(!isAdmin) {
@@ -1310,6 +1405,13 @@ const backToTopBtn = document.getElementById("backToTopBtn");
 if (backToTopBtn) {
   window.addEventListener("scroll", () => { if (window.scrollY > 300) backToTopBtn.classList.add("show"); else backToTopBtn.classList.remove("show"); });
   backToTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+}
+
+const goToPopupAdminBtn = document.getElementById("goToPopupAdminBtn");
+if (goToPopupAdminBtn) {
+    goToPopupAdminBtn.addEventListener("click", () => {
+        window.location.href = "popup.html";
+    });
 }
 
 window.scrollSlide = (elementId, direction) => {
@@ -1554,3 +1656,4 @@ document.addEventListener("click", (event) => {
 });
 
 console.log("🚀 [System Load] ผูกระบบบันทึกคลิกรายวันเข้ากับศูนย์กลาง app.js สำเร็จแล้ว!");
+
