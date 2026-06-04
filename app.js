@@ -245,7 +245,6 @@ window.addEventListener('storePageView', (e) => {
 
 async function checkOnlineUsersCountManual() {
   const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
-  
   if (!realtimeCounterDisplay) return;
 
   try {
@@ -275,12 +274,7 @@ async function checkOnlineUsersCountManual() {
     console.error("Manual Presence Count Error:", err);
   }
 }
-/* ================= 🔍 ระบบค้นหาสินค้า (Search Event) ================= */
-if (searchInput) {
-  searchInput.addEventListener("input", () => {
-    render(); // สั่งให้หน้าเว็บกรองข้อมูลและแสดงผลใหม่ทุกครั้งที่พิมพ์
-  });
-}
+
 /* ================= 📊 ฟังก์ชันกลางสำหรับหา "ราคาสุทธิที่จะใช้คำนวณเรียงลำดับ" ================= */
 function getEffectivePrice(p) {
   const priceNormal = p.price ? Number(p.price) : 0;
@@ -1525,7 +1519,7 @@ document.addEventListener("click", (event) => {
     if (!cardEl) return;
 
     const clickedElement = event.target;
-    const anchorLink = clickedElement.closest("a");
+    const anchorLink = clickedElement.closest("a"); // หาลิงก์ <a> ที่ครอบองค์ประกอบที่ถูกคลิก (ถ้ามี)
     let isBuyButton = false;
     
     if (anchorLink) {
@@ -1536,9 +1530,11 @@ document.addEventListener("click", (event) => {
         }
     }
 
-    const isProductImage = clickedElement.tagName === "IMG" || clickedElement.closest(".product-img") || clickedElement.closest(".card-img-top") || clickedElement.closest(".image-wrapper");
+    // 🛠️ แก้ไขตรงนี้: เช็กว่าเป็นรูปภาพ และ "ต้องอยู่ภายใต้ลิงก์ <a>" เท่านั้น
+    const isImageElement = clickedElement.tagName === "IMG" || clickedElement.closest(".product-img") || clickedElement.closest(".card-img-top") || clickedElement.closest(".image-wrapper");
+    const isProductImage = isImageElement && anchorLink !== null; // ถ้าเป็นรูป แต่ไม่มี <a> ครอบ จะได้ false
 
-    // ถ้ากดโดนรูปภาพ หรือ กดโดนปุ่มสั่งซื้อ
+    // ถ้ากดโดนรูปภาพ (ที่มีลิงก์) หรือ กดโดนปุ่มสั่งซื้อ
     if (isBuyButton || isProductImage) {
         let productId = cardEl.getAttribute("data-id") || cardEl.getAttribute("data-product-id");
         if (!productId) {
