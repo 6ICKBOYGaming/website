@@ -142,7 +142,7 @@ if (themeToggleBtn) {
 
 if (goToFlashSaleAdminBtn) {
     goToFlashSaleAdminBtn.onclick = () => {
-        window.location.href = "./flash-sale-admin.html"; 
+        window.location.href = "./flash-sale-admin.html"; // ตรวจสอบว่ามีจุดสแลช (./) และชื่อไฟล์ตรงกันไหม
     };
 }
 
@@ -1369,27 +1369,19 @@ onAuthStateChanged(auth, (user) => {
   if(logoutBtn) logoutBtn.style.display = isAdmin ? "inline-block" : "none";
   if(adminPanel) adminPanel.style.display = dStyle;
   if(adminCategoryPanel) adminCategoryPanel.style.display = dStyle;
-  
   if(adminConsoleCategoryPanel) adminConsoleCategoryPanel.style.display = dStyle;
-  
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
   if(adminDragSortPanel) adminDragSortPanel.style.display = dStyle;
 
-  // ⚙️ ระบบควบคุมปุ่มกดฝั่งแอดมิน (Flash Sale, สถิติ, และ Popup)
+  // ⚙️ ระบบควบคุมปุ่มกดฝั่งแอดมิน (Flash Sale และ Popup)
   if(goToFlashSaleAdminBtn) {
-    goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
-  }
-  
-  // 📊 ควบคุมการเปิด/ปิดปุ่มสถิติระบบ
-  const analyticsBtn = document.getElementById("goToAnalyticsBtn");
-  if(analyticsBtn) {
-    analyticsBtn.style.display = isAdmin ? "inline-flex" : "none";
+      goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
   }
 
-  // 📢 เพิ่มระบบควบคุมการเปิด/ปิดปุ่มตั้งค่า Popup โปรโมชัน
-  const goToPopupAdminBtn = document.getElementById("goToPopupAdminBtn");
-  if(goToPopupAdminBtn) {
-    goToPopupAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
+  // 📢 ควบคุมการเปิด/ปิดปุ่มตั้งค่า Popup โปรโมชัน
+  const goToPopupBtn = document.getElementById("goToPopupAdminBtn");
+  if(goToPopupBtn) {
+      goToPopupBtn.style.display = isAdmin ? "inline-flex" : "none";
   }
 
   if(!isAdmin) {
@@ -1398,7 +1390,18 @@ onAuthStateChanged(auth, (user) => {
   }
   
   initUserPresenceSystem();
+  
+  // 🔥 สั่งโหลด Master Data และเรนเดอร์ UI บนหน้าจอมือถือให้เสร็จสิ้นก่อน
   loadMasterData();
+
+  // 🎯 ด่านความปลอดภัยสุดท้าย: บังคับสร้างและตรวจสอบปุ่มสถิติหลังจากเรนเดอร์ระบบเสร็จ เพื่อให้ผลการซ่อนมีผลบนมือถือ 100%
+  setTimeout(() => {
+    ensureAdminActionButtonsExist();
+    const analyticsBtn = document.getElementById("goToAnalyticsBtn");
+    if(analyticsBtn) {
+        analyticsBtn.style.display = isAdmin ? "inline-flex" : "none"; 
+    }
+  }, 100); // ดีเลย์สั้น ๆ เพื่อรอให้สคริปต์หน้าจอมือถือจัดโครงสร้าง HTML เสร็จก่อน
 });
 
 const backToTopBtn = document.getElementById("backToTopBtn");
@@ -1505,49 +1508,73 @@ function observeLazyImages() {
 // เริ่มต้นระบบนับถอยหลังราคาสินค้าแบบ Global แฟลชเซลล์
 startFlashSaleClockTicker();
 
-/* ================= 🛠️ เพิ่มปุ่มสถิติและปุ่มบันทึกการลากวางสินค้าอัตโนมัติ ================= */
 function ensureAdminActionButtonsExist() {
-  // 1. เพิ่มปุ่ม "ดูสถิติ (Analytics)" ไว้ข้างๆ ปุ่มจัดการแฟลชเซลล์เดิม
+  // 1. ตรวจสอบปุ่ม "ดูสถิติ (Analytics)" และจัดการการซ่อน/แสดง
   const flashSaleAdminBtn = document.getElementById("goToFlashSaleAdminBtn");
-  if (flashSaleAdminBtn && !document.getElementById("goToAnalyticsBtn")) {
-    const analyticsBtn = document.createElement("button");
-    analyticsBtn.id = "goToAnalyticsBtn";
-    analyticsBtn.className = "btn edit"; // ใช้คลาสเดียวกับปุ่มแก้ไขเพื่อความสวยงาม
-    analyticsBtn.style.display = isAdmin ? "inline-flex" : "none";
-    analyticsBtn.style.alignItems = "center";
-    analyticsBtn.style.gap = "6px";
-    analyticsBtn.style.marginLeft = "10px";
-    analyticsBtn.innerHTML = `📊 ดูสถิติระบบ`;
-    analyticsBtn.onclick = () => { window.location.href = "./analytics.html"; };
-    flashSaleAdminBtn.insertAdjacentElement("afterend", analyticsBtn);
+  let analyticsBtn = document.getElementById("goToAnalyticsBtn");
+
+  if (flashSaleAdminBtn) {
+    if (!analyticsBtn) {
+      analyticsBtn = document.createElement("button");
+      analyticsBtn.id = "goToAnalyticsBtn";
+      analyticsBtn.className = "btn edit"; // ใช้คลาสเดียวกับปุ่มแก้ไขเพื่อความสวยงาม
+      analyticsBtn.style.alignItems = "center";
+      analyticsBtn.style.gap = "6px";
+      analyticsBtn.style.marginLeft = "10px";
+      analyticsBtn.innerHTML = `📊 ดูสถิติระบบ`;
+      
+      // บังคับคำสั่งเปลี่ยนหน้าเว็บไปที่ analytics.html เมื่อแอดมินคลิก
+      analyticsBtn.onclick = (e) => { 
+        e.preventDefault();
+        window.location.href = "analytics.html"; 
+      };
+      
+      flashSaleAdminBtn.insertAdjacentElement("afterend", analyticsBtn);
+    }
+    
+    // 🎯 ด่านความปลอดภัยสูงสุด: ถ้าไม่สิทธิ์แอดมิน ให้ลบหรือซ่อนทิ้งทันทีทุกครั้งที่เรนเดอร์หน้าจอมือถือ
+    if (!isAdmin) {
+      analyticsBtn.style.setProperty("display", "none", "important");
+    } else {
+      analyticsBtn.style.display = "inline-flex";
+    }
   }
 
-  // 2. เพิ่มปุ่ม "ยืนยันการจัดลำดับสินค้า" ลงในโซน DragNotice แจ้งเตือนการลาก
+  // 2. ตรวจสอบปุ่ม "ยืนยันการจัดลำดับสินค้า" ในโซน DragNotice แจ้งเตือนการลากสินค้า
   const dragNoticeContainer = document.getElementById("dragNotice");
-  if (dragNoticeContainer && !document.getElementById("saveOrderDirectBtn")) {
-    // ปรับสไตล์ตัวแจ้งเตือนให้รองรับปุ่ม
-    dragNoticeContainer.style.display = currentSortMode === "tierlist" && isAdmin ? "flex" : "none";
-    dragNoticeContainer.style.justifyContent = "between";
-    dragNoticeContainer.style.alignItems = "center";
-    dragNoticeContainer.style.gap = "15px";
-    dragNoticeContainer.style.padding = "10px 15px";
+  if (dragNoticeContainer) {
+    let saveOrderBtn = document.getElementById("saveOrderDirectBtn");
     
-    const saveOrderBtn = document.createElement("button");
-    saveOrderBtn.id = "saveOrderDirectBtn";
-    saveOrderBtn.className = "btn edit";
-    saveOrderBtn.style.padding = "6px 15px";
-    saveOrderBtn.style.fontSize = "13px";
-    saveOrderBtn.style.background = "#22c55e"; // สีเขียวเซฟ
-    saveOrderBtn.style.border = "none";
-    saveOrderBtn.style.cursor = "pointer";
-    saveOrderBtn.innerText = "💾 ยืนยันบันทึกลำดับสินค้า";
-    saveOrderBtn.onclick = (e) => {
-      e.preventDefault();
-      if(typeof window.saveAllProductsOrderManually === "function") {
-        window.saveAllProductsOrderManually();
-      }
-    };
-    dragNoticeContainer.appendChild(saveOrderBtn);
+    if (!saveOrderBtn) {
+      dragNoticeContainer.style.justifyContent = "between";
+      dragNoticeContainer.style.alignItems = "center";
+      dragNoticeContainer.style.gap = "15px";
+      dragNoticeContainer.style.padding = "10px 15px";
+      
+      saveOrderBtn = document.createElement("button");
+      saveOrderBtn.id = "saveOrderDirectBtn";
+      saveOrderBtn.className = "btn edit";
+      saveOrderBtn.style.padding = "6px 15px";
+      saveOrderBtn.style.fontSize = "13px";
+      saveOrderBtn.style.background = "#22c55e"; // สีเขียวปุ่มเซฟ
+      saveOrderBtn.style.border = "none";
+      saveOrderBtn.style.cursor = "pointer";
+      saveOrderBtn.innerText = "💾 ยืนยันบันทึกลำดับสินค้า";
+      saveOrderBtn.onclick = (e) => {
+        e.preventDefault();
+        if(typeof window.saveAllProductsOrderManually === "function") {
+          window.saveAllProductsOrderManually();
+        }
+      };
+      dragNoticeContainer.appendChild(saveOrderBtn);
+    }
+    
+    // 🎯 ควบคุมการซ่อนแถบแจ้งเตือนจัดอันดับสำหรับ User ทั่วไปบนมือถือ
+    if (!isAdmin) {
+      dragNoticeContainer.style.setProperty("display", "none", "important");
+    } else {
+      dragNoticeContainer.style.display = (currentSortMode === "tierlist") ? "flex" : "none";
+    }
   }
 }
 /* =========================================================================
