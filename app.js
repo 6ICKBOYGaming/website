@@ -318,6 +318,12 @@ async function loadMasterData() {
     dbConsoleCategories = result.consoleCategories || []; 
 
     ensureConsoleCategoryElementsExist();
+    allProducts = result.products || [];
+    dbCategories = result.categories || [];
+    dbConsoleCategories = result.consoleCategories || []; 
+
+    ensureConsoleCategoryElementsExist();
+    ensureAdminActionButtonsExist(); // 🔥 เพิ่มบรรทัดนี้เข้าไปครับ
 
     if (typeof updateCategoryDropdown === "function") {
       updateCategoryDropdown();
@@ -1280,6 +1286,15 @@ onAuthStateChanged(auth, (user) => {
 
   if(goToFlashSaleAdminBtn) {
     goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
+  if(goToFlashSaleAdminBtn) {
+    goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
+  }
+  
+  // 🔥 เพิ่มเข้าไปช่วงนี้เพื่อควบคุมการเปิด/ปิดปุ่มสถิติ
+  const analyticsBtn = document.getElementById("goToAnalyticsBtn");
+  if(analyticsBtn) {
+    analyticsBtn.style.display = isAdmin ? "inline-flex" : "none";
+  }
   }
 
   if(!isAdmin) {
@@ -1387,3 +1402,153 @@ function observeLazyImages() {
 
 // เริ่มต้นระบบนับถอยหลังราคาสินค้าแบบ Global แฟลชเซลล์
 startFlashSaleClockTicker();
+
+/* ================= 🛠️ เพิ่มปุ่มสถิติและปุ่มบันทึกการลากวางสินค้าอัตโนมัติ ================= */
+function ensureAdminActionButtonsExist() {
+  // 1. เพิ่มปุ่ม "ดูสถิติ (Analytics)" ไว้ข้างๆ ปุ่มจัดการแฟลชเซลล์เดิม
+  const flashSaleAdminBtn = document.getElementById("goToFlashSaleAdminBtn");
+  if (flashSaleAdminBtn && !document.getElementById("goToAnalyticsBtn")) {
+    const analyticsBtn = document.createElement("button");
+    analyticsBtn.id = "goToAnalyticsBtn";
+    analyticsBtn.className = "btn edit"; // ใช้คลาสเดียวกับปุ่มแก้ไขเพื่อความสวยงาม
+    analyticsBtn.style.display = isAdmin ? "inline-flex" : "none";
+    analyticsBtn.style.alignItems = "center";
+    analyticsBtn.style.gap = "6px";
+    analyticsBtn.style.marginLeft = "10px";
+    analyticsBtn.innerHTML = `📊 ดูสถิติระบบ`;
+    analyticsBtn.onclick = () => { window.location.href = "./analytics.html"; };
+    flashSaleAdminBtn.insertAdjacentElement("afterend", analyticsBtn);
+  }
+
+  // 2. เพิ่มปุ่ม "ยืนยันการจัดลำดับสินค้า" ลงในโซน DragNotice แจ้งเตือนการลาก
+  const dragNoticeContainer = document.getElementById("dragNotice");
+  if (dragNoticeContainer && !document.getElementById("saveOrderDirectBtn")) {
+    // ปรับสไตล์ตัวแจ้งเตือนให้รองรับปุ่ม
+    dragNoticeContainer.style.display = currentSortMode === "tierlist" && isAdmin ? "flex" : "none";
+    dragNoticeContainer.style.justifyContent = "between";
+    dragNoticeContainer.style.alignItems = "center";
+    dragNoticeContainer.style.gap = "15px";
+    dragNoticeContainer.style.padding = "10px 15px";
+    
+    const saveOrderBtn = document.createElement("button");
+    saveOrderBtn.id = "saveOrderDirectBtn";
+    saveOrderBtn.className = "btn edit";
+    saveOrderBtn.style.padding = "6px 15px";
+    saveOrderBtn.style.fontSize = "13px";
+    saveOrderBtn.style.background = "#22c55e"; // สีเขียวเซฟ
+    saveOrderBtn.style.border = "none";
+    saveOrderBtn.style.cursor = "pointer";
+    saveOrderBtn.innerText = "💾 ยืนยันบันทึกลำดับสินค้า";
+    saveOrderBtn.onclick = (e) => {
+      e.preventDefault();
+      if(typeof window.saveAllProductsOrderManually === "function") {
+        window.saveAllProductsOrderManually();
+      }
+    };
+    dragNoticeContainer.appendChild(saveOrderBtn);
+  }
+}
+/* =========================================================================
+   🎯 [🔥 ย้ายค่ายมาล็อกอินที่นี่] ระบบบันทึกยอดคลิกสินค้าประจำวัน (รวมศูนย์เข้า app.js)
+   ========================================================================= */
+
+// ฟังก์ชันหาคีย์วันที่โซนเวลาไทย (YYYY-MM-DD)
+function getThailandDateKeyForClicks(dateObj = new Date()) {
+    const options = { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' };
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const [{ value: month }, , { value: day }, , { value: year }] = formatter.formatToParts(dateObj);
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * ฟังก์ชันยิงข้อมูลคลิกตรงเข้า Firestore
+ */
+async function trackProductClickCentralized(productId, productName) {
+    if (!productId) return;
+    const todayStr = getThailandDateKeyForClicks();
+    console.log(`📡 [Click Engine] กำลังบันทึกยอดคลิกสินค้าไปยัง Firestore ของวันที่: ${todayStr}`);
+    
+    // 1. อัปเดตยอดรวมตลอดกาลที่ตัวสินค้า
+    try {
+        const productDocRef = doc(db, "products", productId);
+        await updateDoc(productDocRef, { clickCount: increment(1) });
+    } catch (e) {
+        try {
+            const productDocRef = doc(db, "products", productId);
+            await setDoc(productDocRef, { clickCount: 1 }, { merge: true });
+        } catch(err) {
+            console.error("❌ ไม่สามารถอัปเดตยอดคลิกที่คอลเลกชัน products ได้:", err);
+        }
+    }
+
+    // 2. อัปเดตยอดแยกรายวันในคอลเลกชัน analytics (ป้องกันบั๊กขึ้นวันใหม่โครงสร้างพัง)
+    try {
+        const analyticsDocRef = doc(db, "analytics", todayStr);
+        const docSnap = await getDoc(analyticsDocRef);
+        
+        if (docSnap.exists()) {
+            const currentData = docSnap.data();
+            if (currentData.productClicks && typeof currentData.productClicks === 'object') {
+                // โครงสร้างปกติ -> อัปเดตเพิ่มค่าปกติ
+                await updateDoc(analyticsDocRef, {
+                    [`productClicks.${productId}`]: increment(1)
+                });
+            } else {
+                // บั๊กโครงสร้างเพี้ยน -> บังคับจัด Map ใหม่ใน Memory แล้วส่งทับ
+                let productClicksMap = typeof currentData.productClicks === 'object' ? currentData.productClicks : {};
+                productClicksMap[productId] = (productClicksMap[productId] || 0) + 1;
+                await setDoc(analyticsDocRef, { date: todayStr, productClicks: productClicksMap }, { merge: true });
+            }
+        } else {
+            // วันใหม่เอี่ยม -> สร้างเอกสารพร้อม Map เริ่มต้นทันที
+            await setDoc(analyticsDocRef, {
+                date: todayStr,
+                productClicks: { [productId]: 1 }
+            }, { merge: true });
+        }
+        console.log(`🎉 [Click Saved] บันทึกสถิติมูลสำเร็จ! วันที่ ${todayStr} -> สินค้า: ${productName}`);
+    } catch (error) {
+        console.error("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูลลงคอลเลกชัน analytics:", error);
+    }
+}
+
+// ระบบดักจับเหตุการณ์คลิกแบบ Global บนหน้าเว็บ
+document.addEventListener("click", (event) => {
+    // ดักจับหาการ์ดสินค้า
+    const cardEl = event.target.closest("[data-id]") || event.target.closest(".card") || event.target.closest(".product-card") || event.target.closest(".admin-draggable") || event.target.closest("[data-product-id]");
+    if (!cardEl) return;
+
+    const clickedElement = event.target;
+    const anchorLink = clickedElement.closest("a");
+    let isBuyButton = false;
+    
+    if (anchorLink) {
+        const hrefStr = anchorLink.getAttribute("href") || "";
+        const classStr = anchorLink.className || "";
+        if (hrefStr.includes("shopee") || hrefStr.includes("lazada") || classStr.includes("shopee") || classStr.includes("lazada") || classStr.includes("btn") || classStr.includes("buy")) {
+            isBuyButton = true;
+        }
+    }
+
+    const isProductImage = clickedElement.tagName === "IMG" || clickedElement.closest(".product-img") || clickedElement.closest(".card-img-top") || clickedElement.closest(".image-wrapper");
+
+    // ถ้ากดโดนรูปภาพ หรือ กดโดนปุ่มสั่งซื้อ
+    if (isBuyButton || isProductImage) {
+        let productId = cardEl.getAttribute("data-id") || cardEl.getAttribute("data-product-id");
+        if (!productId) {
+            const innerDataEl = cardEl.querySelector("[data-id]") || cardEl.querySelector("[data-product-id]");
+            if (innerDataEl) productId = innerDataEl.getAttribute("data-id") || innerDataEl.getAttribute("data-product-id");
+        }
+        
+        let productName = "ไม่ระบุชื่อสินค้า";
+        const nameHeader = cardEl.querySelector("h4") || cardEl.querySelector("h3") || cardEl.querySelector(".product-name") || cardEl.querySelector(".card-title");
+        if (nameHeader) productName = nameHeader.innerText.trim();
+
+        if (productId) {
+            console.log(`🎯 [Global Click Detected] คลิกที่สินค้า: "${productName}" (ID: ${productId})`);
+            trackProductClickCentralized(productId, productName);
+        }
+    }
+});
+
+console.log("🚀 [System Load] ผูกระบบบันทึกคลิกรายวันเข้ากับศูนย์กลาง app.js สำเร็จแล้ว!");
