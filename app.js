@@ -245,6 +245,7 @@ window.addEventListener('storePageView', (e) => {
 
 async function checkOnlineUsersCountManual() {
   const realtimeCounterDisplay = document.getElementById("realtimeUsersCountDisplay");
+  
   if (!realtimeCounterDisplay) return;
 
   try {
@@ -274,7 +275,12 @@ async function checkOnlineUsersCountManual() {
     console.error("Manual Presence Count Error:", err);
   }
 }
-
+/* ================= 🔍 ระบบค้นหาสินค้า (Search Event) ================= */
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    render(); // สั่งให้หน้าเว็บกรองข้อมูลและแสดงผลใหม่ทุกครั้งที่พิมพ์
+  });
+}
 /* ================= 📊 ฟังก์ชันกลางสำหรับหา "ราคาสุทธิที่จะใช้คำนวณเรียงลำดับ" ================= */
 function getEffectivePrice(p) {
   const priceNormal = p.price ? Number(p.price) : 0;
