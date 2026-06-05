@@ -954,33 +954,33 @@ function renderAdminView() {
   if (dragNoticeEl) {
     dragNoticeEl.style.display = currentSortMode === "tierlist" ? "block" : "none";
   }
-
   let displayed = [...allProducts];
   const now = Date.now();
-
+  
   if (selectedCategory && selectedCategory !== "ทั้งหมด") {
     if (selectedCategory === "⚡ Flash Sale") {
       displayed = allProducts.filter(p => p.flashSalePrice > 0 && (!p.flashSaleEndTime || new Date(p.flashSaleEndTime).getTime() - now > 0));
     } else {
+      // ✨ ปรับปรุงให้ดึงสินค้าออกมาแสดงครบถ้วนทุกชิ้นในหมวดหมู่นั้นๆ (รวมถึง Coming Soon...)
       displayed = allProducts.filter(p => p.category && p.category.toString().trim() === selectedCategory.toString().trim());
     }
   }
-
-  // 💡 แก้ไขตรงนี้: ถ้าเลือกเรียงลำดับแบบ Tierlist ให้คัดกรองสินค้า Coming Soon ออกจากการคำนวณและแสดงผลในโหมดนี้
-  if (currentSortMode === "tierlist") {
-    displayed = displayed.filter(p => !p.comingSoon);
-  }
+  
+  // ✨ มั่นใจว่าลบโค้ดตระกูล displayed = displayed.filter(p => !p.comingSoon); ออกไปแล้ว 
+  // เพื่อไม่ให้ระบบตัดสินค้า Coming Soon ทิ้งในโหมด Tierlist
+  
   displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
+  
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
     displayed = displayed.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
   }
-
+  
   if (allEl) {
+    // ✨ มีการส่งตัวแปร (p, index) เข้าไปในฟังก์ชัน card ครบถ้วน เพื่อให้รันเลขและแสดงผลตรงกัน
     allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
   }
-
+  
   renderSidebarCategories();
   renderAdminCategoryList();
   renderAdminConsoleCategoryList();
