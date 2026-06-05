@@ -1408,15 +1408,36 @@ onAuthStateChanged(auth, (user) => {
   if(adminWidgetPanel) adminWidgetPanel.style.display = dStyle;
   if(adminDragSortPanel) adminDragSortPanel.style.display = dStyle;
 
-  // ⚙️ ระบบควบคุมปุ่มกดฝั่งแอดมิน (Flash Sale และ Popup)
-  if(goToFlashSaleAdminBtn) {
-      goToFlashSaleAdminBtn.style.display = isAdmin ? "inline-flex" : "none";
+  // 🛠️ ควบคุมการเปิด/ปิด กล่องแผงจัดการระบบส่วนเสริมอันใหม่ (แสดงผลแบบ block เฉพาะผู้ดูแลเท่านั้น)
+  const customToolsPanel = document.getElementById("customAdminToolsPanel");
+  if (customToolsPanel) {
+      customToolsPanel.style.display = isAdmin ? "block" : "none";
   }
 
-  // 📢 ควบคุมการเปิด/ปิดปุ่มตั้งค่า Popup โปรโมชัน
-  const goToPopupBtn = document.getElementById("goToPopupAdminBtn");
-  if(goToPopupBtn) {
-      goToPopupBtn.style.display = isAdmin ? "inline-flex" : "none";
+  // ⚙️ ผูกลิงก์การทำงานเมื่อแอดมินคลิกที่ปุ่มต่าง ๆ (และสั่งเช็กความปลอดภัยป้องกันการกดซ้ำ)
+  if (isAdmin) {
+      const flashSaleBtn = document.getElementById("goToFlashSaleAdminBtn");
+      const analyticsBtn = document.getElementById("goToAnalyticsBtn");
+      const popupBtn = document.getElementById("openPromoPopupAdminBtn");
+
+      if (flashSaleBtn) {
+          flashSaleBtn.onclick = (e) => {
+              e.preventDefault();
+              window.location.href = "./flash-sale-admin.html";
+          };
+      }
+      if (analyticsBtn) {
+          analyticsBtn.onclick = (e) => {
+              e.preventDefault();
+              window.location.href = "analytics.html";
+          };
+      }
+      if (popupBtn) {
+          popupBtn.onclick = (e) => {
+              e.preventDefault();
+              window.location.href = "popup.html";
+          };
+      }
   }
 
   if(!isAdmin) {
@@ -1429,14 +1450,17 @@ onAuthStateChanged(auth, (user) => {
   // 🔥 สั่งโหลด Master Data และเรนเดอร์ UI บนหน้าจอมือถือให้เสร็จสิ้นก่อน
   loadMasterData();
 
-  // 🎯 ด่านความปลอดภัยสุดท้าย: บังคับสร้างและตรวจสอบปุ่มสถิติหลังจากเรนเดอร์ระบบเสร็จ เพื่อให้ผลการซ่อนมีผลบนมือถือ 100%
+  // 🎯 ด่านความปลอดภัยสุดท้าย: หน่วงเวลาตรวจสอบหน้าจอเผื่อสำหรับอุปกรณ์พกพา
   setTimeout(() => {
-    ensureAdminActionButtonsExist();
+    // ลบการเรียกใช้ ensureAdminActionButtonsExist() เพื่อไม่ให้สร้างปุ่มซ้ำซ้อนภายนอกแผง
+    const flashSaleBtn = document.getElementById("goToFlashSaleAdminBtn");
     const analyticsBtn = document.getElementById("goToAnalyticsBtn");
-    if(analyticsBtn) {
-        analyticsBtn.style.display = isAdmin ? "inline-flex" : "none"; 
-    }
-  }, 100); // ดีเลย์สั้น ๆ เพื่อรอให้สคริปต์หน้าจอมือถือจัดโครงสร้าง HTML เสร็จก่อน
+    const popupBtn = document.getElementById("openPromoPopupAdminBtn");
+
+    if(flashSaleBtn) flashSaleBtn.style.display = isAdmin ? "inline-block" : "none";
+    if(analyticsBtn) analyticsBtn.style.display = isAdmin ? "inline-block" : "none";
+    if(popupBtn) popupBtn.style.display = isAdmin ? "inline-block" : "none";
+  }, 100); 
 });
 
 const backToTopBtn = document.getElementById("backToTopBtn");

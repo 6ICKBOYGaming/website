@@ -235,8 +235,6 @@
             <h1 style="margin: 0;"> 6ICK BOY</h1>
         </div>
         <div class="top-buttons">
-            <button id="goToFlashSaleAdminBtn" style="display: none; margin-right: 8px;"> ⚙️ ตั้งค่า Flash Sale & ระบบเสริม</button>
-            <button id="goToPopupAdminBtn" style="display: none; margin-right: 8px;">📢 ตั้งค่าระบบ Popup</button>
             <button id="themeToggleBtn" style="margin-right: 8px;">🌓 ธีม</button>
             <button id="loginBtn" class="btn-admin-yellow">🔒 ผู้ดูแล</button>
             <button id="logoutBtn" style="display: none;">Logout</button>
@@ -278,8 +276,18 @@
             <div id="newProducts" class="row"></div>
         </section>
     </aside>
-
+    
     <main>
+        <div id="customAdminToolsPanel" class="admin-panel" style="display: none; margin-bottom: 20px; padding: 20px; background: #1e1e1e; border: 1px solid #333; border-radius: 8px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                ⚙️ แผงจัดการระบบส่วนเสริม
+            </h3>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button id="goToFlashSaleAdminBtn" class="btn-admin-yellow" style="padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold;">⚙️ ตั้งค่า Flash Sale</button>
+                <button id="goToAnalyticsBtn" class="btn-admin-yellow" style="padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold;">📊 ดูสถิติระบบ</button>
+                <button id="openPromoPopupAdminBtn" class="btn-admin-yellow" style="padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold;">📢 ตั้งค่าระบบ Popup</button>
+            </div>
+        </div>
         <section class="admin-panel" id="adminPanel" style="display: none;">
             <h3>📦 แผงจัดการข้อมูลสินค้า</h3>
             

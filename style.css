@@ -1039,8 +1039,15 @@ main h2 {
   html, body {
     width: 100% !important;
     overflow-x: hidden !important;
+    
   }
-
+  @media (max-width: 768px) {
+  .drag-notice-alert, 
+  #drag-notice-alert,
+  [class*="drag-notice"] {
+    display: none !important;
+  }
+}
   /* 📌 ขยับพื้นที่สินค้าลงมาเพิ่ม เพื่อรองรับแผงควบคุมทั้งหมดที่จะค้างอยู่ด้านบนจอ */
   .layout {
     display: flex !important;
@@ -1208,16 +1215,23 @@ main h2 {
     border: 1px solid var(--border-color) !important;
   }
 
-  /* ส่วนแผงควบคุมระบบแอดมิน */
+  /* 🛠️ แก้ไขส่วนแผงควบคุมแอดมิน: บังคับปลดล็อก fixed/sticky ทั้งหมดเพื่อให้อยู่กับที่ เลื่อนตามหน้าเว็บปกติ */
   .admin-panel, 
   #adminPanel, 
   #adminCategoryPanel, 
   #adminWidgetPanel, 
   #adminDragSortPanel {
+    position: relative !important;   /* เปลี่ยนจาก fixed/sticky เป็น relative */
+    top: auto !important;            /* เคลียร์ค่าค้างบน */
+    bottom: auto !important;         /* เคลียร์ค่าค้างล่าง */
+    left: auto !important;
+    right: auto !important;
     width: 100% !important;
     max-width: 100% !important;
     padding: 16px 12px !important;
+    margin-bottom: 16px !important;   /* เพิ่มช่องไฟด้านล่างแผง */
     box-sizing: border-box !important;
+    z-index: 10 !important;          /* คืนค่าชั้นเลเยอร์ให้ต่ำกว่า header หลัก */
   }
   
   .admin-panel input, 
