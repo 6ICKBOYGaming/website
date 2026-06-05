@@ -1684,3 +1684,23 @@ document.addEventListener("click", (event) => {
 
 console.log("🚀 [System Load] ผูกระบบบันทึกคลิกรายวันเข้ากับศูนย์กลาง app.js สำเร็จแล้ว!");
 
+/* =========================================================
+🔄 ระบบดักจับการเรียงลำดับสินค้า (Product Sort Event Listener)
+========================================================= */
+if (sortProductsSelect) {
+  sortProductsSelect.addEventListener("change", (e) => {
+    // 1. อัปเดตโหมดการเรียงลำดับปัจจุบันตามที่ผู้ใช้คลิกเลือก
+    currentSortMode = e.target.value;
+    console.log(`🔄 [Sort System] ผู้ใช้เปลี่ยนโหมดเรียงลำดับเป็น: ${currentSortMode}`);
+    
+    // 2. สั่งประมวลผลคำนวณลำดับสินค้าและสั่งเรนเดอร์หน้าจอใหม่ทันที
+    render();
+  });
+}
+
+// ผูกฟังก์ชันกรองหมวดหมู่เข้ากับหน้าต่างหลัก (Window Global Scope) เพื่อรองรับการสลับแบบไหลลื่น
+window.filterCategory = (categoryName) => {
+  selectedCategory = categoryName;
+  console.log(`📁 [Category System] เลือกหมวดหมู่: ${selectedCategory}`);
+  render();
+};

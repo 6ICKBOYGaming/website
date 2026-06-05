@@ -1033,337 +1033,303 @@ main h2 {
 }
 
 /* =========================================================
-📱 7. MOBILE RESPONSIVE SYSTEM (Fixed 115px Sidebar & Top Content Header)
+📱 7. MOBILE RESPONSIVE SYSTEM (Shopee 2-Column Style)
 ========================================================= */
 @media (max-width: 768px) {
-  /* ล็อกหน้าจอหลักไม่ให้เกิดการโยกเยกขยับออกด้านข้าง */
   html, body {
     width: 100% !important;
     overflow-x: hidden !important;
-    position: relative !important;
   }
 
-  /* 🌟 1. ย่อส่วนหัว ชื่อเพจ และปรับให้ติดขอบด้านบนพอดี */
-  header { 
+  /* 📌 ขยับพื้นที่สินค้าลงมาเพิ่ม เพื่อรองรับแผงควบคุมทั้งหมดที่จะค้างอยู่ด้านบนจอ */
+  .layout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    padding: 12px 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding-top: 235px !important; /* 🔥 ปรับเพิ่มระยะให้สมดุลกับแผงควบคุมด้านบนที่ขยายระยะห่างขึ้น */
+  }
+
+  /* 📌 [ชั้นที่ 1] แถบหัวบนสุด (LOGO 6ICK BOY + ช่องค้นหา) */
+  header {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
+    right: 0 !important;
     width: 100% !important;
-    height: 78px !important; 
-    z-index: 99999 !important;
-    background: var(--bg-box, #121214) !important;
-    border-bottom: 1px solid var(--border-color) !important;
+    z-index: 100000 !important;
+    background: var(--bg-main) !important;
+    padding: 12px 16px 6px 16px !important;
     box-sizing: border-box !important;
-    padding: 6px 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
   }
 
-  .top-bar {
+  header .top-bar {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
-  }
-
-  .top-bar h1 {
-    font-size: 15px !important; 
-    font-weight: bold !important;
-    letter-spacing: -0.3px !important;
-  }
-  .web-logo {
-    width: 24px !important;
-    height: 24px !important;
-  }
-  .top-buttons button {
-    padding: 4px 10px !important;
-    font-size: 10px !important;
-  }
-
-  #search {
     width: 100% !important;
-    padding: 6px 12px !important;
-    margin-top: 5px !important;
+  }
+
+  header .logo-wrapper .web-logo {
+    width: 28px !important;
     height: 28px !important;
-    font-size: 11px !important;
-    border-radius: 6px !important;
   }
 
-  /* 🌟 2. โครงสร้างคอนเทนเนอร์หลักขยับหลบ Header ด้านบน */
-  .layout {
-    display: block !important; 
-    margin-top: 78px !important; 
+  header .logo-wrapper h1 {
+    font-size: 18px !important;
+    font-weight: bold !important;
+    display: block !important;
+  }
+
+  header #search {
     width: 100% !important;
-    position: relative !important;
+    margin: 4px 0 0 0 !important;
     box-sizing: border-box !important;
   }
 
-  /* 🌟 3. ล็อกขนาดความกว้างเมนูซ้ายไว้ที่ 115px ร่นระยะลงมาไม่ติดกล่องค้นหา */
+  /* 📌 [ชั้นที่ 2] แถบหมวดหมู่สินค้าสไลด์ได้ (เพิ่มช่องไฟไม่ให้ติดกับช่องค้นหา) */
   .sidebar {
-    position: fixed !important;
-    top: 96px !important; 
-    left: 0 !important;
-    width: 115px !important; 
-    height: calc(100vh - 96px) !important; 
-    background: var(--bg-card, #161619) !important;
-    border-right: 1px solid var(--border-color) !important;
-    z-index: 99990 !important;
-    
-    /* ระบบเลื่อนสกรอลล์สัมผัสแนวตั้งอิสระ */
-    overflow-y: auto !important; 
-    overflow-x: hidden !important;
-    display: block !important; 
-    -webkit-overflow-scrolling: touch !important; 
-    touch-action: pan-y !important;
-    pointer-events: auto !important;
-    
-    padding: 8px 6px 90px 6px !important; 
-    margin: 0 !important;
-    box-sizing: border-box !important;
-  }
-
-  /* ซ่อนแถบเลื่อน (Scrollbar) ของฝั่งเมนู */
-  .sidebar::-webkit-scrollbar { display: none !important; width: 0px !important; }
-  .sidebar-box.hot-box, .sidebar-box.new-box, .sidebar-right { display: none !important; }
-  .sidebar-box:first-of-type { background: transparent !important; border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; width: 100% !important; }
-  .sidebar-box:first-of-type h3 { display: none !important; }
-
-  /* กล่องบรรจุกลุ่มปุ่มหมวดหมู่ภายใน */
-  #categories {
     display: flex !important;
     flex-direction: column !important;
-    gap: 6px !important;
+    gap: 0 !important;
     width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
+    
+    position: fixed !important;
+    top: 98px !important; /* 🔥 ปรับขยับลงมาเพิ่มเพื่อหนีช่องค้นหาด้านบน */
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 99999 !important;
+    
+    background: var(--bg-main) !important;
+    padding: 10px 16px 6px 16px !important; /* 🔥 เพิ่มความห่างด้านบน (Padding-top: 10px) ให้มีช่องไฟสวยงาม */
+    box-sizing: border-box !important;
+  }
+  
+  .sidebar-box.hot-box,
+  .sidebar-box.new-box,
+  .sidebar-right {
+    display: none !important;
   }
 
-  /* ดีไซน์รูปทรงปุ่มวงรีหมวดหมู่สินค้า */
+  .sidebar-box:first-of-type {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-bottom: 0px !important;
+  }
+
+  .sidebar-box:first-of-type h3 {
+    display: none !important;
+  }
+
+  #categories {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    padding: 4px 0 !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #categories::-webkit-scrollbar {
+    display: none !important;
+  }
+
   .category {
-    flex: 0 0 auto !important; 
-    width: 100% !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
+    flex: 0 0 auto !important;
+    padding: 7px 14px !important;
     margin: 0 !important;
     background: var(--input-bg) !important;
     border: 1px solid var(--border-color) !important;
-    border-radius: 20px !important; 
-    font-size: 10px !important; 
-    line-height: 1.2 !important;
-    text-align: center !important;
-    box-sizing: border-box !important;
-    white-space: normal !important;
-    word-break: normal !important; 
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    border-radius: 20px !important;
+    font-size: 13px !important;
+    transform: none !important;
+    white-space: nowrap !important;
   }
+
+  .category:hover {
+    transform: none !important;
+  }
+
   .category.active {
     background: var(--text-main) !important;
     color: var(--bg-main) !important;
     border-color: var(--text-main) !important;
-    font-weight: bold !important;
   }
 
-  /* ปุ่ม "ดูเพิ่ม/ย่อซ่อน" ดีไซน์โค้งมนเข้าเซ็ต */
-  .toggle-category-btn {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px dashed var(--border-focus) !important;
-    color: var(--text-muted) !important;
-    font-weight: 600 !important;
-    margin-top: 4px !important;
-    width: 100% !important;
-    min-height: 28px !important;
-    border-radius: 20px !important;
-    font-size: 9px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
-  }
-
-  /* 🌟 4. [แก้ไขจบงานเด็ดขาด] บังคับทั้งหัวข้อสินค้า และ ตัวเลือกเรียงลำดับ วิ่งไปตบชิดซ้ายขอบเมนูเท่ากันทั้งหมด */
+  /* 📌 [ชั้นที่ 3] ข้อความ "หมวดหมู่สินค้า" และ "เรียงลำดับสินค้า" (ขยับระยะห่างเพิ่ม) */
   .category-header-wrapper {
-    /* ย้ายก้อนแม่ทั้งหมดมาตั้งหลักชิดซ้าย หลบความกว้าง Sidebar เมนูออกมา 120px พอดีเป๊ะ */
-    margin: 12px 10px 8px 120px !important; 
-    padding: 0 !important;
-    width: calc(100% - 130px) !important; 
-    display: flex !important;
-    flex-direction: column !important; 
-    align-items: flex-start !important; /* 🔥 สั่งให้ลูกทุกตัววิ่งมาชิดซ้ายสุดของกรอบ */
-    justify-content: flex-start !important;
-    gap: 8px !important; 
+    position: fixed !important;
+    top: 154px !important; /* 🔥 ปรับขยับลงมาตามแถบเมนูด้านบน */
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 99998 !important;
+    background: var(--bg-main) !important;
+    padding: 12px 16px 12px 16px !important; /* 🔥 เพิ่มช่องไฟ (Padding ยน-ล่าง) ให้แถบนี้ดูโปร่งและเด่นชัดขึ้น */
     box-sizing: border-box !important;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35) !important; 
   }
 
   .category-header-row {
-    /* จัดสไตล์กล่องภายในให้เรียงแนวดิ่งชิดซ้ายตามกล่องแม่ */
     display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    justify-content: flex-start !important;
+    justify-content: space-between !important;
+    align-items: center !important;
     width: 100% !important;
-    gap: 8px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
   }
 
-  /* ข้อความหัวข้อ "หมวดหมู่สินค้า: ทั้งหมด" ชิดซ้ายสุดระนาบเดียวกัน */
-  #categoryTitle, 
   .category-header-row h2 {
     font-size: 14px !important;
-    color: var(--text-main, #f5f5f7) !important;
-    font-weight: bold !important;
     margin: 0 !important;
-    padding: 0 !important;
-    text-align: left !important; /* 🔥 บังคับข้อความชิดซ้ายสุด */
-    display: block !important;
-    width: 100% !important;
   }
 
-  /* แถวกล่องควบคุม "เรียงลำดับสินค้า:" */
   .sort-wrapper {
-    /* บังคับเรียงแนวนอนหน้ากระดาน วิ่งไปตั้งหลักชิดซ้ายสุดติดขอบ Sidebar */
     display: flex !important;
-    flex-direction: row !important; 
     align-items: center !important;
-    justify-content: flex-start !important; /* 🔥 ตบชิดซ้ายสุดแถวร่วมเดียวกับหัวข้อ */
-    width: 100% !important;
-    gap: 6px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
+    gap: 4px !important;
   }
 
-  /* ตัวหนังสือข้อความฉลาก "เรียงลำดับสินค้า:" */
-  .sort-wrapper label,
-  .category-header-row label {
+  .sort-wrapper label {
     font-size: 11px !important;
-    color: var(--text-muted, #86868b) !important;
-    white-space: nowrap !important; /* ล็อกไว้ไม่ให้หักคำซ้อนบรรทัดกัน */
-    display: inline-block !important;
+    white-space: nowrap !important;
+  }
+
+  #sortProductsSelect {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+  }
+
+  /* ส่วนแผงควบคุมระบบแอดมิน */
+  .admin-panel, 
+  #adminPanel, 
+  #adminCategoryPanel, 
+  #adminWidgetPanel, 
+  #adminDragSortPanel {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 16px 12px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .admin-panel input, 
+  .admin-panel textarea, 
+  .admin-panel select {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ตารางรายการแสดงสินค้า 2 คอลัมน์ */
+  #products, 
+  .grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* --- การ์ดสินค้า --- */
+  .card {
+    border-radius: var(--radius-md) !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important; 
+    padding: 0 !important; 
+  }
+
+  .product-badge {
+    top: 6px !important;
+    left: 6px !important;
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .tier-tag {
+    top: 6px !important;
+    right: 6px !important;
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 12px !important;
+  }
+
+  /* --- สัดส่วนรูปภาพสินค้า 1:1 จัตุรัสออโต้ --- */
+  .layout #products .card .card-img-link,
+  .layout .grid .card .card-img-link,
+  .card .card-img-link {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important; 
+    aspect-ratio: 1 / 1 !important; 
     margin: 0 !important;
     padding: 0 !important;
-    text-align: left !important;
-  }
-
-  /* กล่อง Dropdown เมนูกดเลือกการจัดเรียงสินค้า */
-  #sort-select, 
-  #sortProductsSelect,
-  select[id*="sort"], 
-  select[class*="sort"],
-  .sort-box,
-  .category-header-row select {
-    font-size: 10px !important;
-    height: 24px !important;
-    padding: 0 20px 0 6px !important; /* เว้นระยะขวาหลบตัวลูกศรสามเหลี่ยม */
-    line-height: 1 !important;
-    background-color: var(--input-bg, #1c1c1f) !important;
-    border: 1px solid var(--border-color, #222226) !important;
-    border-radius: 5px !important;
-    color: var(--text-main) !important;
-    
-    /* ต่อเนื่องชิดซ้ายแนวแถวหน้ากระดานอย่างเป็นระเบียบ */
-    display: inline-block !important;
-    margin: 0 !important;
-    width: auto !important;
-    min-width: 115px !important; /* ขนาดเซ็ตปลอดภัยของข้อความภายใน */
-    max-width: 160px !important; /* ป้องกันไม่ให้แผงกว้างเกินตัวขอบขวา */
-    
-    white-space: nowrap !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important; /* ถ้ายาวเกินกรอบจะย่อเป็นจุด ... แทน */
   }
 
-  /* 🌟 5. [จัดระเบียบตารางสินค้า] วางสัดส่วนแผงสินค้าให้พอดีจอ และขนานเท่าแนวหัวข้อด้านบน */
-  #products, .grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important; 
-    gap: 4px !important; 
-    width: calc(100% - 115px) !important; 
-    margin-left: 115px !important; 
-    padding: 2px 4px 5px 4px !important; 
-    box-sizing: border-box !important;
-  }
-
-  /* แผงควบคุมระบบแอดมินเยื้องขวาให้เข้าแนวเซ็ตเดียวกัน */
-  .admin-panel, #adminPanel, #adminCategoryPanel, #adminWidgetPanel, #adminDragSortPanel {
-    width: calc(100% - 115px) !important; margin-left: 115px !important; padding: 10px 6px !important; box-sizing: border-box !important;
-  }
-
-  /* 🌟 6. การ์ดสินค้ามินิคอมโพเนนต์ (Micro Card Component) */
-  .card {
-    display: flex !important; flex-direction: column !important;
-    height: auto !important; min-height: unset !important; max-height: unset !important;
-    border-radius: 5px !important; margin: 0 !important; padding: 0 !important; width: 100% !important;
-    box-sizing: border-box !important; background: var(--bg-card, #161619) !important;
-    overflow: hidden !important; border: 1px solid var(--border-color) !important;
-  }
-  
-  .card img, .card-img-link {
-    display: block !important; width: 100% !important; height: auto !important;
-    aspect-ratio: 1 / 1 !important; object-fit: cover !important; margin: 0 !important; padding: 0 !important;
-  }
-  
-  .card .info {
-    display: flex !important; flex-direction: column !important;
-    padding: 4px 4px 5px 4px !important; gap: 2px !important; background: transparent !important; flex-grow: 1 !important;
-  }
-  
-  .card h4 {
-    font-size: 9px !important; line-height: 1.2 !important; height: 22px !important; 
-    margin: 0 !important; padding: 0 !important; display: -webkit-box !important;
-    -webkit-line-clamp: 2 !important; line-clamp: 2 !important; -webkit-box-orient: vertical !important;
-    overflow: hidden !important; color: var(--text-main, #f5f5f7) !important;
-  }
-  
-  .card p { display: none !important; }
-  
-  .card-flash-sale-box { padding: 1px 2px !important; margin: 0 !important; gap: 1px !important; width: fit-content !important; }
-  .flash-sale-badge-text { font-size: 7.5px !important; }
-  .flash-sale-countdown-clock { font-size: 7.5px !important; padding: 0px 1px !important; }
-
-  .price-container { margin: 1px 0 !important; padding: 0 !important; gap: 3px !important; align-items: baseline !important; display: flex !important; line-height: 1 !important; }
-  .price { font-size: 9.5px !important; font-weight: bold !important; }
-  .old-price-slashed { font-size: 7.5px !important; }
-
-  .btns { display: flex !important; gap: 2px !important; margin-top: auto !important; padding: 0 !important; width: 100% !important; }
-  .btn {
-    flex: 1 !important; padding: 3px 1px !important; font-size: 8px !important; line-height: 1.1 !important;
-    border-radius: 3px !important; min-height: unset !important; height: 18px !important;
-    display: flex !important; align-items: center !important; justify-content: center !important;
-  }
-  
-  .product-badge { top: 2px !important; left: 2px !important; padding: 1px 3px !important; font-size: 7.5px !important; }
-  .tier-tag { top: 2px !important; right: 2px !important; width: 16px !important; height: 16px !important; font-size: 8px !important; }
-
-  /* 🌟 7. จัดเยื้องข้อความ Copyright ท้ายเว็บ */
-  footer, 
-  .footer, 
-  [style*="text-align: center"],
-  p:has(span),
-  body > p:last-child {
-    font-size: 8px !important; 
-    color: var(--text-muted, #86868b) !important;
-    margin-left: 115px !important; 
-    width: calc(100% - 115px) !important; 
-    padding: 15px 5px !important;
-    text-align: center !important;
-    box-sizing: border-box !important;
-    clear: both !important;
+  .layout #products .card .card-img-link img,
+  .layout .grid .card .card-img-link img,
+  .card .card-img-link img,
+  .card img {
     display: block !important;
-  }
-  /* 🎯 บังคับซ่อนปุ่มข้อมูลเชิงลึกไม่ให้โผล่บนหน้าจอมือถือของ User ทั่วไป */
-  @media (max-width: 768px) {
-    #goToAnalyticsBtn {
-      display: none !important;
-    }
+    width: 100% !important;
+    height: 100% !important; 
+    aspect-ratio: 1 / 1 !important; 
+    object-fit: cover !important; 
+    object-position: center !important; 
+    margin: 0 !important;
+    padding: 0 !important;
+    border-top-left-radius: var(--radius-md) !important;
+    border-top-right-radius: var(--radius-md) !important;
   }
 
-  /* 👑 ปลดล็อกสิทธิ์: ถ้ามีคลาสหรือสถานะแอดมินล็อกอิน ให้แสดงผลได้ปกติ */
-  @media (max-width: 768px) {
-    body.admin-logged-in #goToAnalyticsBtn,
-    .admin-panel #goToAnalyticsBtn {
-      display: inline-flex !important;
-    }
+  .card .info {
+    padding: 10px !important;
+  }
+
+  .card h4 {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+    height: 34px !important;
+    margin-bottom: 4px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  .card p {
+    display: none !important;
+  }
+
+  .card-flash-sale-box {
+    padding: 4px 6px !important;
+    margin-bottom: 6px !important;
+  }
+  .flash-sale-badge-text { font-size: 10px !important; }
+  .flash-sale-countdown-clock { font-size: 10px !important; padding: 1px 4px !important; }
+
+  .price-container {
+    margin-bottom: 8px !important;
+    gap: 4px !important;
+  }
+  .price { font-size: 15px !important; }
+  .old-price-slashed { font-size: 11px !important; }
+
+  .btns { gap: 6px !important; }
+  .btn {
+    padding: 8px !important;
+    font-size: 12px !important;
+    border-radius: var(--radius-sm) !important;
   }
 }
 
