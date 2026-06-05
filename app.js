@@ -537,9 +537,39 @@ function card(p, index){
   let tierBadgeHtml = "";
   if (p.tier) {
     tierBadgeHtml = `<div class="tier-badge rank-${p.tier}">Tier ${p.tier}</div>`;
-  } else if (currentSortMode === "tierlist" && selectedCategory !== "ทั้งหมด" && selectedCategory !== "⚡ Flash Sale" && index !== undefined && index >= 0 && index < 5) {
-    const displayRank = index + 1;
-    tierBadgeHtml = `<div class="tier-badge rank-${displayRank}">${displayRank}</div>`;
+  } else if (currentSortMode === "tierlist" && selectedCategory !== "ทั้งหมด" && selectedCategory !== "⚡ Flash Sale" && index !== undefined && index >= 0) {
+    
+    // 💡 ค้นหาอันดับที่แท้จริงโดยการคัดสินค้าที่เป็น Coming Soon ที่อยู่ก่อนหน้าตัวนี้ออกไปให้หมด
+    // ดึงเฉพาะสินค้าในหมวดหมู่เดียวกันที่ถูกนำมาเรนเดอร์ในหน้านี้
+    const now = Date.now();
+    let currentFilteredList = [];
+    
+    if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+      currentFilteredList = [...allProducts];
+    } else {
+      currentFilteredList = allProducts.filter(prod => prod.category && prod.category.toString().trim() === selectedCategory.toString().trim());
+    }
+    
+    // เรียงตามลำดับดั้งเดิม (order) เพื่อให้สอดคล้องกับหน้าเว็บ
+    currentFilteredList.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    
+    // คัดกรองเอาเฉพาะสินค้าที่ "ไม่เป็น Coming Soon"
+    const validProducts = currentFilteredList.filter(prod => {
+      const priceNormal = prod.price ? Number(prod.price) : 0;
+      const priceSale = prod.salePrice ? Number(prod.salePrice) : 0;
+      return !(!!prod.comingSoon || (priceNormal === 0 && priceSale === 0));
+    });
+    
+    // ถ้าสินค้าปัจจุบันพร้อมขาย (ไม่เป็น Coming Soon) ให้หาลำดับ Rank แท้จริงในกลุ่มสินค้าปกติ
+    if (!isProductComingSoon) {
+      const actualRankIndex = validProducts.findIndex(prod => prod.id === p.id);
+      
+      // ถ้ารวมกลุ่มพร้อมขายแล้ว ติด Top 5 (Index 0 - 4) ให้แจก Badge อันดับรันตามจริง
+      if (actualRankIndex !== -1 && actualRankIndex < 5) {
+        const displayRank = actualRankIndex + 1;
+        tierBadgeHtml = `<div class="tier-badge rank-${displayRank}">${displayRank}</div>`;
+      }
+    }
   }
 
   let adminLogoBadgeHtml = "";
@@ -899,6 +929,7 @@ function renderMobileView() {
     displayed = displayed.filter(p => !!p.isAdminRecommend);
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   } else {
+    // ✨ เอาฟิลเตอร์ออก สินค้า Coming Soon จะกลับมาแสดงในหน้าจัดอันดับตามปกติ
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
@@ -935,6 +966,10 @@ function renderAdminView() {
     }
   }
 
+  // 💡 แก้ไขตรงนี้: ถ้าเลือกเรียงลำดับแบบ Tierlist ให้คัดกรองสินค้า Coming Soon ออกจากการคำนวณและแสดงผลในโหมดนี้
+  if (currentSortMode === "tierlist") {
+    displayed = displayed.filter(p => !p.comingSoon);
+  }
   displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const kw = searchInput?.value.trim().toLowerCase();
