@@ -618,12 +618,11 @@ main h2 {
 }
 
 .price-container {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
+    margin-bottom: 8px !important;
+    gap: 4px !important;
+  }
+  .price { font-size: 22px !important; } /* โค้ดเดิมคือ 15px */
+  .old-price-slashed { font-size: 18px !important; }
 
 .price {
   color: var(--price-green);
@@ -1336,8 +1335,8 @@ main h2 {
     margin-bottom: 8px !important;
     gap: 4px !important;
   }
-  .price { font-size: 15px !important; }
-  .old-price-slashed { font-size: 11px !important; }
+  .price { font-size: 22px !important; }
+  .old-price-slashed { font-size: 15px !important; }
 
   .btns { gap: 6px !important; }
   .btn {
