@@ -78,7 +78,8 @@ async function loadBulkProducts() {
         
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            allProducts.push({ id: doc.id, ...data });
+            // เพิ่มฟิลด์ is_checked: false เพื่อสร้าง State เริ่มต้นของระบบเลือกสินค้าแบบไม่ล้างค่า
+            allProducts.push({ id: doc.id, is_checked: false, ...data });
             if (data.category) categories.add(data.category);
         });
 
@@ -122,9 +123,10 @@ function renderProductTable(productsList) {
             optionsHtml += `<option value="${p.discount}" selected>⚙️ ค่าเดิม: ${p.discount}</option>`;
         }
 
+        // ปรับปรุง Checkbox ให้ดึงสถานะจริงจาก p.is_checked เพื่อผูกติดกับ In-Memory State
         tr.innerHTML = `
             <td class="p-4 text-center">
-                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-cyan-500" data-id="${p.id}">
+                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-cyan-500" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
             </td>
             <td class="p-4 flex items-center gap-3">
                 <img src="${p.image || 'https://i.postimg.cc/brG5HJBR/123.jpg'}" class="w-10 h-10 object-cover rounded-lg border border-slate-700 bg-slate-950">
@@ -150,17 +152,48 @@ function renderProductTable(productsList) {
         tableBody.appendChild(tr);
     });
 
+    // ตรวจจับการคลิกติ๊กถูกแบบเรียลไทม์เพื่อซิงค์เข้าตัวแปรหลัก
     document.querySelectorAll(".product-bulk-checkbox").forEach(chk => {
-        chk.addEventListener("change", updateSelectedCount);
+        chk.addEventListener("change", (e) => {
+            const id = e.target.getAttribute("data-id");
+            const prod = allProducts.find(p => p.id === id);
+            if (prod) prod.is_checked = e.target.checked;
+            updateSelectedCount();
+        });
+    });
+
+    // ดักจับการเปลี่ยนแปลงราคาแบบเรียลไทม์
+    document.querySelectorAll(".bulk-price-input").forEach(inp => {
+        inp.addEventListener("input", (e) => {
+            const id = e.target.getAttribute("data-id");
+            const prod = allProducts.find(p => p.id === id);
+            if (prod) prod.price = Number(e.target.value) || 0;
+        });
+    });
+
+    // ดักจับการเปลี่ยนแปลงโค้ดส่วนลดแบบเรียลไทม์
+    document.querySelectorAll(".bulk-discount-input").forEach(sel => {
+        sel.addEventListener("change", (e) => {
+            const id = e.target.id.replace("discount-input-", "");
+            const prod = allProducts.find(p => p.id === id);
+            if (prod) prod.discount = e.target.value.trim();
+        });
     });
 
     document.querySelectorAll(".clear-single-discount-btn").forEach(btn => {
         btn.onclick = (e) => {
             const id = e.target.getAttribute("data-id");
             const selectEl = document.getElementById(`discount-input-${id}`);
-            if(selectEl) selectEl.value = "";
+            if(selectEl) {
+                selectEl.value = "";
+                const prod = allProducts.find(p => p.id === id);
+                if (prod) prod.discount = "";
+            }
         };
     });
+
+    // อัปเดตตัวเลขนับสินค้าที่เลือก (คำนวณจาก State ภาพรวมทั้งหมด)
+    updateSelectedCount();
 }
 
 // 5. เรนเดอร์เม็ดรหัสส่วนลดด่วนด้านบน
@@ -175,6 +208,7 @@ function renderPresets() {
         btn.className = "text-slate-300 hover:text-amber-400 text-xs font-mono transition flex items-center gap-1";
         btn.innerHTML = `<i class="fa-solid fa-tag text-[10px]"></i> ${code}`;
         btn.onclick = () => {
+            // ดึงเฉพาะแถวที่แสดงผลอยู่ ณ ปัจจุบันบนหน้าจอและถูกติ๊กไว้
             const checkedBoxes = document.querySelectorAll(".product-bulk-checkbox:checked");
             if(checkedBoxes.length === 0) {
                 alert("กรุณาติ๊กเลือกสินค้าในตารางก่อนกดใส่โค้ดด่วนครับ");
@@ -183,7 +217,11 @@ function renderPresets() {
             checkedBoxes.forEach(chk => {
                 const id = chk.getAttribute("data-id");
                 const selectEl = document.getElementById(`discount-input-${id}`);
-                if(selectEl) selectEl.value = code;
+                if(selectEl) {
+                    selectEl.value = code;
+                    const prod = allProducts.find(p => p.id === id);
+                    if (prod) prod.discount = code;
+                }
             });
         };
         
@@ -194,7 +232,9 @@ function renderPresets() {
             discountPresets = discountPresets.filter(c => c !== code);
             await setDoc(doc(db, "system_settings", "discount_presets"), { codes: discountPresets });
             renderPresets();
-            renderProductTable(allProducts);
+            // เก็บสถานะและเรนเดอร์ตารางปัจจุบันใหม่
+            syncCurrentChangesToState();
+            runCurrentFilter();
         };
 
         wrapper.appendChild(btn);
@@ -212,39 +252,76 @@ if(addBtn) {
             discountPresets.push(val);
             await setDoc(doc(db, "system_settings", "discount_presets"), { codes: discountPresets });
             renderPresets();
-            renderProductTable(allProducts);
+            syncCurrentChangesToState();
+            runCurrentFilter();
         }
         document.getElementById("newCodeInput").value = "";
     };
 }
 
-// 6. ระบบค้นหาและการคัดกรองข้อมูล
+// ฟังก์ชันดึงค่าจากหน้าจอ ณ ปัจจุบัน ลงไปเซฟในตัวแปรหลัก (allProducts) เผื่อกันเหนียว
+function syncCurrentChangesToState() {
+    const rows = document.querySelectorAll(".product-row-item");
+    rows.forEach(row => {
+        const id = row.getAttribute("data-id");
+        const chk = row.querySelector(".product-bulk-checkbox");
+        const priceInp = row.querySelector(".bulk-price-input");
+        const discountInp = document.getElementById(`discount-input-${id}`);
+
+        const prod = allProducts.find(p => p.id === id);
+        if (prod) {
+            if (chk) prod.is_checked = chk.checked;
+            if (priceInp) prod.price = Number(priceInp.value) || 0;
+            if (discountInp) prod.discount = discountInp.value.trim();
+        }
+    });
+}
+
+// แยกฟังก์ชันการกรองออกมาเพื่อให้ส่วนอื่นเรียกซ้ำได้สะดวกขึ้น
+function runCurrentFilter() {
+    if(!searchInput || !categorySelect) return;
+    const keyword = searchInput.value.toLowerCase().trim();
+    const cat = categorySelect.value;
+    const filtered = allProducts.filter(p => {
+        const matchKey = p.name.toLowerCase().includes(keyword);
+        const matchCat = (cat === "all" || p.category === cat);
+        return matchKey && matchCat;
+    });
+    renderProductTable(filtered);
+}
+
+// 6. ระบบค้นหาและการคัดกรองข้อมูล (ปรับปรุงใหม่เพื่อล็อคราคาและ Checkbox)
 function setupFilters() {
-    const runFilter = () => {
-        if(!searchInput || !categorySelect) return;
-        const keyword = searchInput.value.toLowerCase().trim();
-        const cat = categorySelect.value;
-        const filtered = allProducts.filter(p => {
-            const matchKey = p.name.toLowerCase().includes(keyword);
-            const matchCat = (cat === "all" || p.category === cat);
-            return matchKey && matchCat;
-        });
-        renderProductTable(filtered);
-        updateSelectedCount();
+    const filterHandler = () => {
+        // บันทึกสถานะปัจจุบันบนจอก่อนที่จะทำการฟิลเตอร์เปลี่ยนรายการแสดงผล
+        syncCurrentChangesToState();
+        runCurrentFilter();
     };
 
-    if(searchInput) searchInput.addEventListener("input", runFilter);
-    if(categorySelect) categorySelect.addEventListener("change", runFilter);
+    if(searchInput) searchInput.addEventListener("input", filterHandler);
+    if(categorySelect) categorySelect.addEventListener("change", filterHandler);
 
     if(document.getElementById("selectAllCheckboxBtn")) {
         document.getElementById("selectAllCheckboxBtn").onclick = () => {
-            document.querySelectorAll(".product-bulk-checkbox").forEach(c => c.checked = true);
+            // เลือกเฉพาะตัวที่มองเห็นในตารางปัจจุบัน
+            document.querySelectorAll(".product-bulk-checkbox").forEach(c => {
+                c.checked = true;
+                const id = c.getAttribute("data-id");
+                const prod = allProducts.find(p => p.id === id);
+                if (prod) prod.is_checked = true;
+            });
             updateSelectedCount();
         };
     }
     if(document.getElementById("clearAllCheckboxBtn")) {
         document.getElementById("clearAllCheckboxBtn").onclick = () => {
-            document.querySelectorAll(".product-bulk-checkbox").forEach(c => c.checked = false);
+            // เคลียร์เฉพาะตัวที่มองเห็นในตารางปัจจุบัน
+            document.querySelectorAll(".product-bulk-checkbox").forEach(c => {
+                c.checked = false;
+                const id = c.getAttribute("data-id");
+                const prod = allProducts.find(p => p.id === id);
+                if (prod) prod.is_checked = false;
+            });
             updateSelectedCount();
         };
     }
@@ -272,6 +349,9 @@ function setupGlobalClearButtons() {
                     const id = chk.getAttribute("data-id");
                     const selectEl = document.getElementById(`discount-input-${id}`);
                     if (selectEl) selectEl.value = "";
+                    
+                    const prod = allProducts.find(p => p.id === id);
+                    if (prod) prod.discount = "";
                 });
             }
         };
@@ -290,8 +370,20 @@ function setupGlobalClearButtons() {
             if (allSelects.length === 0) return;
             
             if (confirm("⚠️ คุณต้องการล้างโค้ดส่วนลดของสินค้าทุกชิ้นในตารางตอนนี้ให้กลายเป็น \"ไม่มีส่วนลด\" ใช่หรือไม่?")) {
-                allSelects.forEach(selectEl => { selectEl.value = ""; });
-                document.querySelectorAll(".product-bulk-checkbox").forEach(c => c.checked = true);
+                allSelects.forEach(selectEl => { 
+                    selectEl.value = ""; 
+                    const id = selectEl.id.replace("discount-input-", "");
+                    const prod = allProducts.find(p => p.id === id);
+                    if (prod) prod.discount = "";
+                });
+                
+                document.querySelectorAll(".product-bulk-checkbox").forEach(c => { 
+                    c.checked = true; 
+                    const id = c.getAttribute("data-id");
+                    const prod = allProducts.find(p => p.id === id);
+                    if (prod) prod.is_checked = true;
+                });
+                
                 updateSelectedCount();
                 alert("🧹 ล้างค่าในตารางชั่วคราวแล้ว! ระบบได้ติ๊กถูกเลือกสินค้าทั้งหมดให้คุณแล้ว กรุณากดปุ่มบันทึกใหญ่ด้านล่างเพื่ออัปเดตขึ้นหน้าร้านครับ");
             }
@@ -301,15 +393,14 @@ function setupGlobalClearButtons() {
 }
 
 function updateSelectedCount() {
-    const activeChecked = document.querySelectorAll(".product-bulk-checkbox:checked").length;
+    // นับจำนวนจากอาเรย์รวมทั้งหมดของระบบ (ทำให้ตัวเลขสรุปถูกต้องแม้จะค้นหาไปมา)
+    const activeChecked = allProducts.filter(p => p.is_checked === true).length;
     if(selectedCountText) selectedCountText.innerText = activeChecked;
 }
 
-// 8. 🔥 [อัปเดตแล้ว] ฟังก์ชันคำนวณราคาสินค้าหลังจากหักส่วนลดรูปแบบ X%=Yที่คุณให้มา
+// 8. 🔥 ฟังก์ชันคำนวณราคาสินค้าหลังจากหักส่วนลดรูปแบบ X%=Y
 function calculateDiscountedPrice(originalPrice, discountString) {
-    // ถ้าไม่มีส่วนลด หรือไม่ได้กรอกมา ให้คืนค่าราคาปกติ (ปัดเศษทศนิยมออก)
     if (!discountString || typeof discountString !== 'string' || !discountString.includes('%=')) {
-        // หากกรอกเป็นตัวเลขธรรมดา หรือรูปแบบอื่นที่ไม่มี %= ให้ลองลบตามปกติ (เผื่อของเก่า)
         const numericDiscount = parseFloat(discountString);
         if (!isNaN(numericDiscount) && numericDiscount > 0) {
             return Math.max(0, Math.round(originalPrice - numericDiscount));
@@ -318,39 +409,40 @@ function calculateDiscountedPrice(originalPrice, discountString) {
     }
 
     try {
-        // แยก 25% และ 2000 ออกจากกันด้วย %=
         const parts = discountString.split('%=');
-        const percent = parseFloat(parts[0]);      // ได้ 25
-        const maxDiscount = parseFloat(parts[1]);  // ได้ 2000
+        const percent = parseFloat(parts[0]);      
+        const maxDiscount = parseFloat(parts[1]);  
 
         if (isNaN(percent)) return Math.round(originalPrice);
 
-        // คำนวณยอดส่วนลดตามเปอร์เซ็นต์
         let calculatedDiscount = (originalPrice * percent) / 100;
 
-        // ถ้ามีการกำหนดส่วนลดสูงสุด (และคำนวณแล้วเกินค่าสูงสุด) ให้ล็อกไว้ที่ค่าสูงสุด
         if (!isNaN(maxDiscount) && calculatedDiscount > maxDiscount) {
             calculatedDiscount = maxDiscount;
         }
 
-        // คืนค่าราคาปกติลบด้วยส่วนลดที่คำนวณได้ และใช้ Math.round() เพื่อตัดเศษทศนิยมทิ้งทั้งหมด
         const finalPrice = originalPrice - calculatedDiscount;
         return Math.max(0, Math.round(finalPrice)); 
     } catch (error) {
         console.error("Error calculating discount:", error);
-        return Math.round(originalPrice); // ปัดเศษราคาปกติเผื่อไว้กรณีเกิด Error
+        return Math.round(originalPrice); 
     }
 }
 
-// 9. 🚀 ระบบเซฟข้อมูลขึ้นประมวลผลบนเซิร์ฟเวอร์
+// 9. 🚀 ระบบเซฟข้อมูลขึ้นประมวลผลบนเซิร์ฟเวอร์ (อัปเดตให้อัปโหลดจากภาพรวมของ State ทั้งหมด)
 const saveBtn = document.getElementById("saveAllBulkChangesBtn");
 if(saveBtn) {
     saveBtn.onclick = async () => {
-        const checkedBoxes = document.querySelectorAll(".product-bulk-checkbox:checked");
-        if(checkedBoxes.length === 0) {
+        // ซิงค์ค่าหน้าจอล่าสุดที่เปิดค้างไว้ลง State ครั้งสุดท้ายก่อนประมวลผล
+        syncCurrentChangesToState();
+
+        // คัดแยกเอาเฉพาะสินค้าทุกชิ้นที่โดนติ๊กเลือกไว้ (รวมถึงตัวที่โดนซ่อนอยู่จากการค้นหาก่อนหน้านี้ด้วย)
+        const checkedProducts = allProducts.filter(p => p.is_checked === true);
+
+        if(checkedProducts.length === 0) {
             if(!confirm("ยืนยันการบันทึกเฉพาะป้ายหัวข้อแท็บส่วนลดเทศกาลใช่หรือไม่?")) return;
         } else {
-            if(!confirm(`ต้องการอัปเดตข้อมูลราคาสินค้าทั้งสิ้น ${checkedBoxes.length} ชิ้นพร้อมกันใช่หรือไม่?`)) return;
+            if(!confirm(`ต้องการอัปเดตข้อมูลราคาสินค้าทั้งสิ้น ${checkedProducts.length} ชิ้นพร้อมกันใช่หรือไม่?`)) return;
         }
 
         try {
@@ -363,27 +455,21 @@ if(saveBtn) {
                 });
             }
 
-            // บันทึกราคา/ส่วนลดกลุ่มแบบ Batch ไปที่ Collection "products"
-            if(checkedBoxes.length > 0) {
+            // บันทึกราคา/ส่วนลดกลุ่มแบบ Batch ไปที่ Collection "products" จากรายการที่ถูกเลือกใน State
+            if(checkedProducts.length > 0) {
                 const batch = writeBatch(db);
-                checkedBoxes.forEach(chk => {
-                    const id = chk.getAttribute("data-id");
-                    const priceInp = document.querySelector(`.bulk-price-input[data-id="${id}"]`);
-                    const discountInp = document.getElementById(`discount-input-${id}`);
+                checkedProducts.forEach(prod => {
+                    const rawPrice = Number(prod.price) || 0;
+                    const rawDiscount = (prod.discount || "").trim();
+                    const computedSalePrice = calculateDiscountedPrice(rawPrice, rawDiscount);
                     
-                    if(priceInp && discountInp) {
-                        const rawPrice = Number(priceInp.value) || 0;
-                        const rawDiscount = discountInp.value.trim();
-                        const computedSalePrice = calculateDiscountedPrice(rawPrice, rawDiscount);
-                        
-                        const productDocRef = doc(db, "products", id);
-                        batch.update(productDocRef, {
-                            price: rawPrice,
-                            discount: rawDiscount,
-                            salePrice: computedSalePrice, // ส่งผลลัพธ์ราคาสุทธิที่หักลดล้างเรียบร้อยไปเก็บบนคลาวด์
-                            lastUpdated: Date.now()
-                        });
-                    }
+                    const productDocRef = doc(db, "products", prod.id);
+                    batch.update(productDocRef, {
+                        price: rawPrice,
+                        discount: rawDiscount,
+                        salePrice: computedSalePrice, 
+                        lastUpdated: Date.now()
+                    });
                 });
                 await batch.commit();
             }
