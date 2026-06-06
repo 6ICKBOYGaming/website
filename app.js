@@ -971,9 +971,13 @@ function renderAdminView() {
   
   displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   
+  // 🔽 วางทับโค้ดค้นหาของเก่าในฟังก์ชัน renderAdminView ได้เลย 🔽
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
-    displayed = displayed.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
+    displayed = displayed.filter(p => 
+      p.name?.toLowerCase().includes(kw) || 
+      p.description?.toLowerCase().includes(kw)
+    );
   }
   
   if (allEl) {
@@ -1754,6 +1758,12 @@ if (sortProductsSelect) {
     
     // 2. สั่งประมวลผลคำนวณลำดับสินค้าและสั่งเรนเดอร์หน้าจอใหม่ทันที
     render();
+  });
+}
+// 🔽 เอาโค้ดค้นหามาวางต่อตรงนี้ได้เลย 🔽
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    render(); // สั่งให้คำนวณและวาดรายการสินค้าใหม่ทันทีเมื่อพิมพ์ค้นหา
   });
 }
 
