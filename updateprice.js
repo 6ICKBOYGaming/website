@@ -23,6 +23,7 @@ const db = getFirestore(app);
 
 let allProducts = [];
 let discountPresets = ["25%=2000", "30%=2000", "10%=500", "50%=3000"];
+let sortByCheckedAsc = false; // ตัวแปรจัดการสลับคัดเรียง (true = เอาตัวที่เลือกขึ้นข้างบน)
 
 const tableBody = document.getElementById("bulkProductTableBody");
 const searchInput = document.getElementById("bulkSearchInput");
@@ -150,7 +151,7 @@ function renderProductTable(productsList) {
 
         tr.innerHTML = `
             <td class="p-4 text-center">
-                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-cyan-500" id="checkbox-prod-${p.id}" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
+                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded text-cyan-500 bg-slate-950 border-slate-700 cursor-pointer focus:ring-0 focus:ring-offset-0" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
             </td>
             <td class="p-4 flex items-center gap-3">
                 <img src="${p.image || 'https://i.postimg.cc/brG5HJBR/123.jpg'}" class="w-10 h-10 object-cover rounded-lg border border-slate-700 bg-slate-950">
@@ -176,11 +177,14 @@ function renderProductTable(productsList) {
         tableBody.appendChild(tr);
     });
 
+    // ดักจับการทำงานเมื่อมีการกดติ๊กกล่อง Checkbox
     document.querySelectorAll(".product-bulk-checkbox").forEach(chk => {
         chk.addEventListener("change", (e) => {
             const id = e.target.getAttribute("data-id");
             const prod = allProducts.find(p => p.id === id);
-            if (prod) prod.is_checked = e.target.checked;
+            if (prod) {
+                prod.is_checked = e.target.checked;
+            }
             updateSelectedCount();
         });
     });
@@ -219,7 +223,6 @@ function renderProductTable(productsList) {
     renderDiscountSummary(); 
 }
 
-// ค้นหาในไฟล์ updateprice.js ที่ทำไว้ก่อนหน้า และอัปเดตฟังก์ชันนี้ตรงส่วนวนลูปตารางสรุป:
 function renderDiscountSummary() {
     if(!discountSummaryTableBody) return;
     discountSummaryTableBody.innerHTML = "";
@@ -250,7 +253,6 @@ function renderDiscountSummary() {
         const tr = document.createElement("tr");
         tr.className = "hover:bg-slate-900/40 border-b border-slate-900 transition cursor-pointer";
         
-        // เพิ่มระบบเปลี่ยนสีกราฟิกให้รับรู้ว่ากำลังกดเลือกโค้ดตัวนี้ส่องอยู่
         if (inspectCodeSelect && inspectCodeSelect.value === key) {
             tr.classList.add("summary-row-active");
         }
@@ -258,7 +260,7 @@ function renderDiscountSummary() {
         tr.onclick = () => {
             if(inspectCodeSelect) {
                 inspectCodeSelect.value = key;
-                renderDiscountSummary(); // สั่งรีเฟรชให้แถวที่เลือกขึ้นสีไฮไลต์สีฟ้าทันที
+                renderDiscountSummary();
             }
         };
         
@@ -275,7 +277,6 @@ function renderDiscountSummary() {
     runInspectFilter(summary);
 }
 
-// ตัวแปรเก็บสินค้ากลุ่มที่ถูกเลือกส่องอยู่ปัจจุบัน เพื่อใช้สั่งติ๊กถูกพร้อมกันได้
 let currentlyInspectedProducts = [];
 
 function runInspectFilter(currentSummaryMap) {
@@ -290,6 +291,8 @@ function runInspectFilter(currentSummaryMap) {
         allProducts.forEach(p => {
             if((p.discount || "").trim() !== "") currentlyInspectedProducts.push(p);
         });
+    } else if (selectedTarget === "_checked_") {
+        currentlyInspectedProducts = allProducts.filter(p => p.is_checked === true);
     } else {
         if(currentSummaryMap && currentSummaryMap[selectedTarget]) {
             currentlyInspectedProducts = currentSummaryMap[selectedTarget].items;
@@ -299,7 +302,7 @@ function runInspectFilter(currentSummaryMap) {
     inspectCountText.innerText = currentlyInspectedProducts.length;
 
     if(currentlyInspectedProducts.length === 0) {
-        inspectProductList.innerHTML = `<li class="p-2 text-slate-500 italic text-center col-span-2">📭 ไม่พบสินค้าที่ตรงตามโค้ดนี้</li>`;
+        inspectProductList.innerHTML = `<li class="p-2 text-slate-500 italic text-center col-span-2">📭 ไม่พบสินค้าที่ตรงตามเงื่อนไขนี้</li>`;
         return;
     }
 
@@ -324,7 +327,6 @@ function setupInspectListener() {
         };
     }
 
-    // ปุ่มไม้ตาย: กดปุ๊บ สั่งติ๊กถูกสินค้ากลุ่มนี้ทั้งหมดในตารางด้านล่างให้ทันทีเพื่อเตรียมสลับเปลี่ยนโค้ด
     if(checkAllInInspectBtn) {
         checkAllInInspectBtn.onclick = () => {
             if (currentlyInspectedProducts.length === 0) {
@@ -332,24 +334,17 @@ function setupInspectListener() {
                 return;
             }
 
-            // ก่อนติ๊กกลุ่มใหม่ ให้ล้างค่ากลุ่มเก่าออกก่อน เพื่อความปลอดภัยในการแก้โค้ดเฉพาะกลุ่ม
             allProducts.forEach(p => p.is_checked = false);
-            
-            // สั่งติ๊กถูกเฉพาะตัวที่ส่องอยู่
             currentlyInspectedProducts.forEach(inspectedProd => {
                 const prod = allProducts.find(p => p.id === inspectedProd.id);
                 if (prod) prod.is_checked = true;
-                
-                const chkBox = document.getElementById(`checkbox-prod-${inspectedProd.id}`);
-                if (chkBox) chkBox.checked = true;
             });
 
-            updateSelectedCount();
+            syncCurrentChangesToState();
+            runCurrentFilter();
             
-            // ขยับเลื่อนหน้าจอ (Scroll) ลงไปที่ตารางสินค้าและเครื่องมือเปลี่ยนโค้ดด้านล่างทันทีโดยอัตโนมัติ
             document.getElementById("bulkSearchInput").scrollIntoView({ behavior: 'smooth' });
-            
-            alert(`✅ ติ๊กเลือกสินค้ากลุ่มนี้จำนวน ${currentlyInspectedProducts.length} ชิ้นในตารางด้านล่างให้เรียบร้อยแล้วครับ! คุณสามารถเลื่อนลงไปเลือกโค้ดตัวใหม่เพื่ออัปเดตพร้อมกันได้เลย`);
+            alert(`✅ ทำการเลือกกลุ่มสินค้าจำนวน ${currentlyInspectedProducts.length} ชิ้นในตารางให้เรียบร้อยแล้วครับ!`);
         };
     }
 }
@@ -362,14 +357,14 @@ function setupBulkApplyAction() {
         
         const selectedProducts = allProducts.filter(p => p.is_checked === true);
         if(selectedProducts.length === 0) {
-            alert("❌ กรุณาติ๊กเลือกเครื่องหมายถูกหน้าสินค้าที่ต้องการเปลี่ยนโค้ดกลุ่มในตารางก่อนครับ!");
+            alert("❌ กรุณากดเลือกหน้าสินค้าที่ต้องการเปลี่ยนโค้ดกลุ่มในตารางก่อนครับ!");
             return;
         }
 
         const targetDiscount = bulkApplyDiscountSelect.value;
         const targetLabel = targetDiscount ? `"${targetDiscount}"` : `"ไม่มีส่วนลด"`;
 
-        if(confirm(`🔮 คุณต้องการเปลี่ยนโค้ดส่วนลดของสินค้าที่ติ๊กเลือกทั้ง ${selectedProducts.length} รายการ ให้เป็น ${targetLabel} พร้อมกันหรือไม่?`)) {
+        if(confirm(`🔮 คุณต้องการเปลี่ยนโค้ดส่วนลดของสินค้าที่เลือกทั้ง ${selectedProducts.length} รายการ ให้เป็น ${targetLabel} พร้อมกันหรือไม่?`)) {
             selectedProducts.forEach(prod => {
                 prod.discount = targetDiscount;
                 const element = document.getElementById(`discount-input-${prod.id}`);
@@ -393,19 +388,15 @@ function renderPresets() {
         btn.className = "text-slate-300 hover:text-amber-400 text-xs font-mono transition flex items-center gap-1";
         btn.innerHTML = `<i class="fa-solid fa-tag text-[10px]"></i> ${code}`;
         btn.onclick = () => {
-            const checkedBoxes = document.querySelectorAll(".product-bulk-checkbox:checked");
-            if(checkedBoxes.length === 0) {
-                alert("กรุณาติ๊กเลือกสินค้าในตารางก่อนกดใส่โค้ดด่วนครับ");
+            const selectedItems = allProducts.filter(p => p.is_checked === true);
+            if(selectedItems.length === 0) {
+                alert("กรุณาเลือกสินค้าในตารางก่อนกดใส่โค้ดด่วนครับ");
                 return;
             }
-            checkedBoxes.forEach(chk => {
-                const id = chk.getAttribute("data-id");
-                const selectEl = document.getElementById(`discount-input-${id}`);
-                if(selectEl) {
-                    selectEl.value = code;
-                    const prod = allProducts.find(p => p.id === id);
-                    if (prod) prod.discount = code;
-                }
+            selectedItems.forEach(prod => {
+                prod.discount = code;
+                const selectEl = document.getElementById(`discount-input-${prod.id}`);
+                if(selectEl) selectEl.value = code;
             });
             renderDiscountSummary();
         };
@@ -451,13 +442,11 @@ function syncCurrentChangesToState() {
     const rows = document.querySelectorAll(".product-row-item");
     rows.forEach(row => {
         const id = row.getAttribute("data-id");
-        const chk = row.querySelector(".product-bulk-checkbox");
         const priceInp = row.querySelector(".bulk-price-input");
         const discountInp = document.getElementById(`discount-input-${id}`);
 
         const prod = allProducts.find(p => p.id === id);
         if (prod) {
-            if (chk) prod.is_checked = chk.checked;
             if (priceInp) prod.price = Number(priceInp.value) || 0;
             if (discountInp) prod.discount = discountInp.value.trim();
         }
@@ -468,11 +457,21 @@ function runCurrentFilter() {
     if(!searchInput || !categorySelect) return;
     const keyword = searchInput.value.toLowerCase().trim();
     const cat = categorySelect.value;
-    const filtered = allProducts.filter(p => {
+    
+    // คัดกรองคำค้นหาและหมวดหมู่ปกติ
+    let filtered = allProducts.filter(p => {
         const matchKey = p.name.toLowerCase().includes(keyword);
         const matchCat = (cat === "all" || p.category === cat);
         return matchKey && matchCat;
     });
+
+    // เงื่อนไขเรียงลำดับ: หากกดเปิดสถานะไว้ ให้ผลลัพธ์ของสินค้าที่ถูก 'is_checked = true' ขยับขึ้นบนสุด
+    if (sortByCheckedAsc) {
+        filtered.sort((a, b) => {
+            return (b.is_checked === true ? 1 : 0) - (a.is_checked === true ? 1 : 0);
+        });
+    }
+
     renderProductTable(filtered);
 }
 
@@ -485,26 +484,34 @@ function setupFilters() {
     if(searchInput) searchInput.addEventListener("input", filterHandler);
     if(categorySelect) categorySelect.addEventListener("change", filterHandler);
 
+    // ดึง Element ปุ่มหัวตาราง "เลือก" เพื่อทำคำสั่งสลับจัดเรียงเมื่อโดนคลิก
+    const thSelectSortBtn = document.getElementById("thSelectSortBtn");
+    if (thSelectSortBtn) {
+        thSelectSortBtn.onclick = () => {
+            syncCurrentChangesToState();
+            sortByCheckedAsc = !sortByCheckedAsc; // สลับโหมดทรู/ฟอลส์
+
+            if (sortByCheckedAsc) {
+                thSelectSortBtn.innerHTML = `เลือก <i class="fa-solid fa-sort-up text-cyan-400 ml-0.5"></i>`;
+            } else {
+                thSelectSortBtn.innerHTML = `เลือก <i class="fa-solid fa-sort-down text-slate-400 ml-0.5"></i>`;
+            }
+            runCurrentFilter();
+        };
+    }
+
     if(document.getElementById("selectAllCheckboxBtn")) {
         document.getElementById("selectAllCheckboxBtn").onclick = () => {
-            document.querySelectorAll(".product-bulk-checkbox").forEach(c => {
-                c.checked = true;
-                const id = c.getAttribute("data-id");
-                const prod = allProducts.find(p => p.id === id);
-                if (prod) prod.is_checked = true;
-            });
-            updateSelectedCount();
+            allProducts.forEach(p => p.is_checked = true);
+            syncCurrentChangesToState();
+            runCurrentFilter();
         };
     }
     if(document.getElementById("clearAllCheckboxBtn")) {
         document.getElementById("clearAllCheckboxBtn").onclick = () => {
-            document.querySelectorAll(".product-bulk-checkbox").forEach(c => {
-                c.checked = false;
-                const id = c.getAttribute("data-id");
-                const prod = allProducts.find(p => p.id === id);
-                if (prod) prod.is_checked = false;
-            });
-            updateSelectedCount();
+            allProducts.forEach(p => p.is_checked = false);
+            syncCurrentChangesToState();
+            runCurrentFilter();
         };
     }
 }
@@ -520,19 +527,16 @@ function setupGlobalClearButtons() {
         clearBulkBtn.innerHTML = `<i class="fa-solid fa-trash-can text-[11px]"></i> ล้างส่วนลดสินค้าที่เลือก`;
         
         clearBulkBtn.onclick = () => {
-            const checkedBoxes = document.querySelectorAll(".product-bulk-checkbox:checked");
-            if (checkedBoxes.length === 0) {
-                alert("❌ ไม่สามารถดำเนินการได้: กรุณาติ๊กเลือกเครื่องหมายถูกหน้าสินค้าที่ต้องการล้างค่าส่วนลดก่อนครับ");
+            const selectedItems = allProducts.filter(p => p.is_checked === true);
+            if (selectedItems.length === 0) {
+                alert("❌ ไม่สามารถดำเนินการได้: กรุณาเลือกสินค้าที่ต้องการล้างค่าส่วนลดในตารางก่อนครับ");
                 return;
             }
-            if (confirm(`🧹 คุณต้องการปรับสถานะส่วนลดสินค้าทั้ง ${checkedBoxes.length} ชิ้นที่เลือก ให้เป็น "ไม่มีส่วนลด" ใช่หรือไม่?`)) {
-                checkedBoxes.forEach(chk => {
-                    const id = chk.getAttribute("data-id");
-                    const selectEl = document.getElementById(`discount-input-${id}`);
+            if (confirm(`🧹 คุณต้องการปรับสถานะส่วนลดสินค้าทั้ง ${selectedItems.length} ชิ้นที่เลือก ให้เป็น "ไม่มีส่วนลด" ใช่หรือไม่?`)) {
+                selectedItems.forEach(prod => {
+                    prod.discount = "";
+                    const selectEl = document.getElementById(`discount-input-${prod.id}`);
                     if (selectEl) selectEl.value = "";
-                    
-                    const prod = allProducts.find(p => p.id === id);
-                    if (prod) prod.discount = "";
                 });
                 renderDiscountSummary();
             }
@@ -559,16 +563,12 @@ function setupGlobalClearButtons() {
                     if (prod) prod.discount = "";
                 });
                 
-                document.querySelectorAll(".product-bulk-checkbox").forEach(c => { 
-                    c.checked = true; 
-                    const id = c.getAttribute("data-id");
-                    const prod = allProducts.find(p => p.id === id);
-                    if (prod) prod.is_checked = true;
-                });
+                allProducts.forEach(p => p.is_checked = true);
                 
                 updateSelectedCount();
                 renderDiscountSummary();
-                alert("🧹 ล้างค่าในตารางชั่วคราวแล้ว! ระบบได้ติ๊กถูกเลือกสินค้าทั้งหมดให้คุณแล้ว กรุณากดปุ่มบันทึกใหญ่ด้านล่างเพื่ออัปเดตขึ้นหน้าร้านครับ");
+                runCurrentFilter();
+                alert("🧹 ล้างค่าในตารางชั่วคราวแล้ว! ระบบได้เลือกสินค้าทั้งหมดให้คุณแล้ว กรุณากดปุ่มบันทึกใหญ่ด้านล่างเพื่ออัปเดตขึ้นหน้าร้านครับ");
             }
         };
         filterActionsContainer.appendChild(clearAllDiscountsBtn);

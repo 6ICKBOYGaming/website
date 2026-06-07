@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="updateprice.css">
 </head>
+
 <body class="p-3 sm:p-5 md:p-8">
 
     <div class="max-w-7xl mx-auto">
@@ -97,6 +98,8 @@
                             <span class="text-[11px] text-slate-400 whitespace-nowrap">โค้ด:</span>
                             <select id="inspectCodeSelect" class="w-full bg-transparent text-amber-400 text-xs font-mono focus:outline-none cursor-pointer">
                                 <option value="all">🌐 แสดงของโค้ดทุกตัว</option>
+                                <option value="_checked_">☑️ สินค้าที่กำลังติ๊กเลือกอยู่</option>
+                                <option value="_none_">❌ สินค้าที่ไม่มีส่วนลด</option>
                             </select>
                         </div>
                         
@@ -106,7 +109,7 @@
                     </div>
                 </div>
                 
-                <p class="text-slate-400 text-[11px] mb-2">พบสินค้าใช้โค้ดนี้ชั่วคราว <span id="inspectCountText" class="text-cyan-400 font-bold font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">0</span> ชิ้น:</p>
+                <p class="text-slate-400 text-[11px] mb-2">พบสินค้าในกลุ่มนี้ <span id="inspectCountText" class="text-cyan-400 font-bold font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">0</span> ชิ้น:</p>
                 <div class="inspect-scroll-area bg-slate-950/60 rounded-xl border border-slate-800/80 p-2.5">
                     <ul id="inspectProductList" class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-300">
                     </ul>
@@ -135,7 +138,7 @@
                 <table class="w-full text-left border-collapse min-w-[700px]">
                     <thead>
                         <tr class="bg-slate-900/80 border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                            <th class="p-4 w-12 text-center">เลือก</th>
+                            <th id="thSelectSortBtn" class="p-4 w-16 text-center select-none cursor-pointer hover:bg-slate-800 transition-colors">เลือก <i class="fa-solid fa-sort text-[10px] text-slate-500 ml-0.5"></i></th>
                             <th class="p-4">ข้อมูลสินค้า</th>
                             <th class="p-4 w-40">ราคาปกติ (บาท)</th>
                             <th class="p-4 w-52">โค้ดส่วนลดโปร (X%=Y)</th>
@@ -181,7 +184,7 @@
             </div>
         </div>
     </div>
-
+    
     <script type="module" src="updateprice.js"></script>
 </body>
 </html>
