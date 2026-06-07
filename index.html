@@ -252,6 +252,9 @@
         <section class="sidebar-box">
             <h3>หมวดหมู่</h3>
             <div id="categories"></div>
+            <button id="toggleCategoriesBtn" class="toggle-categories-btn">
+            ดูหมวดหมู่ทั้งหมด ▾
+        </button>
             <div id="console-categories-front" style="display: none;"></div>
         </section>
 
@@ -550,6 +553,26 @@
         // เมื่อปิดหน้าต่างป๊อปอัพข่าวสารลง ให้ทำการเซ็ตรีเซ็ตปุ่มกลับเป็นปุ่มกระดิ่งแรกเริ่มทันที
         resetToBellButton();
     }
+    
+
+    document.addEventListener("DOMContentLoaded", function() {
+    const toggleBtn = document.getElementById("toggleCategoriesBtn");
+    const categoriesContainer = document.getElementById("categories");
+
+    if (toggleBtn && categoriesContainer) {
+        toggleBtn.addEventListener("click", function() {
+        // สลับคลาส .show-all เพื่อเปลี่ยนรูปแบบการแสดงผล
+        categoriesContainer.classList.toggle("show-all");
+        
+        // เปลี่ยนข้อความบนปุ่มตามสถานะ
+        if (categoriesContainer.classList.contains("show-all")) {
+            toggleBtn.innerHTML = "พับเก็บเมนู ▴";
+        } else {
+            toggleBtn.innerHTML = "ดูหมวดหมู่ทั้งหมด ▾";
+        }
+        });
+    }
+    });
 </script>
 
 <script type="module" src="./click.js?v=9.9"></script>

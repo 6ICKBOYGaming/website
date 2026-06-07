@@ -1141,10 +1141,14 @@ main h2 {
     padding: 4px 0 !important;
     scrollbar-width: none !important;
     -webkit-overflow-scrolling: touch !important;
+    transition: all 0.3s ease !important;
   }
 
-  #categories::-webkit-scrollbar {
-    display: none !important;
+  /* 🔥 คลาสพิเศษเมื่อกดปุ่ม "ดูทั้งหมด" จะเปลี่ยนให้เรียงเป็นกล่องแผ่ออกมา ไม่สไลด์แล้ว */
+  #categories.show-all {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    padding-bottom: 8px !important;
   }
 
   .category {
@@ -1212,6 +1216,20 @@ main h2 {
     background: var(--input-bg) !important;
     color: var(--text-main) !important;
     border: 1px solid var(--border-color) !important;
+  }
+  /* 🔥 2. ปุ่มกด "ดูทั้งหมด / พับเก็บ" ที่เพิ่มขึ้นมาด้านล่างเมนู */
+  .toggle-categories-btn {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1px dashed var(--border-color) !important;
+    padding: 6px 0 !important;
+    margin-top: 6px !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 11px !important;
+    cursor: pointer !important;
   }
 
   /* 🛠️ แก้ไขส่วนแผงควบคุมแอดมิน: บังคับปลดล็อก fixed/sticky ทั้งหมดเพื่อให้อยู่กับที่ เลื่อนตามหน้าเว็บปกติ */
