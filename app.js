@@ -639,6 +639,50 @@ function card(p, index){
     `;
   }
 
+  // 🔴 [เวอร์ชันแถบคาดเต็มกรอบรูปสินค้า และมองทะลุเห็นสินค้าด้านหลังได้]
+  let soldOutBadgeHtml = "";
+  if (p.isSoldOut) {
+    soldOutBadgeHtml = `
+      <div class="sold-out-overlay-badge" style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.15); /* ปรับพื้นผิวสินค้าให้ดรอปลงเล็กน้อยเพื่อให้ตัวหนังสือเด่นขึ้น */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden !important; /* สั่งให้ตัดขอบแถบที่ล้นเหลี่ยมรูปภาพออกให้พอดีเป๊ะ */
+        z-index: 95 !important;
+        pointer-events: none;
+        border-radius: inherit; /* ให้โค้งมนตามขอบการ์ดรูปสินค้าของคุณ */
+      ">
+        <div style="
+          position: absolute !important;
+          width: 150% !important; /* ขยายให้ยาวเป็นพิเศษเพื่อให้พาดทะลุมุมถึงมุมเมื่อหมุนเอียง */
+          background: rgba(220, 38, 38, 0.82) !important; /* สีแดงสดกึ่งโปร่งแสง (มองทะลุเห็นสินค้าข้างหลังได้ประมาณ 18%) */
+          color: #ffffff !important;
+          text-align: center !important;
+          padding: 10px 0 !important; /* เพิ่มความหนาของแถบคาดให้ดูเต็มตา */
+          font-family: 'Impact', 'Arial Black', sans-serif !important;
+          font-size: 18px !important;
+          font-weight: 900 !important;
+          letter-spacing: 4px !important;
+          text-shadow: 0px 2px 4px rgba(0, 0, 0, 0.5);
+          box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.4);
+          transform: rotate(-15deg); /* สั่งเอียงพาดเฉียงสินค้า */
+          text-transform: uppercase;
+          white-space: nowrap !important;
+        ">
+          SOLD OUT
+        </div>
+      </div>
+    `;
+  }
+
   const imageLink = (!isProductComingSoon && (p.shopee1?.trim() || p.shopee2?.trim())) ? (p.shopee1?.trim() || p.shopee2?.trim()) : "";
   const imageSrc = getOptimizedImageUrl(p.image);
   
@@ -649,9 +693,10 @@ function card(p, index){
     finalImageTag = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" data-src="${imageSrc}" alt="${p.name}" class="lazy-load-img" style="width:100%; height:200px; object-fit:cover; opacity:0; transition:opacity 0.3s ease-in-out;">`;
   }
 
+  // 💡 ฝังระบบ ${soldOutBadgeHtml} ร่วมเข้าไปในบล็อกรูปภาพสินค้า
   const imageHtml = imageLink ? 
-    `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${finalImageTag}</a>` : 
-    `<div style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${finalImageTag}</div>`;
+    `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${soldOutBadgeHtml}${finalImageTag}</a>` : 
+    `<div style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${soldOutBadgeHtml}${finalImageTag}</div>`;
 
   let flashSaleTimerHtml = "";
   if (!isProductComingSoon && currentFlashSaleTimeVal && isFlashSaleActive) {
@@ -673,7 +718,6 @@ function card(p, index){
     ${p.isNew ? `<div class="badge">🆕 NEW</div>` : ""}
     ${imageHtml}
     <div class="info" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
-      <!-- 💡 แถบป้ายโปรสีฟ้ากว้าง 100% วางเหนือชื่อสินค้า -->
       ${promoBadgeHtml}
       <h4>${p.name}</h4>
       ${flashSaleTimerHtml}
@@ -694,12 +738,72 @@ function card(p, index){
             </label>
             <input type="checkbox" ${p.isAdminRecommend ? "checked" : ""} onchange="toggleQuickAdminRecommend('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0;">
           </div>
+
+          <div class="quick-soldout-badge-box" style="margin-top: 6px; padding-top: 6px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box;">
+            <label style="font-size:12px; color:#ef4444; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1; font-weight: bold;">
+              <span style="font-size: 14px;">🛑</span>
+              <span>ทำเครื่องหมายสินค้าหมด (Sold Out):</span>
+            </label>
+            <input type="checkbox" ${p.isSoldOut ? "checked" : ""} onchange="toggleQuickSoldOut('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0; accent-color: #ef4444;">
+          </div>
         ` : ""}
       </div>
     </div>
   </div>
   `;
 }
+//แอดมินแนะนำ
+window.toggleQuickAdminRecommend = async function(productId, isChecked) {
+  try {
+    // 1. ค้นหาในตัวแปร Local ก่อนเพื่ออัปเดต UI ทันที
+    const productIndex = allProducts.findIndex(p => p.id === productId);
+    if (productIndex !== -1) {
+      allProducts[productIndex].isAdminRecommend = isChecked;
+    }
+
+    // 2. อัปเดตข้อมูลสดไปยัง Cloud Firestore
+    const productDocRef = doc(db, "products", productId);
+    await updateDoc(productDocRef, {
+      isAdminRecommend: isChecked,
+      lastUpdated: Date.now()
+    });
+
+    // 3. แจ้งเตือนเวอร์ชันข้อมูลเปลี่ยน และทำการเรนเดอร์หน้าจอใหม่
+    await bumpCloudVersion();
+    render();
+    console.log(`✨ อัปเดตสถานะแอดมินแนะนำสินค้า ID: ${productId} เป็น [${isChecked}] สำเร็จ`);
+  } catch (error) {
+    console.error("🚨 เกิดข้อผิดพลาดในการอัปเดตสถานะแนะนำสินค้า:", error);
+    alert("ไม่สามารถบันทึกสถานะได้ กรุณาลองใหม่อีกครั้ง");
+  }
+};
+
+// 🔴 ฟังก์ชันสลับสถานะ "Sold Out" ด่วน และอัปเดตลง Firebase
+window.toggleQuickSoldOut = async function(productId, isChecked) {
+  try {
+    // 1. ค้นหาในตัวแปร Local เพื่ออัปเดต UI ชั่วคราวก่อน
+    const productIndex = allProducts.findIndex(p => p.id === productId);
+    if (productIndex !== -1) {
+      allProducts[productIndex].isSoldOut = isChecked;
+    }
+
+    // 2. อัปเดตข้อมูลตรงไปยัง Cloud Firestore
+    const productDocRef = doc(db, "products", productId);
+    await updateDoc(productDocRef, {
+      isSoldOut: isChecked,
+      lastUpdated: Date.now()
+    });
+
+    // 3. แจ้งเตือนคลาวด์เวอร์ชัน และสั่งเรนเดอร์ UI ใหม่
+    await bumpCloudVersion();
+    render();
+    console.log(`🔴 อัปเดตสถานะสินค้าหมด ID: ${productId} เป็น [${isChecked}] สำเร็จ`);
+  } catch (error) {
+    console.error("🚨 เกิดข้อผิดพลาดในการอัปเดตสถานะสินค้าหมด:", error);
+    alert("ไม่สามารถบันทึกสถานะได้ กรุณาลองใหม่อีกครั้ง");
+  }
+};
+
 
 function startFlashSaleClockTicker() {
   if (globalFlashSaleTimerInterval) clearInterval(globalFlashSaleTimerInterval);
