@@ -1810,40 +1810,51 @@ window.filterCategory = (categoryName) => {
 };
 
 
-/* ================= 🔥 [อัปเดตระบบคำนวณส่วนลดใหม่] ตัดเศษทศนิยมและล็อกค่าสูงสุด ================= */
-function calculateDiscountedPrice(originalPrice, discountString) {
-    // ถ้าไม่มีส่วนลด หรือไม่ได้กรอกมา ให้คืนค่าราคาปกติ (ปัดเศษทศนิยมออก)
-    if (!discountString || typeof discountString !== 'string' || !discountString.includes('%=')) {
-        // หากกรอกเป็นตัวเลขธรรมดา หรือรูปแบบอื่นที่ไม่มี %= ให้ลองลบตามปกติ (เผื่อของเก่า)
-        const numericDiscount = parseFloat(discountString);
-        if (!isNaN(numericDiscount) && numericDiscount > 0) {
-            return Math.max(0, Math.round(originalPrice - numericDiscount));
-        }
-        return Math.round(originalPrice);
+function calculateDiscountedPrice(originalPrice, discountStr) {
+    if (!discountStr || typeof discountStr !== "string") {
+        return Math.round(originalPrice); 
     }
 
     try {
-        // แยก 25% และ 2000 ออกจากกันด้วย %=
-        const parts = discountString.split('%=');
-        const percent = parseFloat(parts[0]);      // ได้ 25
-        const maxDiscount = parseFloat(parts[1]);  // ได้ 2000
+        const cleanDiscount = discountStr.trim();
+        let calculatedDiscount = 0;
+        let maxDiscount = Infinity;
 
-        if (isNaN(percent)) return Math.round(originalPrice);
+        // แยกตรวจสอบเงื่อนไข Max Discount (ถ้ามีระบุไว้ข้างหลัง เช่น ตัวอย่าง: 25%=200)
+        let actualDiscountStr = cleanDiscount;
+        if (cleanDiscount.includes("=")) {
+            const parts = cleanDiscount.split("=");
+            actualDiscountStr = parts[0].trim();
+            maxDiscount = parseFloat(parts[1].trim());
+        }
 
-        // คำนวณยอดส่วนลดตามเปอร์เซ็นต์
-        let calculatedDiscount = (originalPrice * percent) / 100;
+        // คำนวณหาจำนวนเงินส่วนลดดิบ
+        if (actualDiscountStr.endsWith("%")) {
+            const percent = parseFloat(actualDiscountStr.replace("%", "").trim());
+            if (!isNaN(percent)) {
+                calculatedDiscount = (originalPrice * percent) / 100;
+            }
+        } else {
+            const flat = parseFloat(actualDiscountStr);
+            if (!isNaN(flat)) {
+                calculatedDiscount = flat;
+            }
+        }
 
-        // ถ้ามีการกำหนดส่วนลดสูงสุด (และคำนวณแล้วเกินค่าสูงสุด) ให้ล็อกไว้ที่ค่าสูงสุด
+        // ตรวจสอบกับเพดานส่วนลดสูงสุด
         if (!isNaN(maxDiscount) && calculatedDiscount > maxDiscount) {
             calculatedDiscount = maxDiscount;
         }
 
-        // คืนค่าราคาปกติลบด้วยส่วนลดที่คำนวณได้ และใช้ Math.round() เพื่อตัดเศษทศนิยมทิ้งทั้งหมด
+        // 🔥 แก้ไขจุดนี้: ปัดเศษส่วนลดขึ้นให้เป็นจำนวนเต็มก่อน (สไตล์ Shopee)
+        calculatedDiscount = Math.ceil(calculatedDiscount); 
+
+        // คำนวณราคาสุทธิสุดท้าย
         const finalPrice = originalPrice - calculatedDiscount;
-        return Math.max(0, Math.round(finalPrice)); 
+        return Math.max(0, finalPrice); 
     } catch (error) {
         console.error("Error calculating discount:", error);
-        return Math.round(originalPrice); // ปัดเศษราคาปกติเผื่อไว้กรณีเกิด Error
+        return Math.round(originalPrice); 
     }
 }
 function createProductCard(p) {
