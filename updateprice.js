@@ -9,7 +9,6 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// การตั้งค่าเชื่อมต่อ Firebase Config ของร้านคุณ
 const firebaseConfig = {
     apiKey: "AIzaSyBEBVjahmE6BMGPglrHRdbktLI9mQKZTls",
     authDomain: "ickboy-store.firebaseapp.com",
@@ -33,7 +32,15 @@ const promoTabName = document.getElementById("promoTabName");
 const promoTabStatus = document.getElementById("promoTabStatus");
 const presetContainer = document.getElementById("discountPresetContainer");
 
-// รันระบบทำงานทันทีเมื่อหน้าจอแก้ไขราคาถูกเปิดขึ้นมา
+// Element ส่วนส่องดูด้านบน
+const discountSummaryTableBody = document.getElementById("discountSummaryTableBody");
+const bulkApplyDiscountSelect = document.getElementById("bulkApplyDiscountSelect");
+const executeBulkApplyDiscountBtn = document.getElementById("executeBulkApplyDiscountBtn");
+const inspectCodeSelect = document.getElementById("inspectCodeSelect");
+const inspectCountText = document.getElementById("inspectCountText");
+const inspectProductList = document.getElementById("inspectProductList");
+const checkAllInInspectBtn = document.getElementById("checkAllInInspectBtn");
+
 window.addEventListener("DOMContentLoaded", async () => {
     await loadGlobalPromoSettings();
     await loadPresetsFromConfig();
@@ -41,9 +48,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     renderPresets();
     setupFilters();
     setupGlobalClearButtons();
+    setupBulkApplyAction();
+    setupInspectListener(); 
 });
 
-// 1. ดึงค่าการตั้งค่าป้ายแท็บโปรโมชันเทศกาล
 async function loadGlobalPromoSettings() {
     try {
         const docRef = doc(db, "system_settings", "promo_tab_config");
@@ -56,7 +64,6 @@ async function loadGlobalPromoSettings() {
     } catch (e) { console.error(e); }
 }
 
-// 2. ดึงรหัสพรีเซ็ตส่วนลดจากฐานข้อมูล
 async function loadPresetsFromConfig() {
     try {
         const docRef = doc(db, "system_settings", "discount_presets");
@@ -67,7 +74,6 @@ async function loadPresetsFromConfig() {
     } catch(e) {}
 }
 
-// 3. ดึงสินค้าจากตารางหลัก "products" มาเรนเดอร์ลงตารางแก้ไขราคา
 async function loadBulkProducts() {
     if(!tableBody) return;
     tableBody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>กำลังดาวน์โหลดข้อมูลสินค้าล่าสุดจากคลาวด์...</td></tr>`;
@@ -78,7 +84,6 @@ async function loadBulkProducts() {
         
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            // เพิ่มฟิลด์ is_checked: false เพื่อสร้าง State เริ่มต้นของระบบเลือกสินค้าแบบไม่ล้างค่า
             allProducts.push({ id: doc.id, is_checked: false, ...data });
             if (data.category) categories.add(data.category);
         });
@@ -91,12 +96,32 @@ async function loadBulkProducts() {
         }
 
         renderProductTable(allProducts);
+        updateBulkSelectOptions();
+        updateInspectSelectOptions(); 
     } catch (error) {
         tableBody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400">โหลดข้อมูลล้มเหลว: ${error.message}</td></tr>`;
     }
 }
 
-// 4. เรนเดอร์สร้างแถวสินค้า และเปลี่ยนกล่องพิมพ์ส่วนลดให้เป็น Dropdown ตัวเลือกใช้งานง่าย
+function updateBulkSelectOptions() {
+    if(!bulkApplyDiscountSelect) return;
+    bulkApplyDiscountSelect.innerHTML = `<option value="">❌ ปรับเป็น: ไม่มีส่วนลด</option>`;
+    discountPresets.forEach(code => {
+        bulkApplyDiscountSelect.innerHTML += `<option value="${code}" class="bg-slate-900 text-white">🏷️ ${code}</option>`;
+    });
+}
+
+function updateInspectSelectOptions() {
+    if(!inspectCodeSelect) return;
+    inspectCodeSelect.innerHTML = `
+        <option value="all">🌐 แสดงของโค้ดทุกตัว</option>
+        <option value="_none_">❌ สินค้าที่ไม่มีส่วนลด</option>
+    `;
+    discountPresets.forEach(code => {
+        inspectCodeSelect.innerHTML += `<option value="${code}">🏷️ ${code}</option>`;
+    });
+}
+
 function renderProductTable(productsList) {
     if(!tableBody) return;
     tableBody.innerHTML = "";
@@ -123,10 +148,9 @@ function renderProductTable(productsList) {
             optionsHtml += `<option value="${p.discount}" selected>⚙️ ค่าเดิม: ${p.discount}</option>`;
         }
 
-        // ปรับปรุง Checkbox ให้ดึงสถานะจริงจาก p.is_checked เพื่อผูกติดกับ In-Memory State
         tr.innerHTML = `
             <td class="p-4 text-center">
-                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-cyan-500" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
+                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-cyan-500" id="checkbox-prod-${p.id}" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
             </td>
             <td class="p-4 flex items-center gap-3">
                 <img src="${p.image || 'https://i.postimg.cc/brG5HJBR/123.jpg'}" class="w-10 h-10 object-cover rounded-lg border border-slate-700 bg-slate-950">
@@ -152,7 +176,6 @@ function renderProductTable(productsList) {
         tableBody.appendChild(tr);
     });
 
-    // ตรวจจับการคลิกติ๊กถูกแบบเรียลไทม์เพื่อซิงค์เข้าตัวแปรหลัก
     document.querySelectorAll(".product-bulk-checkbox").forEach(chk => {
         chk.addEventListener("change", (e) => {
             const id = e.target.getAttribute("data-id");
@@ -162,7 +185,6 @@ function renderProductTable(productsList) {
         });
     });
 
-    // ดักจับการเปลี่ยนแปลงราคาแบบเรียลไทม์
     document.querySelectorAll(".bulk-price-input").forEach(inp => {
         inp.addEventListener("input", (e) => {
             const id = e.target.getAttribute("data-id");
@@ -171,12 +193,12 @@ function renderProductTable(productsList) {
         });
     });
 
-    // ดักจับการเปลี่ยนแปลงโค้ดส่วนลดแบบเรียลไทม์
     document.querySelectorAll(".bulk-discount-input").forEach(sel => {
         sel.addEventListener("change", (e) => {
             const id = e.target.id.replace("discount-input-", "");
             const prod = allProducts.find(p => p.id === id);
             if (prod) prod.discount = e.target.value.trim();
+            renderDiscountSummary(); 
         });
     });
 
@@ -188,15 +210,178 @@ function renderProductTable(productsList) {
                 selectEl.value = "";
                 const prod = allProducts.find(p => p.id === id);
                 if (prod) prod.discount = "";
+                renderDiscountSummary();
             }
         };
     });
 
-    // อัปเดตตัวเลขนับสินค้าที่เลือก (คำนวณจาก State ภาพรวมทั้งหมด)
     updateSelectedCount();
+    renderDiscountSummary(); 
 }
 
-// 5. เรนเดอร์เม็ดรหัสส่วนลดด่วนด้านบน
+// ค้นหาในไฟล์ updateprice.js ที่ทำไว้ก่อนหน้า และอัปเดตฟังก์ชันนี้ตรงส่วนวนลูปตารางสรุป:
+function renderDiscountSummary() {
+    if(!discountSummaryTableBody) return;
+    discountSummaryTableBody.innerHTML = "";
+
+    const summary = {};
+    summary["_none_"] = { label: "❌ ไม่มีส่วนลด", items: [] };
+    discountPresets.forEach(code => {
+        summary[code] = { label: `🏷️ ${code}`, items: [] };
+    });
+
+    allProducts.forEach(p => {
+        const disc = (p.discount || "").trim();
+        if(!disc) {
+            summary["_none_"].items.push(p);
+        } else {
+            if(!summary[disc]) {
+                summary[disc] = { label: `⚙️ กำหนดเอง: ${disc}`, items: [] };
+            }
+            summary[disc].items.push(p);
+        }
+    });
+
+    Object.keys(summary).forEach(key => {
+        const group = summary[key];
+        if(group.items.length === 0 && key === "_none_") return; 
+        if(group.items.length === 0 && !discountPresets.includes(key)) return; 
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-900/40 border-b border-slate-900 transition cursor-pointer";
+        
+        // เพิ่มระบบเปลี่ยนสีกราฟิกให้รับรู้ว่ากำลังกดเลือกโค้ดตัวนี้ส่องอยู่
+        if (inspectCodeSelect && inspectCodeSelect.value === key) {
+            tr.classList.add("summary-row-active");
+        }
+
+        tr.onclick = () => {
+            if(inspectCodeSelect) {
+                inspectCodeSelect.value = key;
+                renderDiscountSummary(); // สั่งรีเฟรชให้แถวที่เลือกขึ้นสีไฮไลต์สีฟ้าทันที
+            }
+        };
+        
+        const isNone = key === "_none_";
+        const codeClass = isNone ? "text-slate-400 font-medium text-xs" : "text-amber-400 font-bold font-mono text-xs";
+
+        tr.innerHTML = `
+            <td class="p-2.5 ${codeClass}">${group.label}</td>
+            <td class="p-2.5 text-center text-slate-300 font-bold font-mono bg-slate-900/30">${group.items.length}</td>
+        `;
+        discountSummaryTableBody.appendChild(tr);
+    });
+
+    runInspectFilter(summary);
+}
+
+// ตัวแปรเก็บสินค้ากลุ่มที่ถูกเลือกส่องอยู่ปัจจุบัน เพื่อใช้สั่งติ๊กถูกพร้อมกันได้
+let currentlyInspectedProducts = [];
+
+function runInspectFilter(currentSummaryMap) {
+    if(!inspectCodeSelect || !inspectProductList || !inspectCountText) return;
+    
+    const selectedTarget = inspectCodeSelect.value;
+    inspectProductList.innerHTML = "";
+    
+    currentlyInspectedProducts = [];
+
+    if (selectedTarget === "all") {
+        allProducts.forEach(p => {
+            if((p.discount || "").trim() !== "") currentlyInspectedProducts.push(p);
+        });
+    } else {
+        if(currentSummaryMap && currentSummaryMap[selectedTarget]) {
+            currentlyInspectedProducts = currentSummaryMap[selectedTarget].items;
+        }
+    }
+
+    inspectCountText.innerText = currentlyInspectedProducts.length;
+
+    if(currentlyInspectedProducts.length === 0) {
+        inspectProductList.innerHTML = `<li class="p-2 text-slate-500 italic text-center col-span-2">📭 ไม่พบสินค้าที่ตรงตามโค้ดนี้</li>`;
+        return;
+    }
+
+    currentlyInspectedProducts.forEach((p, index) => {
+        const li = document.createElement("li");
+        li.className = "py-1 flex justify-between items-center border-b border-slate-900 hover:bg-slate-900/20";
+        
+        const codeBadge = p.discount ? `text-amber-400 font-mono text-[10px]` : `text-slate-600`;
+
+        li.innerHTML = `
+            <span class="truncate pr-2 text-slate-300 text-xs font-medium">${index + 1}. ${p.name}</span>
+            <span class="shrink-0 text-[10px] uppercase font-bold ${codeBadge}">${p.discount || "ไม่มีโค้ด"}</span>
+        `;
+        inspectProductList.appendChild(li);
+    });
+}
+
+function setupInspectListener() {
+    if(inspectCodeSelect) {
+        inspectCodeSelect.onchange = () => {
+            renderDiscountSummary();
+        };
+    }
+
+    // ปุ่มไม้ตาย: กดปุ๊บ สั่งติ๊กถูกสินค้ากลุ่มนี้ทั้งหมดในตารางด้านล่างให้ทันทีเพื่อเตรียมสลับเปลี่ยนโค้ด
+    if(checkAllInInspectBtn) {
+        checkAllInInspectBtn.onclick = () => {
+            if (currentlyInspectedProducts.length === 0) {
+                alert("❌ ไม่มีสินค้าในลิสต์กลุ่มโค้ดส่วนลดนี้ให้เลือกครับ");
+                return;
+            }
+
+            // ก่อนติ๊กกลุ่มใหม่ ให้ล้างค่ากลุ่มเก่าออกก่อน เพื่อความปลอดภัยในการแก้โค้ดเฉพาะกลุ่ม
+            allProducts.forEach(p => p.is_checked = false);
+            
+            // สั่งติ๊กถูกเฉพาะตัวที่ส่องอยู่
+            currentlyInspectedProducts.forEach(inspectedProd => {
+                const prod = allProducts.find(p => p.id === inspectedProd.id);
+                if (prod) prod.is_checked = true;
+                
+                const chkBox = document.getElementById(`checkbox-prod-${inspectedProd.id}`);
+                if (chkBox) chkBox.checked = true;
+            });
+
+            updateSelectedCount();
+            
+            // ขยับเลื่อนหน้าจอ (Scroll) ลงไปที่ตารางสินค้าและเครื่องมือเปลี่ยนโค้ดด้านล่างทันทีโดยอัตโนมัติ
+            document.getElementById("bulkSearchInput").scrollIntoView({ behavior: 'smooth' });
+            
+            alert(`✅ ติ๊กเลือกสินค้ากลุ่มนี้จำนวน ${currentlyInspectedProducts.length} ชิ้นในตารางด้านล่างให้เรียบร้อยแล้วครับ! คุณสามารถเลื่อนลงไปเลือกโค้ดตัวใหม่เพื่ออัปเดตพร้อมกันได้เลย`);
+        };
+    }
+}
+
+function setupBulkApplyAction() {
+    if(!executeBulkApplyDiscountBtn) return;
+    
+    executeBulkApplyDiscountBtn.onclick = () => {
+        syncCurrentChangesToState();
+        
+        const selectedProducts = allProducts.filter(p => p.is_checked === true);
+        if(selectedProducts.length === 0) {
+            alert("❌ กรุณาติ๊กเลือกเครื่องหมายถูกหน้าสินค้าที่ต้องการเปลี่ยนโค้ดกลุ่มในตารางก่อนครับ!");
+            return;
+        }
+
+        const targetDiscount = bulkApplyDiscountSelect.value;
+        const targetLabel = targetDiscount ? `"${targetDiscount}"` : `"ไม่มีส่วนลด"`;
+
+        if(confirm(`🔮 คุณต้องการเปลี่ยนโค้ดส่วนลดของสินค้าที่ติ๊กเลือกทั้ง ${selectedProducts.length} รายการ ให้เป็น ${targetLabel} พร้อมกันหรือไม่?`)) {
+            selectedProducts.forEach(prod => {
+                prod.discount = targetDiscount;
+                const element = document.getElementById(`discount-input-${prod.id}`);
+                if(element) element.value = targetDiscount;
+            });
+
+            renderDiscountSummary();
+            alert(`⚡ อัปเดตค่าชั่วคราวบนหน้าจอสำเร็จแล้ว! อย่าลืมกดปุ่ม "บันทึกข้อมูลเปลี่ยนแหลงทั้งเว็บทันที" ด้านล่างด้วยครับ`);
+        }
+    };
+}
+
 function renderPresets() {
     if(!presetContainer) return;
     presetContainer.innerHTML = "";
@@ -208,7 +393,6 @@ function renderPresets() {
         btn.className = "text-slate-300 hover:text-amber-400 text-xs font-mono transition flex items-center gap-1";
         btn.innerHTML = `<i class="fa-solid fa-tag text-[10px]"></i> ${code}`;
         btn.onclick = () => {
-            // ดึงเฉพาะแถวที่แสดงผลอยู่ ณ ปัจจุบันบนหน้าจอและถูกติ๊กไว้
             const checkedBoxes = document.querySelectorAll(".product-bulk-checkbox:checked");
             if(checkedBoxes.length === 0) {
                 alert("กรุณาติ๊กเลือกสินค้าในตารางก่อนกดใส่โค้ดด่วนครับ");
@@ -223,6 +407,7 @@ function renderPresets() {
                     if (prod) prod.discount = code;
                 }
             });
+            renderDiscountSummary();
         };
         
         const del = document.createElement("button");
@@ -232,7 +417,8 @@ function renderPresets() {
             discountPresets = discountPresets.filter(c => c !== code);
             await setDoc(doc(db, "system_settings", "discount_presets"), { codes: discountPresets });
             renderPresets();
-            // เก็บสถานะและเรนเดอร์ตารางปัจจุบันใหม่
+            updateBulkSelectOptions();
+            updateInspectSelectOptions();
             syncCurrentChangesToState();
             runCurrentFilter();
         };
@@ -252,6 +438,8 @@ if(addBtn) {
             discountPresets.push(val);
             await setDoc(doc(db, "system_settings", "discount_presets"), { codes: discountPresets });
             renderPresets();
+            updateBulkSelectOptions();
+            updateInspectSelectOptions();
             syncCurrentChangesToState();
             runCurrentFilter();
         }
@@ -259,7 +447,6 @@ if(addBtn) {
     };
 }
 
-// ฟังก์ชันดึงค่าจากหน้าจอ ณ ปัจจุบัน ลงไปเซฟในตัวแปรหลัก (allProducts) เผื่อกันเหนียว
 function syncCurrentChangesToState() {
     const rows = document.querySelectorAll(".product-row-item");
     rows.forEach(row => {
@@ -277,7 +464,6 @@ function syncCurrentChangesToState() {
     });
 }
 
-// แยกฟังก์ชันการกรองออกมาเพื่อให้ส่วนอื่นเรียกซ้ำได้สะดวกขึ้น
 function runCurrentFilter() {
     if(!searchInput || !categorySelect) return;
     const keyword = searchInput.value.toLowerCase().trim();
@@ -290,10 +476,8 @@ function runCurrentFilter() {
     renderProductTable(filtered);
 }
 
-// 6. ระบบค้นหาและการคัดกรองข้อมูล (ปรับปรุงใหม่เพื่อล็อคราคาและ Checkbox)
 function setupFilters() {
     const filterHandler = () => {
-        // บันทึกสถานะปัจจุบันบนจอก่อนที่จะทำการฟิลเตอร์เปลี่ยนรายการแสดงผล
         syncCurrentChangesToState();
         runCurrentFilter();
     };
@@ -303,7 +487,6 @@ function setupFilters() {
 
     if(document.getElementById("selectAllCheckboxBtn")) {
         document.getElementById("selectAllCheckboxBtn").onclick = () => {
-            // เลือกเฉพาะตัวที่มองเห็นในตารางปัจจุบัน
             document.querySelectorAll(".product-bulk-checkbox").forEach(c => {
                 c.checked = true;
                 const id = c.getAttribute("data-id");
@@ -315,7 +498,6 @@ function setupFilters() {
     }
     if(document.getElementById("clearAllCheckboxBtn")) {
         document.getElementById("clearAllCheckboxBtn").onclick = () => {
-            // เคลียร์เฉพาะตัวที่มองเห็นในตารางปัจจุบัน
             document.querySelectorAll(".product-bulk-checkbox").forEach(c => {
                 c.checked = false;
                 const id = c.getAttribute("data-id");
@@ -327,7 +509,6 @@ function setupFilters() {
     }
 }
 
-// 7. 🧹 ระบบเสริม: ปุ่มล้างค่าส่วนลดแบบกลุ่ม (Clear Discounts System)
 function setupGlobalClearButtons() {
     const clearSelectedBtn = document.getElementById("applySelectedDiscountBtn"); 
     const floatingBarActions = clearSelectedBtn ? clearSelectedBtn.parentElement : null;
@@ -353,6 +534,7 @@ function setupGlobalClearButtons() {
                     const prod = allProducts.find(p => p.id === id);
                     if (prod) prod.discount = "";
                 });
+                renderDiscountSummary();
             }
         };
         floatingBarActions.insertBefore(clearBulkBtn, document.getElementById("saveAllBulkChangesBtn"));
@@ -385,6 +567,7 @@ function setupGlobalClearButtons() {
                 });
                 
                 updateSelectedCount();
+                renderDiscountSummary();
                 alert("🧹 ล้างค่าในตารางชั่วคราวแล้ว! ระบบได้ติ๊กถูกเลือกสินค้าทั้งหมดให้คุณแล้ว กรุณากดปุ่มบันทึกใหญ่ด้านล่างเพื่ออัปเดตขึ้นหน้าร้านครับ");
             }
         };
@@ -393,12 +576,10 @@ function setupGlobalClearButtons() {
 }
 
 function updateSelectedCount() {
-    // นับจำนวนจากอาเรย์รวมทั้งหมดของระบบ (ทำให้ตัวเลขสรุปถูกต้องแม้จะค้นหาไปมา)
     const activeChecked = allProducts.filter(p => p.is_checked === true).length;
     if(selectedCountText) selectedCountText.innerText = activeChecked;
 }
 
-// 8. 🔥 ฟังก์ชันคำนวณราคาสินค้าหลังจากหักส่วนลดรูปแบบ X%=Y
 function calculateDiscountedPrice(originalPrice, discountString) {
     if (!discountString || typeof discountString !== 'string' || !discountString.includes('%=')) {
         const numericDiscount = parseFloat(discountString);
@@ -424,19 +605,16 @@ function calculateDiscountedPrice(originalPrice, discountString) {
         const finalPrice = originalPrice - calculatedDiscount;
         return Math.max(0, Math.round(finalPrice)); 
     } catch (error) {
-        console.error("Error calculating discount:", error);
+        console.error("Error calculated discount:", error);
         return Math.round(originalPrice); 
     }
 }
 
-// 9. 🚀 ระบบเซฟข้อมูลขึ้นประมวลผลบนเซิร์ฟเวอร์ (อัปเดตให้อัปโหลดจากภาพรวมของ State ทั้งหมด)
 const saveBtn = document.getElementById("saveAllBulkChangesBtn");
 if(saveBtn) {
     saveBtn.onclick = async () => {
-        // ซิงค์ค่าหน้าจอล่าสุดที่เปิดค้างไว้ลง State ครั้งสุดท้ายก่อนประมวลผล
         syncCurrentChangesToState();
 
-        // คัดแยกเอาเฉพาะสินค้าทุกชิ้นที่โดนติ๊กเลือกไว้ (รวมถึงตัวที่โดนซ่อนอยู่จากการค้นหาก่อนหน้านี้ด้วย)
         const checkedProducts = allProducts.filter(p => p.is_checked === true);
 
         if(checkedProducts.length === 0) {
@@ -446,7 +624,6 @@ if(saveBtn) {
         }
 
         try {
-            // บันทึกป้ายโปรโมชัน
             if(promoTabName && promoTabStatus) {
                 await setDoc(doc(db, "system_settings", "promo_tab_config"), {
                     title: promoTabName.value.trim() || "ส่วนลดโปร 6.6",
@@ -455,7 +632,6 @@ if(saveBtn) {
                 });
             }
 
-            // บันทึกราคา/ส่วนลดกลุ่มแบบ Batch ไปที่ Collection "products" จากรายการที่ถูกเลือกใน State
             if(checkedProducts.length > 0) {
                 const batch = writeBatch(db);
                 checkedProducts.forEach(prod => {
@@ -474,7 +650,6 @@ if(saveBtn) {
                 await batch.commit();
             }
 
-            // อัปเดตเลขเวอร์ชันคลาวด์เพื่อให้ระบบฝั่ง User รับรู้และล้างแคชทันที
             await setDoc(doc(db, "system_settings", "cloud_version"), { version: Date.now() });
 
             alert("🚀 อัปเดตราคาใหม่และเคลียร์แคชหน้าร้านให้แสดงผลทันทีเรียบร้อยแล้วครับ!");
