@@ -1038,27 +1038,27 @@ main h2 {
   html, body {
     width: 100% !important;
     overflow-x: hidden !important;
-    
   }
-  @media (max-width: 768px) {
+
   .drag-notice-alert, 
   #drag-notice-alert,
   [class*="drag-notice"] {
     display: none !important;
   }
-}
-  /* 📌 ขยับพื้นที่สินค้าลงมาเพิ่ม เพื่อรองรับแผงควบคุมทั้งหมดที่จะค้างอยู่ด้านบนจอ */
+
+  /* 📌 ปรับลด padding-top ลงมาให้พอดีกับหัวชั้นที่ 1 (Header) เท่านั้น 
+     ส่วนเมนูอื่นจะปล่อยให้ดันตัวไหลลงตามธรรมชาติ */
   .layout {
     display: flex !important;
     flex-direction: column !important;
-    gap: 16px !important;
-    padding: 12px 8px !important;
+    gap: 12px !important;
+    padding: 8px 8px !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    padding-top: 235px !important; /* 🔥 ปรับเพิ่มระยะให้สมดุลกับแผงควบคุมด้านบนที่ขยายระยะห่างขึ้น */
+    padding-top: 105px !important; /* พอดีกับความสูงรวมของ Logo + ช่องค้นหา */
   }
 
-  /* 📌 [ชั้นที่ 1] แถบหัวบนสุด (LOGO 6ICK BOY + ช่องค้นหา) */
+  /* 📌 [ชั้นที่ 1] แถบหัวบนสุด (LOGO + ช่องค้นหา) -> ตรึงไว้บนสุดตลอดเวลา */
   header {
     position: fixed !important;
     top: 0 !important;
@@ -1098,21 +1098,22 @@ main h2 {
     box-sizing: border-box !important;
   }
 
-  /* 📌 [ชั้นที่ 2] แถบหมวดหมู่สินค้าสไลด์ได้ (เพิ่มช่องไฟไม่ให้ติดกับช่องค้นหา) */
+  /* 📌 [ชั้นที่ 2] แถบหมวดหมู่สินค้าสไลด์ได้ / แผ่ออกได้
+     🔥 แก้ไข: ใช้ sticky เกาะต่อลงมาจาก Header เพื่อไม่ให้ลอยบังตัวสินค้าด้านล่างเวลาแผ่ออก */
   .sidebar {
     display: flex !important;
     flex-direction: column !important;
     gap: 0 !important;
     width: 100% !important;
     
-    position: fixed !important;
-    top: 98px !important; /* 🔥 ปรับขยับลงมาเพิ่มเพื่อหนีช่องค้นหาด้านบน */
+    position: sticky !important;
+    top: 98px !important; /* จอดต่อท้ายล่าง Header พอดี */
     left: 0 !important;
     right: 0 !important;
     z-index: 99999 !important;
     
     background: var(--bg-main) !important;
-    padding: 10px 16px 6px 16px !important; /* 🔥 เพิ่มความห่างด้านบน (Padding-top: 10px) ให้มีช่องไฟสวยงาม */
+    padding: 6px 16px 6px 16px !important;
     box-sizing: border-box !important;
   }
   
@@ -1138,17 +1139,18 @@ main h2 {
     flex-direction: row !important;
     gap: 8px !important;
     overflow-x: auto !important;
-    padding: 4px 0 !important;
+    padding: 6px 0 !important;
     scrollbar-width: none !important;
     -webkit-overflow-scrolling: touch !important;
     transition: all 0.3s ease !important;
   }
 
-  /* 🔥 คลาสพิเศษเมื่อกดปุ่ม "ดูทั้งหมด" จะเปลี่ยนให้เรียงเป็นกล่องแผ่ออกมา ไม่สไลด์แล้ว */
+  /* 🔥 เมื่อกดปุ่ม "ดูทั้งหมด" คลาสนี้ทำงาน จะแผ่เป็นกล่องลงมาและ "ดัน" ตัวสินค้าด้านล่างลงไปทันที */
   #categories.show-all {
     flex-wrap: wrap !important;
     overflow-x: visible !important;
     padding-bottom: 8px !important;
+    max-height: none !important;
   }
 
   .category {
@@ -1173,17 +1175,18 @@ main h2 {
     border-color: var(--text-main) !important;
   }
 
-  /* 📌 [ชั้นที่ 3] ข้อความ "หมวดหมู่สินค้า" และ "เรียงลำดับสินค้า" (ขยับระยะห่างเพิ่ม) */
+  /* 📌 [ชั้นที่ 3] ข้อความ "หมวดหมู่สินค้า" และ "เรียงลำดับสินค้า"
+     🔥 แก้ไข: เอาค่า fixed top ออก เพื่อให้อยู่ต่อใต้ปุ่มหมวดหมู่เสมอ ไม่ว่าจะกางออกหรือพับเก็บ */
   .category-header-wrapper {
-    position: fixed !important;
-    top: 154px !important; /* 🔥 ปรับขยับลงมาตามแถบเมนูด้านบน */
-    left: 0 !important;
-    right: 0 !important;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
     z-index: 99998 !important;
     background: var(--bg-main) !important;
-    padding: 12px 16px 12px 16px !important; /* 🔥 เพิ่มช่องไฟ (Padding ยน-ล่าง) ให้แถบนี้ดูโปร่งและเด่นชัดขึ้น */
+    padding: 10px 16px 12px 16px !important;
     box-sizing: border-box !important;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35) !important; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important; 
   }
 
   .category-header-row {
@@ -1217,7 +1220,8 @@ main h2 {
     color: var(--text-main) !important;
     border: 1px solid var(--border-color) !important;
   }
-  /* 🔥 2. ปุ่มกด "ดูทั้งหมด / พับเก็บ" ที่เพิ่มขึ้นมาด้านล่างเมนู */
+
+  /* ปุ่มกด "ดูทั้งหมด / พับเก็บ" */
   .toggle-categories-btn {
     display: block !important;
     width: 100% !important;
@@ -1232,23 +1236,23 @@ main h2 {
     cursor: pointer !important;
   }
 
-  /* 🛠️ แก้ไขส่วนแผงควบคุมแอดมิน: บังคับปลดล็อก fixed/sticky ทั้งหมดเพื่อให้อยู่กับที่ เลื่อนตามหน้าเว็บปกติ */
+  /* แผงควบคุมแอดมิน */
   .admin-panel, 
   #adminPanel, 
   #adminCategoryPanel, 
   #adminWidgetPanel, 
   #adminDragSortPanel {
-    position: relative !important;   /* เปลี่ยนจาก fixed/sticky เป็น relative */
-    top: auto !important;            /* เคลียร์ค่าค้างบน */
-    bottom: auto !important;         /* เคลียร์ค่าค้างล่าง */
+    position: relative !important;   
+    top: auto !important;            
+    bottom: auto !important;         
     left: auto !important;
     right: auto !important;
     width: 100% !important;
     max-width: 100% !important;
     padding: 16px 12px !important;
-    margin-bottom: 16px !important;   /* เพิ่มช่องไฟด้านล่างแผง */
+    margin-bottom: 16px !important;   
     box-sizing: border-box !important;
-    z-index: 10 !important;          /* คืนค่าชั้นเลเยอร์ให้ต่ำกว่า header หลัก */
+    z-index: 10 !important;          
   }
   
   .admin-panel input, 

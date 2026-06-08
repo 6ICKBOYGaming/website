@@ -175,18 +175,18 @@
                         const pName = data.name ? data.name.trim() : `สินค้าไม่มีชื่อ (${pId})`;
                         let finalClicks = 0;
 
-                        if (rawDocumentData[`productClicks.${pId}`] !== undefined) {
+                        // ✅ โค้ดใหม่: บังคับให้อ่านค่าจาก Map Object ที่ระบบบันทึกจริงเข้ามาก่อน
+                        if (rawDocumentData.productClicks && rawDocumentData.productClicks[pId] !== undefined) {
+                            finalClicks = parseInt(rawDocumentData.productClicks[pId]) || 0;
+                        } 
+                        else if (rawDocumentData.productClicks && rawDocumentData.productClicks[pName] !== undefined) {
+                            finalClicks = parseInt(rawDocumentData.productClicks[pName]) || 0;
+                        }
+                        else if (rawDocumentData[`productClicks.${pId}`] !== undefined) {
                             finalClicks = parseInt(rawDocumentData[`productClicks.${pId}`]) || 0;
                         } 
                         else if (rawDocumentData[`productClicks.${pName}`] !== undefined) {
                             finalClicks = parseInt(rawDocumentData[`productClicks.${pName}`]) || 0;
-                        }
-                        else if (rawDocumentData.productClicks) {
-                            if (rawDocumentData.productClicks[pId] !== undefined) {
-                                finalClicks = parseInt(rawDocumentData.productClicks[pId]) || 0;
-                            } else if (rawDocumentData.productClicks[pName] !== undefined) {
-                                finalClicks = parseInt(rawDocumentData.productClicks[pName]) || 0;
-                            }
                         }
 
                         allProductsList.push({ id: pId, name: pName, total: finalClicks });

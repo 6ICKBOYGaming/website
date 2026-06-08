@@ -96,6 +96,7 @@ const isHot = document.getElementById("isHot");
 const comingSoon = document.getElementById("comingSoon");
 const isAdminRecommendInput = document.getElementById("isAdminRecommend"); 
 const submitBtn = document.getElementById("submitBtn");
+const productKeywords = document.getElementById("productKeywords");//keyword search
 
 const adminCategoryTitle = document.getElementById("adminCategoryTitle");
 const adminCategoryInput = document.getElementById("adminCategoryInput");
@@ -282,13 +283,16 @@ async function recordVisitorTraffic() {
   if (isAdmin) return; 
   
   try {
+    // 💡 ใช้ฟังก์ชันรูปแบบวันที่มาตรฐานโซนเอเชีย/กรุงเทพฯ ที่ดึงข้ามไฟล์มาเพื่อไม่ให้วันเพี้ยน
+    const todayStr = typeof window.getThailandDateString === 'function' 
+        ? window.getThailandDateString() 
+        : new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }); // fallback format YYYY-MM-DD
+        
     const now = new Date();
-    const tzOffset = 7 * 60 * 60 * 1000; 
-    const localTime = new Date(now.getTime() + tzOffset);
-    const dateString = localTime.toISOString().split('T')[0]; 
+    // ดึงชั่วโมงแบบล็อกไทม์โซนไทยตรงๆ ไม่คำนวณมิลลิวินาทีดิบให้บั๊ก
+    const currentHour = parseInt(now.toLocaleTimeString('en-US', { timeZone: 'Asia/Bangkok', hour: 'numeric', hour12: false }));
     
-    const currentHour = localTime.getUTCHours();
-    const analyticsDocRef = doc(db, "analytics", dateString);
+    const analyticsDocRef = doc(db, "analytics", todayStr);
     const isNewSession = !sessionStorage.getItem("visited_today");
     
     let updateData = {};
@@ -301,7 +305,7 @@ async function recordVisitorTraffic() {
     }
 
     await setDoc(analyticsDocRef, updateData, { merge: true });
-    console.log(`📊 [Analytics] บันทึกยอดเข้าชมรอบชั่วโมงที่ ${currentHour} เรียบร้อยแล้ว`);
+    console.log(`📊 [Analytics] บันทึกยอดเข้าชมรอบชั่วโมงที่ ${currentHour} ของวันที่ ${todayStr} เรียบร้อยแล้ว`);
   } catch (error) {
     console.error("Failed to record traffic analytics:", error);
   }
@@ -902,8 +906,9 @@ function renderMobileView() {
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
     displayed = displayed.filter(p => 
-      p.name?.toLowerCase().includes(kw) || 
-      p.description?.toLowerCase().includes(kw)
+      (p.name && p.name.toLowerCase().includes(kw)) || 
+      (p.description && p.description.toLowerCase().includes(kw)) ||
+      (p.keywords && p.keywords.toLowerCase().includes(kw)) // ✨ เพิ่มเติมตรงนี้: เช็กคำค้นหาพิเศษจากหลังบ้าน
     );
   }
 
@@ -939,7 +944,11 @@ function renderAdminView() {
   
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
-    displayed = displayed.filter(p => p.name?.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
+    displayed = displayed.filter(p => 
+      (p.name && p.name.toLowerCase().includes(kw)) || 
+      (p.description && p.description.toLowerCase().includes(kw)) ||
+      (p.keywords && p.keywords.toLowerCase().includes(kw)) // ✨ เพิ่มตรงนี้เพื่อให้หลังบ้านแอดมินค้นหาเจอคำ Keyword พิเศษได้
+    );
   }
   
   if (allEl) {
@@ -1271,13 +1280,23 @@ window.handleProductSubmit = async () => {
 
   const nowTime = Date.now();
   const productData = {
-    name, image, price, salePrice, description: productDescription.value.trim(),
-    category: productCategory.value, tier: productTier.value, shopee1: shopee1.value.trim(),
-    shopee2: shopee2.value.trim(), lazada: lazada.value.trim(), isNew: isNew.checked,
-    isHot: isHot.checked, comingSoon: comingSoon.checked || (price === 0 && salePrice === 0),
-    isAdminRecommend: isAdminRecommendInput ? isAdminRecommendInput.checked : false,
-    lastUpdated: nowTime
-  };
+  name, 
+  image, 
+  price, 
+  salePrice, 
+  description: productDescription.value.trim(),
+  keywords: typeof productKeywords !== 'undefined' && productKeywords ? productKeywords.value.trim() : "", // ✨ เพิ่มฟิลด์คำค้นหาเพิ่มเติมที่นี่
+  category: productCategory.value, 
+  tier: productTier.value, 
+  shopee1: shopee1.value.trim(),
+  shopee2: shopee2.value.trim(), 
+  lazada: lazada.value.trim(), 
+  isNew: isNew.checked,
+  isHot: isHot.checked, 
+  comingSoon: comingSoon.checked || (price === 0 && salePrice === 0),
+  isAdminRecommend: isAdminRecommendInput ? isAdminRecommendInput.checked : false,
+  lastUpdated: nowTime
+};
 
   try {
     if (currentEditId) {
@@ -1297,6 +1316,7 @@ function clearProductForm() {
   productName.value = ""; productImage.value = ""; productPrice.value = ""; productSalePrice.value = ""; productDescription.value = "";
   if(productTier) productTier.value = ""; shopee1.value = ""; shopee2.value = ""; lazada.value = ""; isNew.checked = false; isHot.checked = false; comingSoon.checked = false;
   if(isAdminRecommendInput) isAdminRecommendInput.checked = false; 
+  if(productKeywords) productKeywords.value = ""; // เพิ่มบรรทัดนี้
 }
 
 function removeProductCancelButton() {
@@ -1337,6 +1357,7 @@ window.editProduct = (id) => {
     wrapper.appendChild(cancelBtn);
   }
   document.getElementById("adminPanel").scrollIntoView({ behavior: "smooth" });
+  if (productKeywords) productKeywords.value = p.keywords || "";
 };
 
 window.deleteProduct = async (id) => {
@@ -1474,6 +1495,10 @@ if (submitBtn) {
         salePrice: calculatedSalePrice, 
 
         description: productDescription.value.trim(),
+        
+        // ✨ เพิ่มฟิลด์คำค้นหาเพิ่มเติมตรงนี้ เพื่อเก็บค่าลง Firebase
+        keywords: typeof productKeywords !== "undefined" && productKeywords ? productKeywords.value.trim() : "",
+
         category: productCategory.value,
         tier: typeof productTier !== "undefined" && productTier ? productTier.value : "",
         shopee1: typeof shopee1 !== "undefined" && shopee1 ? shopee1.value.trim() : "",
