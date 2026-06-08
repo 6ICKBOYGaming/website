@@ -293,7 +293,7 @@
                 <button id="openPromoPopupAdminBtn" class="btn-admin-yellow" style="padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold;">📢 ตั้งค่าระบบ Popup</button>
                 <button id="goToBulkKeywordsBtn" class="btn-admin-yellow" style="padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold;" onclick="window.location.href='keyword.html'">
                 🔍 จัดการคีย์เวิร์ดกลุ่ม
-                </button>
+            </button>
             </div>
         </div>
         <section class="admin-panel" id="adminPanel" style="display: none;">
@@ -314,6 +314,10 @@
             <small style="color: var(--text-muted); font-size: 11px; margin-top: -6px; display: block;">*หากเว้นว่างราคาทั้งหมดไว้ ระบบจะตั้งเป็น Coming Soon... อัตโนมัติ*</small>
             
             <textarea id="productDescription" placeholder="รายละเอียดสินค้าเด่น..."></textarea>
+            <div class="form-group mb-3">
+            <label for="productKeywords" class="form-label fw-bold text-secondary">คำค้นหาเพิ่มเติม (Keywords สำหรับค้นหา)</label>
+            <input type="text" id="productKeywords" class="form-control" placeholder="เช่น nintendo, switch, แผ่นเกม (คั่นด้วยเครื่องหมายจุลภาค ,)">
+            </div>
             <div class="form-group">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="select-wrapper">
