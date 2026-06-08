@@ -550,9 +550,8 @@ function card(p, index){
   if (isProductComingSoon) {
     priceHtmlDisplay = `<div class="price coming-soon-text">Coming Soon...</div>`;
   } else if (isFlashSaleActive && priceFlash > 0) {
-    // ถ้ามี Flash Sale รันอยู่ ให้ความสำคัญกับราคา Flash Sale ก่อน
-    const baseDisplayOldPrice = priceSale > 0 ? priceSale : priceNormal;
-    priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(baseDisplayOldPrice)}</div><div class="price flash-active-price" style="color:#f87171; font-weight:8px; text-shadow:0 0 6px rgba(248,113,113,0.25);">${formatPrice(priceFlash)}</div>`;
+    // 🔥 แก้ไข: โชว์เฉพาะราคา Flash Sale เป็นสีแดงราคาเดียว ไม่โชว์ราคาเก่า
+    priceHtmlDisplay = `<div class="price flash-active-price" style="color:#ff4d4f; font-weight:bold; text-shadow:0 0 6px rgba(255,77,79,0.25);">${formatPrice(priceFlash)}</div>`;
   } else if (typeof promoTabConfig !== "undefined" && promoTabConfig && promoTabConfig.active && priceSale > 0 && priceNormal > 0) {
     // เทศกาลเปิดอยู่ และมีราคาส่วนลดพิเศษสีแดงสไตล์โปรโมชันเด่นชัด
     priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
@@ -705,9 +704,41 @@ function card(p, index){
   let flashSaleTimerHtml = "";
   if (!isProductComingSoon && currentFlashSaleTimeVal && isFlashSaleActive) {
     flashSaleTimerHtml = `
-      <div class="card-flash-sale-box" id="flash-box-${p.id}">
-        <span class="flash-sale-badge-text">Flash Sale</span>
-        <div class="flash-sale-countdown-clock dynamic-countdown-timer" data-id="${p.id}" data-endtime="${currentFlashSaleTimeVal}">00h 00m 00s</div>
+      <div class="card-flash-sale-box" id="flash-box-${p.id}" style="
+        background: #ffffff !important; 
+        border: 1px solid #ffffff !important; 
+        border-radius: 6px !important; 
+        padding: 4px 8px !important; 
+        display: flex !important; 
+        align-items: center !important; 
+        justify-content: space-between !important; 
+        gap: 6px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+        min-height: 32px !important;
+      ">
+        <span class="flash-sale-badge-text" style="
+          color: #ff7a00 !important; 
+          font-weight: bold !important; 
+          font-size: 12px !important;
+          white-space: nowrap !important;
+        ">
+          Flash Sale
+        </span>
+        <div class="flash-sale-countdown-clock dynamic-countdown-timer" data-id="${p.id}" data-endtime="${currentFlashSaleTimeVal}" style="
+          background: #ff7a00 !important; 
+          color: #000000 !important; 
+          padding: 2px 6px !important;  
+          border-radius: 4px !important; 
+          font-weight: bold !important;   
+          font-size: 12px !important;    
+          letter-spacing: 0.3px !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 4px !important;
+          white-space: nowrap !important;
+        ">
+           00h 00m 00s
+        </div>
       </div>
     `;
   }
