@@ -680,7 +680,7 @@ function card(p, index){
           text-transform: uppercase;
           white-space: nowrap !important;
         ">
-          SOLD OUT
+          สินค้าหมด
         </div>
       </div>
     `;
