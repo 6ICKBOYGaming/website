@@ -890,16 +890,18 @@ function renderMobileView() {
   }
 
   if (currentSortMode === "priceAsc") {
-    displayed = displayed.filter(p => !p.comingSoon && (p.price > 0 || p.salePrice > 0));
-    displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
+  // 🔥 แก้ไข: นำ !p.comingSoon ออก เพื่อให้ค้นหาสินค้า Coming Soon เจอ
+  displayed = displayed.filter(p => p.comingSoon || p.price > 0 || p.salePrice > 0);
+  displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
   } else if (currentSortMode === "priceDesc") {
-    displayed = displayed.filter(p => !p.comingSoon && (p.price > 0 || p.salePrice > 0));
+    // 🔥 แก้ไข: นำ !p.comingSoon ออก เช่นกัน
+    displayed = displayed.filter(p => p.comingSoon || p.price > 0 || p.salePrice > 0);
     displayed.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
   } else if (currentSortMode === "adminRecommend") {
     displayed = displayed.filter(p => !!p.isAdminRecommend);
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   } else {
-    // ✨ เอาฟิลเตอร์ออก สินค้า Coming Soon จะกลับมาแสดงในหน้าจัดอันดับตามปกติ
+    // ✨ เอาฟิลเตอร์และการจัดอันดับแบบ Tier List ออกทั้งหมด ให้เรียงตาม order ปกติ
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
@@ -1463,14 +1465,17 @@ onAuthStateChanged(auth, (user) => {
 });
 
 
-/* =========================================================
-📥 [ระบบที่เพิ่มเข้าไป] บันทึก / อัปเดตสินค้าเข้าฐานข้อมูลร่วมกับฟิลด์ส่วนลดใหม่
-========================================================= */
+/* =========================================================================
+   💾 บันทึก / อัปเดตสินค้าเข้าฐานข้อมูลร่วมกับฟิลด์ส่วนลดใหม่
+========================================================================= */
 if (submitBtn) {
   submitBtn.onclick = async (e) => {
     e.preventDefault();
 
-    if (!productName.value.trim() || !productPrice.value.trim()) {
+    const isComingSoonActive = typeof comingSoon !== "undefined" && comingSoon ? comingSoon.checked : false;
+
+    // 🔥 แก้ไขเงื่อนไข: ถ้าไม่ได้ติ๊ก Coming Soon แต่เว้นว่างชื่อหรือราคาปกติ ระบบถึงจะทำการแจ้งเตือนให้กรอก
+    if (!productName.value.trim() || (!isComingSoonActive && !productPrice.value.trim())) {
       alert("กรุณากรอกชื่อสินค้าและราคาปกติให้เรียบร้อยครับ");
       return;
     }
@@ -1478,7 +1483,7 @@ if (submitBtn) {
     try {
       // 1. ดึงค่าจากช่องส่วนลดออกมาเป็นข้อความสตริงตรงๆ (เช่น "25%=2000")
       const discountValue = productSalePrice.value.trim();
-
+      
       // 2. คำนวณราคาสุทธิที่จะเอาไปแสดงผลหน้าแรกของ User
       const calculatedSalePrice = calculateDiscountedPrice(Number(productPrice.value) || 0, discountValue);
 
@@ -1486,19 +1491,14 @@ if (submitBtn) {
       const productData = {
         name: productName.value.trim(),
         image: productImage.value.trim(),
-        price: Number(productPrice.value) || 0,
-        
+        price: Number(productPrice.value) || 0, // ถ้าว่างระบบจะแปลงเป็น 0 ให้โดยไม่เด้งแจ้งเตือนขัดขวาง
         // 🔥 เก็บรหัสส่วนลดดิบเพื่อเอาไว้ Edit
-        discount: discountValue, 
-        
+        discount: discountValue,
         // 🔥 เก็บราคาสุทธิที่ลดแล้วเพื่อไปแสดงผลหน้าบ้าน
-        salePrice: calculatedSalePrice, 
-
+        salePrice: calculatedSalePrice,
         description: productDescription.value.trim(),
-        
         // ✨ เพิ่มฟิลด์คำค้นหาเพิ่มเติมตรงนี้ เพื่อเก็บค่าลง Firebase
         keywords: typeof productKeywords !== "undefined" && productKeywords ? productKeywords.value.trim() : "",
-
         category: productCategory.value,
         tier: typeof productTier !== "undefined" && productTier ? productTier.value : "",
         shopee1: typeof shopee1 !== "undefined" && shopee1 ? shopee1.value.trim() : "",
@@ -1506,29 +1506,30 @@ if (submitBtn) {
         lazada: typeof lazada !== "undefined" && lazada ? lazada.value.trim() : "",
         isNew: typeof isNew !== "undefined" && isNew ? isNew.checked : false,
         isHot: typeof isHot !== "undefined" && isHot ? isHot.checked : false,
-        comingSoon: typeof comingSoon !== "undefined" && comingSoon ? comingSoon.checked : false,
+        comingSoon: isComingSoonActive,
         isAdminRecommend: typeof isAdminRecommendInput !== "undefined" && isAdminRecommendInput ? isAdminRecommendInput.checked : false,
         lastUpdated: Date.now()
       };
 
-      // 4. บันทึกลงฐานข้อมูลแยกตามโหมด แก้ไข หรือ เพิ่มใหม่
       if (currentEditId) {
+        // โหมดแก้ไขสินค้าเดิม
         await updateDoc(doc(db, "products", currentEditId), productData);
-        alert("🎉 บันทึกการแก้ไขข้อมูลสินค้าสำเร็จ!");
-        window.cancelProductEdit();
       } else {
-        productData.order = allProducts.length ? Math.max(...allProducts.map(p => p.order || 0)) + 1 : 1;
-        await addDoc(collection(db, "products"), productData);
-        alert("✨ เพิ่มสินค้าใหม่เข้าระบบสำเร็จแล้ว!");
-        if (typeof clearProductForm === "function") clearProductForm();
+        // โหมดเพิ่มสินค้าชิ้นใหม่เข้าระบบ
+        productData.order = allProducts.reduce((max, p) => ((p.order ?? 0) > max ? p.order : max), 0) + 1;
+        productData.hotOrder = allProducts.reduce((max, p) => ((p.hotOrder ?? 0) > max ? p.hotOrder : max), 0) + 1;
+        productData.newOrder = allProducts.reduce((max, p) => ((p.newOrder ?? 0) > max ? p.newOrder : max), 0) + 1;
+        productData.flashSaleEndTime = "";
+        productData.flashSalePrice = 0;
+        await addDoc(productsRef, productData);
       }
 
       await bumpCloudVersion();
-      if (typeof loadMasterData === "function") loadMasterData();
-
+      clearProductForm();
+      alert("บันทึกสินค้าเรียบร้อย!");
+      loadMasterData();
     } catch (error) {
-      console.error("Firestore Save Error:", error);
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message);
+      alert(error.message);
     }
   };
 }
