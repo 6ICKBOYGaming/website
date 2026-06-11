@@ -663,50 +663,46 @@ if(saveBtn) {
         }
     };
 }
-// ================= 🛍️ ระบบเลือกเฉพาะสินค้าที่เป็น MALL ทั้งหมด =================
+// =================================================================
+// 🛍️ ระบบปุ่มเลือกเฉพาะสินค้าที่เป็นร้านค้า MALL ทั้งหมดในตาราง (แก้ไขให้ตรงระบบหลัก)
+// =================================================================
 const selectAllMallBtn = document.getElementById("selectAllMallBtn");
 
 if (selectAllMallBtn) {
-    selectAllMallBtn.addEventListener("click", () => {
-        // ค้นหา Checkbox ของสินค้าทุกชิ้นที่โชว์อยู่ในตารางขณะนั้น
-        const allRowCheckboxes = document.querySelectorAll(".product-select-checkbox");
-        
+    selectAllMallBtn.onclick = () => {
+        // ดึงข้อมูลการพิมพ์ค้นหาหรือการเปลี่ยนค่าล่าสุดบนหน้าจอก่อนคำนวณ
+        syncCurrentChangesToState();
+
+        // ค้นหา Checkbox ของสินค้าทุกชิ้นที่แสดงผลอยู่ในตารางขณะนี้ (ใช้ .product-bulk-checkbox ให้ตรงกัน)
+        const allRowCheckboxes = document.querySelectorAll(".product-bulk-checkbox");
         let mallCount = 0;
 
         allRowCheckboxes.forEach(cb => {
             const isMall = cb.getAttribute("data-is-mall") === "true";
-            
+            const id = cb.getAttribute("data-id");
+            const prod = allProducts.find(p => p.id === id);
+
             if (isMall) {
-                cb.checked = true; // ติ๊กถูกหน้าบ้าน
+                cb.checked = true; // ติ๊กถูกที่หน้าจอ
+                if (prod) prod.is_checked = true; // บันทึกสถานะเข้าตัวแปรระบบหลัก
                 mallCount++;
-                
-                // ดึงข้อมูลสินค้าตัวนี้จากคลังข้อมูลหลัก เพื่อยัดเข้ากลุ่มสินค้าที่ถูกเลือก (checkedProducts)
-                const prodId = cb.getAttribute("data-id");
-                const p = allProducts.find(item => item.id === prodId);
-                
-                if (p && !checkedProducts.some(cp => cp.id === prodId)) {
-                    checkedProducts.push(p);
-                }
             } else {
-                // ตัวที่ไม่ใช่สินค้า Mall ให้ปลดติ๊กออก (หรือถ้าคุณไม่อยากให้ปลดตัวเก่าออก ให้ลบบรรทัดล่างนี้ทิ้งได้ครับ)
+                // สินค้าที่ไม่ใช่ Mall ให้ปลดติ๊กออก
                 cb.checked = false;
-                const prodId = cb.getAttribute("data-id");
-                checkedProducts = checkedProducts.filter(cp => cp.id !== prodId);
+                if (prod) prod.is_checked = false;
             }
         });
 
-        // อัปเดตตัวเลขจำนวนสินค้าที่เลือกสีส้มๆ ด้านบนแผงควบคุม
-        if (typeof updateSelectedCountDisplay === "function") {
-            updateSelectedCountDisplay();
-        } else {
-            const countEl = document.getElementById("selectedCount");
-            if(countEl) countEl.innerText = checkedProducts.length;
-        }
+        // สั่งอัปเดตตัวเลขสรุปจำนวนสินค้าที่เลือกสีส้มด้านล่างจอ
+        updateSelectedCount();
+        
+        // สั่งคำนวณกลุ่มวิเคราะห์โค้ดส่วนลด (ด้านบนขวา) ใหม่ทันทีให้สัมพันธ์กัน
+        renderDiscountSummary();
 
-        if(mallCount === 0) {
-            alert("ℹ️ ไม่พบสินค้าที่เปิดสถานะร้านค้า MALL ในรายการที่แสดงอยู่ขณะนี้ครับ");
+        if (mallCount === 0) {
+            alert("ℹ️ ไม่พบสินค้าที่เปิดสถานะร้านค้า MALL ในรายการตารางที่แสดงอยู่ขณะนี้ครับ");
         } else {
-            console.log(`🛍️ เลือกสินค้า MALL ทั้งหมดสำเร็จ: ${mallCount} รายการ`);
+            alert(`🛍️ ทำการเลือกสินค้า MALL ทั้งหมดจำนวน ${mallCount} รายการในตารางให้เรียบร้อยแล้วครับ!`);
         }
-    });
+    };
 }
