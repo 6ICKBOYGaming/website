@@ -547,19 +547,29 @@ function card(p, index){
   }
 
   // 2. Logic จัดการสลับราคาสำหรับโชว์หน้าสินค้า
-  if (isProductComingSoon) {
+  if (p.isSoldOut) {
+    // 🔥 เพิ่มเงื่อนไขบนสุด: ถ้าสินค้าหมด ให้เคลียร์ค่าเป็นว่างทันที เพื่อซ่อนราคาไม่ให้แสดงผลออกมา
+    priceHtmlDisplay = "";
+  } else if (isProductComingSoon) {
     priceHtmlDisplay = `<div class="price coming-soon-text">Coming Soon...</div>`;
   } else if (isFlashSaleActive && priceFlash > 0) {
     // 🔥 แก้ไข: โชว์เฉพาะราคา Flash Sale เป็นสีแดงราคาเดียว ไม่โชว์ราคาเก่า
     priceHtmlDisplay = `<div class="price flash-active-price" style="color:#ff4d4f; font-weight:bold; text-shadow:0 0 6px rgba(255,77,79,0.25);">${formatPrice(priceFlash)}</div>`;
   } else if (typeof promoTabConfig !== "undefined" && promoTabConfig && promoTabConfig.active && priceSale > 0 && priceNormal > 0) {
     // เทศกาลเปิดอยู่ และมีราคาส่วนลดพิเศษสีแดงสไตล์โปรโมชันเด่นชัด
-    priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
+    // เช็กเงื่อนไขเพิ่ม: ถ้าราคาเทศกาลดันเท่ากับราคาปกติ ก็ไม่ต้องโชว์ขีดค่า
+    if (priceSale !== priceNormal) {
+      priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
+    } else {
+      priceHtmlDisplay = `<div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
+    }
   } else {
     // ราคาปกติทั่วไป
-    if (priceSale > 0 && priceNormal > 0) {
+    // เพิ่มการเช็กเงื่อนไข: ต้องมีราคาส่วนลด, มีราคาปกติ และราคาส่วนลดต้อง "ไม่เท่ากับ" ราคาปกติ ถึงจะยอมให้โชว์แบบขีดค่า
+    if (priceSale > 0 && priceNormal > 0 && priceSale !== priceNormal) {
       priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price">${formatPrice(priceSale)}</div>`;
     } else {
+      // ถ้าราคาเท่ากัน หรือไม่มีส่วนลด ให้โชว์ราคาเดี่ยวๆ ตัวเดียว ไม่ต้องมีขีดค่า
       priceHtmlDisplay = `<div class="price">${formatPrice(priceNormal || priceSale)}</div>`;
     }
   }
@@ -1966,3 +1976,9 @@ if (searchInput) {
     render(); 
   });
 }
+// แปะไว้บรรทัดท้ายสุดของไฟล์ app.js ได้เลยครับ
+document.getElementById('categories')?.addEventListener('click', function(e) {
+    if (e.target.classList.contains('category')) {
+        this.classList.remove('show-all');
+    }
+});
