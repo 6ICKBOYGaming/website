@@ -492,19 +492,6 @@ function applyWidgetSettings(docSnap) {
     if (widgetVisibleCheck) widgetVisibleCheck.checked = !!currentWidgetState.visible;
   }
 }
-
-function getOptimizedImageUrl(originalUrl, targetWidth = 350) {
-  if (!originalUrl || typeof originalUrl !== "string") return "https://via.placeholder.com/180";
-  const trimmedUrl = originalUrl.trim();
-  if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) return trimmedUrl;
-  
-  if (isAdmin || trimmedUrl.includes("via.placeholder.com")) return trimmedUrl;
-  
-  return `https://wsrv.nl/?url=${encodeURIComponent(trimmedUrl)}&w=${targetWidth}&output=webp&q=80&il`;
-}
-
-function formatPrice(p){ if(p === undefined || p === null || p === "") return ""; return "฿" + Number(p).toLocaleString("th-TH"); }
-
 function card(p, index){
   const priceNormal = p.price ? Number(p.price) : 0;
   const priceSale = calculateDiscountedPrice(Number(p.price || 0), p.discount);
@@ -545,6 +532,19 @@ function card(p, index){
       </div>
     `;
   }
+function getOptimizedImageUrl(originalUrl, targetWidth = 350) {
+  if (!originalUrl || typeof originalUrl !== "string") return "https://via.placeholder.com/180";
+  const trimmedUrl = originalUrl.trim();
+  if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) return trimmedUrl;
+  
+  if (isAdmin || trimmedUrl.includes("via.placeholder.com")) return trimmedUrl;
+  
+  return `https://wsrv.nl/?url=${encodeURIComponent(trimmedUrl)}&w=${targetWidth}&output=webp&q=80&il`;
+}
+
+function formatPrice(p){ if(p === undefined || p === null || p === "") return ""; return "฿" + Number(p).toLocaleString("th-TH"); }
+
+
 
   // 2. Logic จัดการสลับราคาสำหรับโชว์หน้าสินค้า
   if (p.isSoldOut) {
@@ -836,7 +836,28 @@ function card(p, index){
       ${imageHtml}
       <div class="info" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
         ${promoBadgeHtml}
-        <h4>${p.name}</h4>
+        
+        <h4 style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+          ${p.isMallStore ? `
+            <span style="
+              background-color: #db2777 !important; /* สีชมพูอมแดงเข้มสไตล์ Mall (ถ้าอยากได้แดงสดเปลี่ยนเป็น #ef4444 ได้ครับ) */
+              color: #ffffff !important;
+              font-size: 10px !important;
+              font-weight: 900 !important;
+              padding: 2px 5px !important;
+              border-radius: 4px !important; /* ทำมุมมน */
+              text-transform: uppercase !important;
+              letter-spacing: 0.5px !important;
+              line-height: 1 !important;
+              display: inline-flex !important;
+              align-items: center !important;
+              flex-shrink: 0 !important;
+              font-family: sans-serif !important;
+            ">MALL</span>
+          ` : ""}
+          <span>${p.name}</span>
+        </h4>
+
         ${flashSaleTimerHtml}
         <div class="price-container">${priceHtmlDisplay}</div>
         ${p.description ? `<p>${p.description}</p>` : ""}
@@ -857,6 +878,14 @@ function card(p, index){
                 <span>ทำเครื่องหมายสินค้าหมด (Sold Out):</span>
               </label>
               <input type="checkbox" ${p.isSoldOut ? "checked" : ""} onchange="toggleQuickSoldOut('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0; accent-color: #ef4444;">
+            </div>
+
+            <div class="quick-mall-badge-box" style="margin-top: 6px; padding-top: 6px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box; border-top: 1px dashed rgba(255,255,255,0.08);">
+              <label style="font-size:12px; color:#ff4d4f; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1; font-weight: bold;">
+                <span style="font-size: 14px;">🛍️</span>
+                <span>เปิดสถานะร้านค้า Mall (มีโลโก้):</span>
+              </label>
+              <input type="checkbox" ${p.isMallStore ? "checked" : ""} onchange="toggleQuickMallStore('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0; accent-color: #ff4d4f;">
             </div>
           ` : ""}
         </div>
@@ -888,7 +917,25 @@ window.toggleQuickAdminRecommend = async function(productId, isChecked) {
     alert("ไม่สามารถบันทึกสถานะได้ กรุณาลองใหม่อีกครั้ง");
   }
 };
+window.toggleQuickMallStore = async function(productId, isChecked) {
+  try {
+    const productIndex = allProducts.findIndex(p => p.id === productId);
+    if (productIndex !== -1) { allProducts[productIndex].isMallStore = isChecked; }
 
+    const productDocRef = doc(db, "products", productId);
+    await updateDoc(productDocRef, {
+      isMallStore: isChecked,
+      lastUpdated: Date.now()
+    });
+
+    await bumpCloudVersion();
+    render();
+    console.log(`🛍️ อัปเดตสถานะร้าน Mall ID: ${productId} เป็น [${isChecked}] สำเร็จ`);
+  } catch (error) {
+    console.error("🚨 เกิดข้อผิดพลาดในการอัปเดตสถานะร้าน Mall:", error);
+    alert("ไม่สามารถบันทึกสถานะได้ กรุณาลองใหม่อีกครั้ง");
+  }
+};
 // 🔴 ฟังก์ชันสลับสถานะ "Sold Out" ด่วน และอัปเดตลง Firebase
 window.toggleQuickSoldOut = async function(productId, isChecked) {
   try {
@@ -1381,7 +1428,7 @@ window.saveAllProductsOrderManually = async () => {
     alert("💾 ลำดับโครงสร้างสินค้าทั้งหมดบันทึกเรียบร้อย!"); loadMasterData();
   } catch (err) { alert(err.message); }
 };
-
+const isMallStoreInput = document.getElementById("isMallStore"); // 🛍️ เพิ่ม Element ดักจับ Checkbox ร้าน Mall
 window.handleProductSubmit = async () => {
   const name = productName.value.trim(), image = productImage.value.trim();
   const price = Number(productPrice.value) || 0, salePrice = Number(productSalePrice.value) || 0;
@@ -1426,6 +1473,7 @@ function clearProductForm() {
   if(productTier) productTier.value = ""; shopee1.value = ""; shopee2.value = ""; lazada.value = ""; isNew.checked = false; isHot.checked = false; comingSoon.checked = false;
   if(isAdminRecommendInput) isAdminRecommendInput.checked = false; 
   if(productKeywords) productKeywords.value = ""; // เพิ่มบรรทัดนี้
+  if(isMallStoreInput) isMallStoreInput.checked = false;
 }
 
 function removeProductCancelButton() {
@@ -1450,6 +1498,13 @@ window.editProduct = (id) => {
   productDescription.value = p.description || ""; productCategory.value = p.category || "";
   if(productTier) productTier.value = p.tier || ""; shopee1.value = p.shopee1 || ""; shopee2.value = p.shopee2 || ""; lazada.value = p.lazada || ""; isNew.checked = !!p.isNew; isHot.checked = !!p.isHot; comingSoon.checked = !!p.comingSoon;
   if(isAdminRecommendInput) isAdminRecommendInput.checked = !!p.isAdminRecommend; 
+  
+  // 🛍️ [เพิ่มระบบ Mall] ดึงสถานะร้านค้า Mall เดิมจากฐานข้อมูลมาติ๊กถูกตอนกดแก้ไขสินค้า
+  if(typeof isMallStoreInput !== "undefined" && isMallStoreInput) {
+    isMallStoreInput.checked = !!p.isMallStore;
+  } else if(document.getElementById("isMallStore")) {
+    document.getElementById("isMallStore").checked = !!p.isMallStore;
+  }
   
   submitBtn.innerText = "บันทึกการแก้ไขสินค้า"; 
   let wrapper = document.getElementById("submitBtnWrapper");
@@ -1615,6 +1670,7 @@ if (submitBtn) {
         isHot: typeof isHot !== "undefined" && isHot ? isHot.checked : false,
         comingSoon: isComingSoonActive,
         isAdminRecommend: typeof isAdminRecommendInput !== "undefined" && isAdminRecommendInput ? isAdminRecommendInput.checked : false,
+        isMallStore: isMallStoreInput ? isMallStoreInput.checked : false, // 🛍️ เพิ่มบรรทัดนี้เพื่อส่งค่าสถานะ Mall ไป Firebase
         lastUpdated: Date.now()
       };
 

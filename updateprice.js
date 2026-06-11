@@ -151,7 +151,11 @@ function renderProductTable(productsList) {
 
         tr.innerHTML = `
             <td class="p-4 text-center">
-                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded text-cyan-500 bg-slate-950 border-slate-700 cursor-pointer focus:ring-0 focus:ring-offset-0" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
+                <input type="checkbox" 
+                       class="product-bulk-checkbox w-4 h-4 rounded text-cyan-500 bg-slate-950 border-slate-700 cursor-pointer focus:ring-0 focus:ring-offset-0" 
+                       data-id="${p.id}" 
+                       data-is-mall="${p.isMallStore ? 'true' : 'false'}" 
+                       ${p.is_checked ? 'checked' : ''}>
             </td>
             <td class="p-4 flex items-center gap-3">
                 <img src="${p.image || 'https://i.postimg.cc/brG5HJBR/123.jpg'}" class="w-10 h-10 object-cover rounded-lg border border-slate-700 bg-slate-950">
@@ -658,4 +662,51 @@ if(saveBtn) {
             alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + err.message);
         }
     };
+}
+// ================= 🛍️ ระบบเลือกเฉพาะสินค้าที่เป็น MALL ทั้งหมด =================
+const selectAllMallBtn = document.getElementById("selectAllMallBtn");
+
+if (selectAllMallBtn) {
+    selectAllMallBtn.addEventListener("click", () => {
+        // ค้นหา Checkbox ของสินค้าทุกชิ้นที่โชว์อยู่ในตารางขณะนั้น
+        const allRowCheckboxes = document.querySelectorAll(".product-select-checkbox");
+        
+        let mallCount = 0;
+
+        allRowCheckboxes.forEach(cb => {
+            const isMall = cb.getAttribute("data-is-mall") === "true";
+            
+            if (isMall) {
+                cb.checked = true; // ติ๊กถูกหน้าบ้าน
+                mallCount++;
+                
+                // ดึงข้อมูลสินค้าตัวนี้จากคลังข้อมูลหลัก เพื่อยัดเข้ากลุ่มสินค้าที่ถูกเลือก (checkedProducts)
+                const prodId = cb.getAttribute("data-id");
+                const p = allProducts.find(item => item.id === prodId);
+                
+                if (p && !checkedProducts.some(cp => cp.id === prodId)) {
+                    checkedProducts.push(p);
+                }
+            } else {
+                // ตัวที่ไม่ใช่สินค้า Mall ให้ปลดติ๊กออก (หรือถ้าคุณไม่อยากให้ปลดตัวเก่าออก ให้ลบบรรทัดล่างนี้ทิ้งได้ครับ)
+                cb.checked = false;
+                const prodId = cb.getAttribute("data-id");
+                checkedProducts = checkedProducts.filter(cp => cp.id !== prodId);
+            }
+        });
+
+        // อัปเดตตัวเลขจำนวนสินค้าที่เลือกสีส้มๆ ด้านบนแผงควบคุม
+        if (typeof updateSelectedCountDisplay === "function") {
+            updateSelectedCountDisplay();
+        } else {
+            const countEl = document.getElementById("selectedCount");
+            if(countEl) countEl.innerText = checkedProducts.length;
+        }
+
+        if(mallCount === 0) {
+            alert("ℹ️ ไม่พบสินค้าที่เปิดสถานะร้านค้า MALL ในรายการที่แสดงอยู่ขณะนี้ครับ");
+        } else {
+            console.log(`🛍️ เลือกสินค้า MALL ทั้งหมดสำเร็จ: ${mallCount} รายการ`);
+        }
+    });
 }
