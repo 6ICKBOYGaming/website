@@ -517,7 +517,7 @@ function card(p, index){
   let priceHtmlDisplay = "";
   let promoBadgeHtml = "";
 
-  // 1. Logic ตรวจสอบการแสดงป้ายเทศกาล (แก้ไขเงื่อนไขเช็กจากส่วนต่างราคาแทน p.discount เพื่อป้องกันป้ายหาย)
+  // 1. Logic ตรวจสอบการแสดงป้ายเทศกาล
   if (typeof promoTabConfig !== "undefined" && promoTabConfig && promoTabConfig.active && !isProductComingSoon && priceSale < priceNormal) {
     promoBadgeHtml = `
       <div class="promo-festival-tag" style="
@@ -535,7 +535,7 @@ function card(p, index){
         border: 1px solid rgba(255,255,255,0.2) !important;
         letter-spacing: 0.8px !important;
         margin-bottom: 12px !important;
-        width: 100% !important; /* ยาวเท่ากรอบสินค้าพอดี */
+        width: 100% !important;
         box-sizing: border-box !important;
         text-transform: uppercase !important;
       ">
@@ -548,28 +548,21 @@ function card(p, index){
 
   // 2. Logic จัดการสลับราคาสำหรับโชว์หน้าสินค้า
   if (p.isSoldOut) {
-    // 🔥 เพิ่มเงื่อนไขบนสุด: ถ้าสินค้าหมด ให้เคลียร์ค่าเป็นว่างทันที เพื่อซ่อนราคาไม่ให้แสดงผลออกมา
     priceHtmlDisplay = "";
   } else if (isProductComingSoon) {
     priceHtmlDisplay = `<div class="price coming-soon-text">Coming Soon...</div>`;
   } else if (isFlashSaleActive && priceFlash > 0) {
-    // 🔥 แก้ไข: โชว์เฉพาะราคา Flash Sale เป็นสีแดงราคาเดียว ไม่โชว์ราคาเก่า
     priceHtmlDisplay = `<div class="price flash-active-price" style="color:#ff4d4f; font-weight:bold; text-shadow:0 0 6px rgba(255,77,79,0.25);">${formatPrice(priceFlash)}</div>`;
   } else if (typeof promoTabConfig !== "undefined" && promoTabConfig && promoTabConfig.active && priceSale > 0 && priceNormal > 0) {
-    // เทศกาลเปิดอยู่ และมีราคาส่วนลดพิเศษสีแดงสไตล์โปรโมชันเด่นชัด
-    // เช็กเงื่อนไขเพิ่ม: ถ้าราคาเทศกาลดันเท่ากับราคาปกติ ก็ไม่ต้องโชว์ขีดค่า
     if (priceSale !== priceNormal) {
       priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
     } else {
       priceHtmlDisplay = `<div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
     }
   } else {
-    // ราคาปกติทั่วไป
-    // เพิ่มการเช็กเงื่อนไข: ต้องมีราคาส่วนลด, มีราคาปกติ และราคาส่วนลดต้อง "ไม่เท่ากับ" ราคาปกติ ถึงจะยอมให้โชว์แบบขีดค่า
     if (priceSale > 0 && priceNormal > 0 && priceSale !== priceNormal) {
       priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price">${formatPrice(priceSale)}</div>`;
     } else {
-      // ถ้าราคาเท่ากัน หรือไม่มีส่วนลด ให้โชว์ราคาเดี่ยวๆ ตัวเดียว ไม่ต้องมีขีดค่า
       priceHtmlDisplay = `<div class="price">${formatPrice(priceNormal || priceSale)}</div>`;
     }
   }
@@ -652,7 +645,6 @@ function card(p, index){
     `;
   }
 
-  // 🔴 [เวอร์ชันแถบคาดเต็มกรอบรูปสินค้า และมองทะลุเห็นสินค้าด้านหลังได้]
   let soldOutBadgeHtml = "";
   if (p.isSoldOut) {
     soldOutBadgeHtml = `
@@ -664,29 +656,29 @@ function card(p, index){
         bottom: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.15); /* ปรับพื้นผิวสินค้าให้ดรอปลงเล็กน้อยเพื่อให้ตัวหนังสือเด่นขึ้น */
+        background: rgba(0, 0, 0, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
-        overflow: hidden !important; /* สั่งให้ตัดขอบแถบที่ล้นเหลี่ยมรูปภาพออกให้พอดีเป๊ะ */
+        overflow: hidden !important;
         z-index: 95 !important;
         pointer-events: none;
-        border-radius: inherit; /* ให้โค้งมนตามขอบการ์ดรูปสินค้าของคุณ */
+        border-radius: inherit;
       ">
         <div style="
           position: absolute !important;
-          width: 150% !important; /* ขยายให้ยาวเป็นพิเศษเพื่อให้พาดทะลุมุมถึงมุมเมื่อหมุนเอียง */
-          background: rgba(220, 38, 38, 0.82) !important; /* สีแดงสดกึ่งโปร่งแสง (มองทะลุเห็นสินค้าข้างหลังได้ประมาณ 18%) */
+          width: 150% !important;
+          background: rgba(220, 38, 38, 0.82) !important;
           color: #ffffff !important;
           text-align: center !important;
-          padding: 10px 0 !important; /* เพิ่มความหนาของแถบคาดให้ดูเต็มตา */
+          padding: 10px 0 !important;
           font-family: 'Impact', 'Arial Black', sans-serif !important;
           font-size: 18px !important;
           font-weight: 900 !important;
           letter-spacing: 4px !important;
           text-shadow: 0px 2px 4px rgba(0, 0, 0, 0.5);
           box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.4);
-          transform: rotate(-15deg); /* สั่งเอียงพาดเฉียงสินค้า */
+          transform: rotate(-15deg);
           text-transform: uppercase;
           white-space: nowrap !important;
         ">
@@ -706,14 +698,69 @@ function card(p, index){
     finalImageTag = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" data-src="${imageSrc}" alt="${p.name}" class="lazy-load-img" style="width:100%; height:200px; object-fit:cover; opacity:0; transition:opacity 0.3s ease-in-out;">`;
   }
 
-  // 💡 ฝังระบบ ${soldOutBadgeHtml} ร่วมเข้าไปในบล็อกรูปภาพสินค้า
-  const imageHtml = imageLink ? 
-    `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${soldOutBadgeHtml}${finalImageTag}</a>` : 
-    `<div style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${soldOutBadgeHtml}${finalImageTag}</div>`;
+  // ⚡ โค้ดสร้างปุ่ม Icon แก้ไข และ ลบ (กำหนดให้อยู่ด้านล่างขวา)
+  let adminImageActionsHtml = "";
+  if (isAdmin) {
+    adminImageActionsHtml = `
+      <div class="admin-image-actions" style="
+        position: absolute; 
+        bottom: 8px; 
+        right: 8px; 
+        display: flex; 
+        gap: 6px; 
+        z-index: 100;
+      ">
+        <button class="admin-icon-btn edit-icon" onclick='editProduct("${p.id}"); event.stopPropagation(); event.preventDefault();' title="แก้ไขสินค้า" style="width: 32px !important; height: 32px !important; border-radius: 50% !important; border: none !important; display: flex !important; align-items: center !important; justify-content: center !important; color: #ffffff !important; background: #eab308 !important; cursor: pointer !important; box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; padding: 0 !important; transition: transform 0.2s ease;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        </button>
+        <button class="admin-icon-btn delete-icon" onclick='deleteProduct("${p.id}"); event.stopPropagation(); event.preventDefault();' title="ลบสินค้า" style="width: 32px !important; height: 32px !important; border-radius: 50% !important; border: none !important; display: flex !important; align-items: center !important; justify-content: center !important; color: #ffffff !important; background: #ef4444 !important; cursor: pointer !important; box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; padding: 0 !important; transition: transform 0.2s ease;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </button>
+      </div>
+    `;
+  }
 
+  // 🎯 เพิ่มระบบสร้างไอคอนสำหรับลาก (Drag Handle) ไว้ที่มุมซ้ายล่างของรูปสินค้า
+  let adminDragHandleHtml = "";
+  if (canDrag) {
+    adminDragHandleHtml = `
+      <div class="admin-drag-handle-icon" style="
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50% !important;
+        background: rgba(11, 11, 12, 0.85) !important;
+        color: #ffffff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+        z-index: 100;
+        cursor: grab;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        transition: background 0.2s ease;
+      " title="ลากตรงนี้เพื่อจัดอันดับอันดับสินค้า">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="5 9 2 12 5 15"></polyline>
+          <polyline points="9 5 12 2 15 5"></polyline>
+          <polyline points="15 19 12 22 9 19"></polyline>
+          <polyline points="19 9 22 12 19 15"></polyline>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <line x1="12" y1="2" x2="12" y2="22"></line>
+        </svg>
+      </div>
+    `;
+  }
+
+  // นำปุ่มแก้ไข/ลบ (${adminImageActionsHtml}) และปุ่มลาก (${adminDragHandleHtml}) ไปไว้ต่อท้าย finalImageTag เพื่อให้อยู่เลเยอร์บนสุด
+  const imageHtml = imageLink ? 
+    `<a href="${imageLink}" target="_blank" class="card-img-link" style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${soldOutBadgeHtml}${finalImageTag}${adminImageActionsHtml}${adminDragHandleHtml}</a>` : 
+    `<div style="position:relative; display:block; min-height:200px; background:rgba(255,255,255,0.02);">${adminLogoBadgeHtml}${soldOutBadgeHtml}${finalImageTag}${adminImageActionsHtml}${adminDragHandleHtml}</div>`;
+  
   let flashSaleTimerHtml = "";
   if (!isProductComingSoon && currentFlashSaleTimeVal && isFlashSaleActive) {
-    // 🔥 เช็คเงื่อนไขถ้าป้อนเวลาเป็น "un" ให้โชว์ป้ายแบบนิ่ง ๆ ไม่มีเวลานับถอยหลัง
     if (String(currentFlashSaleTimeVal).trim().toLowerCase() === "un") {
       flashSaleTimerHtml = `
         <div class="card-flash-sale-box" id="flash-box-${p.id}" data-untyped="true" style="
@@ -739,7 +786,6 @@ function card(p, index){
         </div>
       `;
     } else {
-      // โหมดปกติ: ตัวเลขนับถอยหลังขนาดเล็กลง, มี 🕒 หน้าตัวเลข, ไม่มีสายฟ้าหน้า Flash Sale
       flashSaleTimerHtml = `
         <div class="card-flash-sale-box" id="flash-box-${p.id}" style="
           background: #ffffff !important; 
@@ -767,8 +813,8 @@ function card(p, index){
             color: #000000 !important; 
             padding: 2px 6px !important;  
             border-radius: 4px !important; 
-            font-weight: bold !important;   
-            font-size: 12px !important;    
+            font-weight: bold !important;    
+            font-size: 12px !important;     
             letter-spacing: 0.3px !important;
             display: flex !important;
             align-items: center !important;
@@ -782,51 +828,42 @@ function card(p, index){
     }
   }
 
-  const currentQuickPriceVal = p.salePrice > 0 ? p.salePrice : (p.price > 0 ? p.price : "");
-  const currentQuickFlashPriceVal = p.flashSalePrice > 0 ? p.flashSalePrice : ""; 
-
   return `
-  <div ${dragAttr} style="position: relative;">
-    ${tierBadgeHtml}
-    ${p.isHot ? `<div class="badge hot">🔥 HOT</div>` : ""}
-    ${p.isNew ? `<div class="badge">🆕 NEW</div>` : ""}
-    ${imageHtml}
-    <div class="info" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
-      ${promoBadgeHtml}
-      <h4>${p.name}</h4>
-      ${flashSaleTimerHtml}
-      <div class="price-container">${priceHtmlDisplay}</div>
-      ${p.description ? `<p>${p.description}</p>` : ""}
-      <div class="btns">
-        ${btnsContent}
-        ${isAdmin ? `
-          <div class="admin-card-actions">
-            <button class="btn edit" onclick='editProduct("${p.id}")'>Edit</button>
-            <button class="btn delete" onclick='deleteProduct("${p.id}")'>Delete</button>
-          </div>
+    <div ${dragAttr} style="position: relative;">
+      ${tierBadgeHtml}
+      ${p.isHot ? `<div class="badge hot">🔥 HOT</div>` : ""}
+      ${p.isNew ? `<div class="badge">🆕 NEW</div>` : ""}
+      ${imageHtml}
+      <div class="info" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
+        ${promoBadgeHtml}
+        <h4>${p.name}</h4>
+        ${flashSaleTimerHtml}
+        <div class="price-container">${priceHtmlDisplay}</div>
+        ${p.description ? `<p>${p.description}</p>` : ""}
+        <div class="btns">
+          ${btnsContent}
+          ${isAdmin ? `
+            <div class="quick-recommend-badge-box" style="margin-top: 4px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box;">
+              <label style="font-size:12px; color:#a3a3a3; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1;">
+                <img src="${ADMIN_BADGE_LOGO_URL}" style="width:20px !important; height:20px !important; min-width:20px !important; min-height:20px !important; max-width:20px !important; max-height:20px !important; border-radius:50% !important; object-fit: cover !important; display: inline-block !important; vertical-align: middle;">
+                <span>เปิดใช้ป้ายโลโก้แอดมิน:</span>
+              </label>
+              <input type="checkbox" ${p.isAdminRecommend ? "checked" : ""} onchange="toggleQuickAdminRecommend('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0;">
+            </div>
             
-          <div class="quick-recommend-badge-box" style="margin-top: 4px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box;">
-            <label style="font-size:12px; color:#a3a3a3; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1;">
-              <img src="${ADMIN_BADGE_LOGO_URL}" style="width:20px !important; height:20px !important; min-width:20px !important; min-height:20px !important; max-width:20px !important; max-height:20px !important; border-radius:50% !important; object-fit: cover !important; display: inline-block !important; vertical-align: middle;">
-              <span>เปิดใช้ป้ายโลโก้แอดมิน:</span>
-            </label>
-            <input type="checkbox" ${p.isAdminRecommend ? "checked" : ""} onchange="toggleQuickAdminRecommend('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0;">
-          </div>
-
-          <div class="quick-soldout-badge-box" style="margin-top: 6px; padding-top: 6px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box;">
-            <label style="font-size:12px; color:#ef4444; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1; font-weight: bold;">
-              <span style="font-size: 14px;">🛑</span>
-              <span>ทำเครื่องหมายสินค้าหมด (Sold Out):</span>
-            </label>
-            <input type="checkbox" ${p.isSoldOut ? "checked" : ""} onchange="toggleQuickSoldOut('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0; accent-color: #ef4444;">
-          </div>
-        ` : ""}
+            <div class="quick-soldout-badge-box" style="margin-top: 6px; padding-top: 6px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box;">
+              <label style="font-size:12px; color:#ef4444; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1; font-weight: bold;">
+                <span style="font-size: 14px;">🛑</span>
+                <span>ทำเครื่องหมายสินค้าหมด (Sold Out):</span>
+              </label>
+              <input type="checkbox" ${p.isSoldOut ? "checked" : ""} onchange="toggleQuickSoldOut('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0; accent-color: #ef4444;">
+            </div>
+          ` : ""}
+        </div>
       </div>
     </div>
-  </div>
   `;
 }
-//แอดมินแนะนำ
 window.toggleQuickAdminRecommend = async function(productId, isChecked) {
   try {
     // 1. ค้นหาในตัวแปร Local ก่อนเพื่ออัปเดต UI ทันที

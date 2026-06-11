@@ -1730,3 +1730,52 @@ main h2 {
     transform: scale(1);
   }
 }
+
+/* กล่องจัดวางตำแหน่งไอคอนบนรูปสินค้า */
+.admin-image-actions {
+    position: absolute;
+    bottom: 8px; /* เปลี่ยนจาก top เป็น bottom */
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 100;
+}
+
+/* สไตล์ปุ่ม Icon วงกลม */
+.admin-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50% !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+    transition: transform 0.2s ease, background 0.2s ease !important;
+    padding: 0 !important;
+}
+
+.admin-icon-btn:hover {
+    transform: scale(1.1);
+}
+
+.admin-icon-btn.edit-icon {
+    background: #eab308 !important; /* สีเหลืองทองสำหรับแก้ไข */
+}
+.admin-icon-btn.edit-icon:hover {
+    background: #ca8a04 !important;
+}
+
+.admin-icon-btn.delete-icon {
+    background: #ef4444 !important; /* สีแดงสำหรับลบ */
+}
+.admin-icon-btn.delete-icon:hover {
+    background: #dc2626 !important;
+}
+
+/* สไตล์เพิ่มเติมสำหรับปุ่มลากสินค้า */
+.admin-drag-handle-icon:active {
+    cursor: grabbing !important;
+}
