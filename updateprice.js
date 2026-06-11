@@ -24,6 +24,7 @@ const db = getFirestore(app);
 let allProducts = [];
 let discountPresets = ["25%=2000", "30%=2000", "10%=500", "50%=3000"];
 let sortByCheckedAsc = false; // ตัวแปรจัดการสลับคัดเรียง (true = เอาตัวที่เลือกขึ้นข้างบน)
+let priceSortMode = "none";   // ⚡ ตัวแปรเพิ่มใหม่สำหรับคัดกรองราคา ("none", "asc" = น้อยไปมาก, "desc" = มากไปน้อย)
 
 const tableBody = document.getElementById("bulkProductTableBody");
 const searchInput = document.getElementById("bulkSearchInput");
@@ -457,6 +458,7 @@ function syncCurrentChangesToState() {
     });
 }
 
+// ⚡ แก้ไขฟังก์ชันกรองและเพิ่มระบบจัดเรียงราคาตรงนี้เรียบร้อยแล้ว
 function runCurrentFilter() {
     if(!searchInput || !categorySelect) return;
     const keyword = searchInput.value.toLowerCase().trim();
@@ -468,6 +470,13 @@ function runCurrentFilter() {
         const matchCat = (cat === "all" || p.category === cat);
         return matchKey && matchCat;
     });
+
+    // เงื่อนไขคัดกรองเสริม: เรียงลำดับตามราคาสินค้า
+    if (priceSortMode === "asc") {
+        filtered.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    } else if (priceSortMode === "desc") {
+        filtered.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    }
 
     // เงื่อนไขเรียงลำดับ: หากกดเปิดสถานะไว้ ให้ผลลัพธ์ของสินค้าที่ถูก 'is_checked = true' ขยับขึ้นบนสุด
     if (sortByCheckedAsc) {
@@ -487,6 +496,16 @@ function setupFilters() {
 
     if(searchInput) searchInput.addEventListener("input", filterHandler);
     if(categorySelect) categorySelect.addEventListener("change", filterHandler);
+
+    // ⚡ เพิ่ม Event Listener ดักจับการเปลี่ยนค่า Dropdown ของการเรียงราคา
+    const priceSortSelect = document.getElementById("bulkPriceSortSelect");
+    if (priceSortSelect) {
+        priceSortSelect.addEventListener("change", (e) => {
+            syncCurrentChangesToState();
+            priceSortMode = e.target.value; 
+            runCurrentFilter();
+        });
+    }
 
     // ดึง Element ปุ่มหัวตาราง "เลือก" เพื่อทำคำสั่งสลับจัดเรียงเมื่อโดนคลิก
     const thSelectSortBtn = document.getElementById("thSelectSortBtn");
@@ -663,17 +682,15 @@ if(saveBtn) {
         }
     };
 }
+
 // =================================================================
 // 🛍️ ระบบปุ่มเลือกเฉพาะสินค้าที่เป็นร้านค้า MALL ทั้งหมดในตาราง (แก้ไขให้ตรงระบบหลัก)
 // =================================================================
 const selectAllMallBtn = document.getElementById("selectAllMallBtn");
-
 if (selectAllMallBtn) {
     selectAllMallBtn.onclick = () => {
-        // ดึงข้อมูลการพิมพ์ค้นหาหรือการเปลี่ยนค่าล่าสุดบนหน้าจอก่อนคำนวณ
         syncCurrentChangesToState();
 
-        // ค้นหา Checkbox ของสินค้าทุกชิ้นที่แสดงผลอยู่ในตารางขณะนี้ (ใช้ .product-bulk-checkbox ให้ตรงกัน)
         const allRowCheckboxes = document.querySelectorAll(".product-bulk-checkbox");
         let mallCount = 0;
 
@@ -683,20 +700,16 @@ if (selectAllMallBtn) {
             const prod = allProducts.find(p => p.id === id);
 
             if (isMall) {
-                cb.checked = true; // ติ๊กถูกที่หน้าจอ
-                if (prod) prod.is_checked = true; // บันทึกสถานะเข้าตัวแปรระบบหลัก
+                cb.checked = true; 
+                if (prod) prod.is_checked = true; 
                 mallCount++;
             } else {
-                // สินค้าที่ไม่ใช่ Mall ให้ปลดติ๊กออก
                 cb.checked = false;
                 if (prod) prod.is_checked = false;
             }
         });
 
-        // สั่งอัปเดตตัวเลขสรุปจำนวนสินค้าที่เลือกสีส้มด้านล่างจอ
         updateSelectedCount();
-        
-        // สั่งคำนวณกลุ่มวิเคราะห์โค้ดส่วนลด (ด้านบนขวา) ใหม่ทันทีให้สัมพันธ์กัน
         renderDiscountSummary();
 
         if (mallCount === 0) {
