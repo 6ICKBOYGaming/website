@@ -971,11 +971,10 @@ function renderMobileView() {
   if (dragNoticeEl) {
     dragNoticeEl.style.display = "none";
   }
-
   if (document.getElementById("categoryTitle")) {
     document.getElementById("categoryTitle").innerText = "หมวดหมู่สินค้า: " + (selectedCategory || "ทั้งหมด");
   }
-  
+
   let displayed = [];
   const now = Date.now();
 
@@ -996,38 +995,42 @@ function renderMobileView() {
     });
   }
 
-  // 🔄 ระบบจัดเรียงสินค้าตามโหมดต่างๆ ของหน้าบ้าน (User View)
-  if (currentSortMode === "tierlist") {
-    // 🔥 เฉพาะหน้าหมวดหมู่ "ทั้งหมด" เท่านั้น: เอา NEW ขึ้นก่อน แล้วด้านล่างสุ่ม Dynamic
-    if (!selectedCategory || selectedCategory === "ทั้งหมด") {
-      displayed.sort((a, b) => {
-        const aNew = a.isNew ? 1 : 0;
-        const bNew = b.isNew ? 1 : 0;
-        
-        // 1. ถ้าตัวนึงเป็น NEW อีกตัวไม่ใช่ ดันตัว NEW ขึ้นก่อนเสมอ
-        if (bNew !== aNew) {
-          return bNew - aNew; 
-        }
-        
-        // 2. 🎲 ถ้าสถานะเหมือนกัน (เช่น ไม่ใช่สินค้า NEW ทั้งคู่) ให้สุ่มตำแหน่งแบบ Dynamic ตัวต่อตัว
-        return Math.random() - 0.5;
-      });
-    } else {
-      // 📦 ถ้าเลือกหมวดหมู่ย่อยอื่นๆ ให้เรียงตามลำดับที่แอดมินจัดไว้ตามปกติ (ไม่บังคับเอา NEW ขึ้นและไม่สุ่ม)
-      displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    }
-  } else if (currentSortMode === "priceAsc") {
-    displayed = displayed.filter(p => p.comingSoon || p.price > 0 || p.salePrice > 0);
-    displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
-  } else if (currentSortMode === "priceDesc") {
-    displayed = displayed.filter(p => p.comingSoon || p.price > 0 || p.salePrice > 0);
-    displayed.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
-  } else if (currentSortMode === "adminRecommend") {
-    displayed = displayed.filter(p => !!p.isAdminRecommend);
+  // 🔥 [แก้ไขจุดนี้] ตรรกะแยกกลุ่มสินค้าเฉพาะหมวดหมู่ "ทั้งหมด" (Coming Soon บนสุด -> NEW ตรงกลาง -> สินค้าทั่วไป Dynamic ด้านล่าง)
+  if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+    
+    // เรียงลำดับเบื้องต้นตามค่าลำดับที่จัดไว้ก่อนแยกกลุ่ม
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    // ฟังก์ชันช่วยเช็กเงื่อนไขสถานะ Coming Soon เพื่อความแม่นยำและครอบคลุมทุกรูปแบบตัวแปร
+    const checkComingSoon = (p) => {
+      return p.comingSoon === true || p.isComingSoon === true || p.status === "coming-soon" || p.status === "Coming Soon";
+    };
+
+    // 1. คัดแยกกลุ่ม Coming Soon (ล็อกไว้ด้านบนสุด ไม่สุ่มตำแหน่ง)
+    const comingSoonProducts = displayed.filter(p => checkComingSoon(p));
+    
+    // 2. คัดแยกกลุ่ม NEW (ต่อท้าย Coming Soon ล็อกไว้ ไม่สุ่มตำแหน่ง)
+    const newProducts = displayed.filter(p => p.isNew && !checkComingSoon(p));
+    
+    // 3. คัดแยกกลุ่มสินค้าทั่วไป (อยู่ใต้ NEW กลุ่มนี้กลุ่มเดียวที่จะสุ่ม Dynamic ทุกครั้งที่ F5)
+    const normalProducts = displayed.filter(p => !p.isNew && !checkComingSoon(p));
+    normalProducts.sort(() => Math.random() - 0.5); // สุ่มตำแหน่งเฉพาะสินค้าทั่วไปด้านล่างสุด
+
+    // 4. นำมารวมกันตามโครงสร้างเลเยอร์ที่ต้องการ
+    displayed = [...comingSoonProducts, ...newProducts, ...normalProducts];
+
+  } else {
+    // หากเป็นหมวดหมู่อื่นๆ ให้ใช้การเรียงลำดับตามปกติของระบบ (ไม่มีการสุ่มใดๆ)
+    if (currentSortMode === "tierlist") {
+      displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    } else if (currentSortMode === "price-asc") {
+      displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
+    } else if (currentSortMode === "price-desc") {
+      displayed.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
+    }
   }
 
-  // 🔍 ระบบค้นหาด้วยคีย์เวิร์ด
+  // (โค้ดดักตัวกรองคำค้นหาและการ Map Render เข้าสู่ innerHTML ด้านล่าง ให้คงไว้ตามเดิม...)
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
     displayed = displayed.filter(p => 
@@ -1041,8 +1044,8 @@ function renderMobileView() {
     allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
   }
   
-  renderSidebarCategories();
   observeLazyImages();
+  renderSidebarCategories();
 }
 
 /* ================= ⚙️ ระบบเรนเดอร์จัดการหลังบ้านสำหรับ Admin ================= */
@@ -1052,7 +1055,7 @@ function renderAdminView() {
   }
   let displayed = [...allProducts];
   const now = Date.now();
-  
+
   if (selectedCategory && selectedCategory !== "ทั้งหมด") {
     if (selectedCategory === "⚡ Flash Sale") {
       displayed = allProducts.filter(p => p.flashSalePrice > 0 && (!p.flashSaleEndTime || new Date(p.flashSaleEndTime).getTime() - now > 0));
@@ -1060,41 +1063,48 @@ function renderAdminView() {
       displayed = allProducts.filter(p => p.category && p.category.toString().trim() === selectedCategory.toString().trim());
     }
   }
-  
-  // 🔄 ระบบจัดเรียงสินค้าหลังบ้าน
-  if (currentSortMode !== "tierlist") {
-    // 🔥 เฉพาะเมื่อเลือกหมวดหมู่ "ทั้งหมด" (หรือไม่ได้เลือกหมวดหมู่) ให้เอาสินค้า NEW ขึ้นก่อน
-    if (!selectedCategory || selectedCategory === "ทั้งหมด") {
-      displayed.sort((a, b) => {
-        const aNew = a.isNew ? 1 : 0;
-        const bNew = b.isNew ? 1 : 0;
-        if (bNew !== aNew) {
-          return bNew - aNew; // เอาสินค้า New ขึ้นก่อน
-        }
-        return (a.order ?? 0) - (b.order ?? 0); 
-      });
-    } else {
-      // 📦 ถ้าเป็นหมวดหมู่ย่อยอื่นๆ ให้เรียงตามลำดับ order ดั้งเดิม (ไม่บังคับเอา NEW ขึ้นก่อน)
-      displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    }
+
+  // 🔥 [แก้ไขจุดนี้] ตรรกะแยกกลุ่มแบบเดียวกันฝั่งแอดมิน เพื่อให้หลังบ้านแสดงผลตรงกันกับหน้าแรกของลูกค้า
+  if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+    
+    displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    // ฟังก์ชันช่วยเช็กเงื่อนไขสถานะ Coming Soon เพื่อความแม่นยำและครอบคลุมทุกรูปแบบตัวแปร
+    const checkComingSoon = (p) => {
+      return p.comingSoon === true || p.isComingSoon === true || p.status === "coming-soon" || p.status === "Coming Soon";
+    };
+
+    // 1. คัดแยกกลุ่ม Coming Soon (ล็อกไว้ด้านบนสุด ไม่สุ่มตำแหน่ง)
+    const comingSoonProducts = displayed.filter(p => checkComingSoon(p));
+    
+    // 2. คัดแยกกลุ่ม NEW (ต่อท้าย Coming Soon ล็อกไว้ ไม่สุ่มตำแหน่ง)
+    const newProducts = displayed.filter(p => p.isNew && !checkComingSoon(p));
+    
+    // 3. คัดแยกกลุ่มสินค้าทั่วไป (อยู่ใต้ NEW กลุ่มนี้กลุ่มเดียวที่จะสุ่ม Dynamic ทุกครั้งที่ F5)
+    const normalProducts = displayed.filter(p => !p.isNew && !checkComingSoon(p));
+    normalProducts.sort(() => Math.random() - 0.5); // สุ่มตำแหน่งเฉพาะสินค้าทั่วไปด้านล่างสุด
+
+    // 4. นำมารวมกันตามโครงสร้างเลเยอร์ที่ต้องการ
+    displayed = [...comingSoonProducts, ...newProducts, ...normalProducts];
+
   } else {
-    // 👑 ถ้าแอดมินเปิดโหมดจัดอันดับ Tierlist ให้ยึดตาม Order ดั้งเดิมเพียวๆ เพื่อความแม่นยำในการลากวางและบันทึกข้อมูล
+    // หมวดหมู่อื่นๆ เรียงตามลำดับ Order ปกติ
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
-  
+
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
     displayed = displayed.filter(p => 
       (p.name && p.name.toLowerCase().includes(kw)) || 
-      (p.description && p.description.toLowerCase().includes(kw)) ||
+      (p.description && p.description.toLowerCase().includes(kw)) || 
       (p.keywords && p.keywords.toLowerCase().includes(kw))
     );
   }
-  
+
   if (allEl) {
     allEl.innerHTML = displayed.map((p, index) => card(p, index)).join("");
   }
-  
+
   renderSidebarCategories();
   renderAdminCategoryList();
   renderAdminConsoleCategoryList();
@@ -1378,94 +1388,27 @@ window.handleWidgetUpdate = async () => {
   } catch (err) { alert(err.message); }
 };
 
-function setupProductDragAndDrop(displayedProducts) {
-  const cards = document.querySelectorAll('.card.admin-draggable');
-  
-  cards.forEach(card => {
-    /* ================= 💻 โค้ดเดิมสำหรับคอมพิวเตอร์ (Mouse Events) ================= */
-    card.addEventListener('dragstart', (e) => {
-      draggedProductId = card.getAttribute('data-id');
-      card.classList.add('dragging');
-    });
-    
-    card.addEventListener('dragend', () => {
-      card.classList.remove('dragging');
-    });
+function setupProductDragAndDrop(currentFilteredProducts) {
+  const cards = document.querySelectorAll("#products .card.admin-draggable");
+  cards.forEach(cardItem => {
+    cardItem.addEventListener("dragstart", (e) => { draggedProductId = cardItem.getAttribute("data-id"); });
+    cardItem.addEventListener("dragover", (e) => e.preventDefault());
+    cardItem.addEventListener("drop", (e) => {
+      e.preventDefault(); const targetProductId = cardItem.getAttribute("data-id");
+      if (draggedProductId === targetProductId) return;
 
-    /* ================= 📱 เพิ่มโค้ดสำหรับมือถือ (Touch Events) ================= */
-    card.addEventListener('touchstart', (e) => {
-      // ดักจับเฉพาะตอนจิ้มที่ตัวไอคอนลาก (Drag Handle) หรือจะให้ลากได้ทั้งการ์ด
-      draggedProductId = card.getAttribute('data-id');
-      card.classList.add('dragging');
-      
-      // ล็อกไม่ให้หน้าจอมือถือขยับเลื่อนขึ้นลงตอนกำลังลากสินค้า
-      document.body.style.overflow = 'hidden'; 
-    }, { passive: true });
+      let updatedList = [...currentFilteredProducts];
+      const dIdx = updatedList.findIndex(p => p.id === draggedProductId), tIdx = updatedList.findIndex(p => p.id === targetProductId);
+      if (dIdx === -1 || tIdx === -1) return;
 
-    card.addEventListener('touchmove', (e) => {
-      // ตรวจสอบตำแหน่งนิ้วบนหน้าจอ
-      const touch = e.touches[0];
-      // หา Element ที่นิ้วเรากำลังลากผ่านอยู่ ณ วินาทีนั้น
-      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (!targetEl) return;
-
-      // ค้นหาการ์ดใบอื่นที่อยู่ใต้นิ้วมือ
-      const closestCard = targetEl.closest('.card.admin-draggable');
-      
-      if (closestCard && closestCard !== card) {
-        const targetId = closestCard.getAttribute('data-id');
-        
-        // สลับตำแหน่งในอาร์เรย์แสดงผลทันที (Realtime Visual Feedback)
-        const fromIndex = displayedProducts.findIndex(p => p.id === draggedProductId);
-        const toIndex = displayedProducts.findIndex(p => p.id === targetId);
-        
-        if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
-          // สลับตำแหน่งสินค้าใน Array หน้าจอ
-          const [movedItem] = displayedProducts.splice(fromIndex, 1);
-          displayedProducts.splice(toIndex, 0, movedItem);
-          
-          // สั่งอัปเดตเลขลำดับ order ของสินค้าชิ้นที่ย้าย
-          movedItem.order = toIndex;
-          
-          // สั่งเรนเดอร์หน้าจอใหม่ชั่วคราวให้ผู้ใช้เห็นว่าการ์ดสลับที่กันแล้ว
-          if (allEl) {
-            allEl.innerHTML = displayedProducts.map((p, index) => card(p, index)).join("");
-            // ผูก Event ซ้ำให้กับ Element ที่สร้างใหม่
-            setupProductDragAndDrop(displayedProducts); 
-          }
-        }
-      }
-    });
-
-    card.addEventListener('touchend', async (e) => {
-      card.classList.remove('dragging');
-      // คืนค่าให้หน้าจอมือถือสกรอลล์ได้ตามปกติ
-      document.body.style.overflow = ''; 
-
-      // บันทึกลำดับตำแหน่งใหม่ทั้งหมดลงไปที่ Cloud Firestore ทันทีเมื่อปล่อยนิ้ว
-      if (isAdmin && typeof saveNewProductOrder === 'function') {
-        console.log("📱 [Touch Drop] กำลังเซฟลำดับลงฐานข้อมูลเรียลไทม์...");
-        await saveNewProductOrder(displayedProducts);
-      }
+      const [removed] = updatedList.splice(dIdx, 1); updatedList.splice(tIdx, 0, removed);
+      const nowTime = Date.now();
+      updatedList.forEach((prod, i) => { const found = allProducts.find(x => x.id === prod.id); if(found) { found.order = i; found.lastUpdated = nowTime; } });
+      renderAdminView();
     });
   });
-
-  // ส่วนของระบบ Drag Over / Drop ดั้งเดิมของ PC (เขียนต่อท้ายตามปกติ)
-  if (allEl) {
-    allEl.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      const afterElement = getDragAfterElement(allEl, e.clientY);
-      const draggingCard = document.querySelector('.card.dragging');
-      if (draggingCard == null) return;
-      
-      if (afterElement == null) {
-        allEl.appendChild(draggingCard);
-      } else {
-        allEl.insertBefore(draggingCard, afterElement);
-      }
-    });
-  }
 }
+
 window.saveAllProductsOrderManually = async () => {
   try {
     alert("⏳ กำลังจัดแพ็กเกจลำดับโครงสร้างสินค้าส่งขึ้น Cloud...");
