@@ -996,18 +996,27 @@ function renderMobileView() {
     });
   }
 
-  // 🎲 ปรับระบบสุ่ม: จะสุ่มเฉพาะตอนโหมดเริ่มต้น (tierlist) และต้องเป็นหน้า "ทั้งหมด" (หน้าแรก) เท่านั้น
-  if (currentSortMode === "tierlist" && (!selectedCategory || selectedCategory === "ทั้งหมด")) {
-    for (let i = displayed.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [displayed[i], displayed[j]] = [displayed[j], displayed[i]];
+  // 🔄 ระบบจัดเรียงสินค้าตามโหมดต่างๆ ของหน้าบ้าน (User View)
+  if (currentSortMode === "tierlist") {
+    // 🔥 เฉพาะหน้าหมวดหมู่ "ทั้งหมด" เท่านั้น: เอา NEW ขึ้นก่อน แล้วด้านล่างสุ่ม Dynamic
+    if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+      displayed.sort((a, b) => {
+        const aNew = a.isNew ? 1 : 0;
+        const bNew = b.isNew ? 1 : 0;
+        
+        // 1. ถ้าตัวนึงเป็น NEW อีกตัวไม่ใช่ ดันตัว NEW ขึ้นก่อนเสมอ
+        if (bNew !== aNew) {
+          return bNew - aNew; 
+        }
+        
+        // 2. 🎲 ถ้าสถานะเหมือนกัน (เช่น ไม่ใช่สินค้า NEW ทั้งคู่) ให้สุ่มตำแหน่งแบบ Dynamic ตัวต่อตัว
+        return Math.random() - 0.5;
+      });
+    } else {
+      // 📦 ถ้าเลือกหมวดหมู่ย่อยอื่นๆ ให้เรียงตามลำดับที่แอดมินจัดไว้ตามปกติ (ไม่บังคับเอา NEW ขึ้นและไม่สุ่ม)
+      displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     }
-  } else if (currentSortMode === "tierlist") {
-    // ถ้าเลือกหมวดหมู่ย่อยแล้ว ให้เรียงตามลำดับที่แอดมินจัดไว้ตามปกติ ไม่สุ่ม
-    displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }
-
-  if (currentSortMode === "priceAsc") {
+  } else if (currentSortMode === "priceAsc") {
     displayed = displayed.filter(p => p.comingSoon || p.price > 0 || p.salePrice > 0);
     displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
   } else if (currentSortMode === "priceDesc") {
@@ -1018,6 +1027,7 @@ function renderMobileView() {
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
+  // 🔍 ระบบค้นหาด้วยคีย์เวิร์ด
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
     displayed = displayed.filter(p => 
@@ -1051,14 +1061,24 @@ function renderAdminView() {
     }
   }
   
-  // 🎲 [เพิ่มระบบสุ่มตำแหน่งสินค้าฝั่ง Admin] สุ่มเฉพาะตอนที่แอดมินไม่ได้เปิดโหมดเรียงลำดับลากวาง (Tierlist)
+  // 🔄 ระบบจัดเรียงสินค้าหลังบ้าน
   if (currentSortMode !== "tierlist") {
-    for (let i = displayed.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [displayed[i], displayed[j]] = [displayed[j], displayed[i]];
+    // 🔥 เฉพาะเมื่อเลือกหมวดหมู่ "ทั้งหมด" (หรือไม่ได้เลือกหมวดหมู่) ให้เอาสินค้า NEW ขึ้นก่อน
+    if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+      displayed.sort((a, b) => {
+        const aNew = a.isNew ? 1 : 0;
+        const bNew = b.isNew ? 1 : 0;
+        if (bNew !== aNew) {
+          return bNew - aNew; // เอาสินค้า New ขึ้นก่อน
+        }
+        return (a.order ?? 0) - (b.order ?? 0); 
+      });
+    } else {
+      // 📦 ถ้าเป็นหมวดหมู่ย่อยอื่นๆ ให้เรียงตามลำดับ order ดั้งเดิม (ไม่บังคับเอา NEW ขึ้นก่อน)
+      displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     }
   } else {
-    // ถ้าเปิดโหมดจัดอันดับ Tierlist ให้เรียงตาม Order ดั้งเดิมเพื่อให้ลากวางได้แม่นยำ
+    // 👑 ถ้าแอดมินเปิดโหมดจัดอันดับ Tierlist ให้ยึดตาม Order ดั้งเดิมเพียวๆ เพื่อความแม่นยำในการลากวางและบันทึกข้อมูล
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
   
