@@ -1341,7 +1341,11 @@ main h2 {
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
   }
-
+  .card.admin-draggable {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none; /* ช่วยปิดระบบ Scroll พื้นหลังชั่วคราวขณะแตะลาก */
+  }
   .card p {
     display: none !important;
   }
@@ -1350,6 +1354,7 @@ main h2 {
     padding: 4px 6px !important;
     margin-bottom: 6px !important;
   }
+  
   .flash-sale-badge-text { font-size: 10px !important; }
   .flash-sale-countdown-clock { font-size: 10px !important; padding: 1px 4px !important; }
 

@@ -24,7 +24,6 @@ const db = getFirestore(app);
 let allProducts = [];
 let discountPresets = ["25%=2000", "30%=2000", "10%=500", "50%=3000"];
 let sortByCheckedAsc = false; // ตัวแปรจัดการสลับคัดเรียง (true = เอาตัวที่เลือกขึ้นข้างบน)
-let priceSortMode = "none";   // ⚡ ตัวแปรเพิ่มใหม่สำหรับคัดกรองราคา ("none", "asc" = น้อยไปมาก, "desc" = มากไปน้อย)
 
 const tableBody = document.getElementById("bulkProductTableBody");
 const searchInput = document.getElementById("bulkSearchInput");
@@ -152,11 +151,7 @@ function renderProductTable(productsList) {
 
         tr.innerHTML = `
             <td class="p-4 text-center">
-                <input type="checkbox" 
-                       class="product-bulk-checkbox w-4 h-4 rounded text-cyan-500 bg-slate-950 border-slate-700 cursor-pointer focus:ring-0 focus:ring-offset-0" 
-                       data-id="${p.id}" 
-                       data-is-mall="${p.isMallStore ? 'true' : 'false'}" 
-                       ${p.is_checked ? 'checked' : ''}>
+                <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded text-cyan-500 bg-slate-950 border-slate-700 cursor-pointer focus:ring-0 focus:ring-offset-0" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
             </td>
             <td class="p-4 flex items-center gap-3">
                 <img src="${p.image || 'https://i.postimg.cc/brG5HJBR/123.jpg'}" class="w-10 h-10 object-cover rounded-lg border border-slate-700 bg-slate-950">
@@ -458,7 +453,6 @@ function syncCurrentChangesToState() {
     });
 }
 
-// ⚡ แก้ไขฟังก์ชันกรองและเพิ่มระบบจัดเรียงราคาตรงนี้เรียบร้อยแล้ว
 function runCurrentFilter() {
     if(!searchInput || !categorySelect) return;
     const keyword = searchInput.value.toLowerCase().trim();
@@ -470,13 +464,6 @@ function runCurrentFilter() {
         const matchCat = (cat === "all" || p.category === cat);
         return matchKey && matchCat;
     });
-
-    // เงื่อนไขคัดกรองเสริม: เรียงลำดับตามราคาสินค้า
-    if (priceSortMode === "asc") {
-        filtered.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
-    } else if (priceSortMode === "desc") {
-        filtered.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
-    }
 
     // เงื่อนไขเรียงลำดับ: หากกดเปิดสถานะไว้ ให้ผลลัพธ์ของสินค้าที่ถูก 'is_checked = true' ขยับขึ้นบนสุด
     if (sortByCheckedAsc) {
@@ -496,16 +483,6 @@ function setupFilters() {
 
     if(searchInput) searchInput.addEventListener("input", filterHandler);
     if(categorySelect) categorySelect.addEventListener("change", filterHandler);
-
-    // ⚡ เพิ่ม Event Listener ดักจับการเปลี่ยนค่า Dropdown ของการเรียงราคา
-    const priceSortSelect = document.getElementById("bulkPriceSortSelect");
-    if (priceSortSelect) {
-        priceSortSelect.addEventListener("change", (e) => {
-            syncCurrentChangesToState();
-            priceSortMode = e.target.value; 
-            runCurrentFilter();
-        });
-    }
 
     // ดึง Element ปุ่มหัวตาราง "เลือก" เพื่อทำคำสั่งสลับจัดเรียงเมื่อโดนคลิก
     const thSelectSortBtn = document.getElementById("thSelectSortBtn");
@@ -679,43 +656,6 @@ if(saveBtn) {
             location.reload();
         } catch(err) {
             alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + err.message);
-        }
-    };
-}
-
-// =================================================================
-// 🛍️ ระบบปุ่มเลือกเฉพาะสินค้าที่เป็นร้านค้า MALL ทั้งหมดในตาราง (แก้ไขให้ตรงระบบหลัก)
-// =================================================================
-const selectAllMallBtn = document.getElementById("selectAllMallBtn");
-if (selectAllMallBtn) {
-    selectAllMallBtn.onclick = () => {
-        syncCurrentChangesToState();
-
-        const allRowCheckboxes = document.querySelectorAll(".product-bulk-checkbox");
-        let mallCount = 0;
-
-        allRowCheckboxes.forEach(cb => {
-            const isMall = cb.getAttribute("data-is-mall") === "true";
-            const id = cb.getAttribute("data-id");
-            const prod = allProducts.find(p => p.id === id);
-
-            if (isMall) {
-                cb.checked = true; 
-                if (prod) prod.is_checked = true; 
-                mallCount++;
-            } else {
-                cb.checked = false;
-                if (prod) prod.is_checked = false;
-            }
-        });
-
-        updateSelectedCount();
-        renderDiscountSummary();
-
-        if (mallCount === 0) {
-            alert("ℹ️ ไม่พบสินค้าที่เปิดสถานะร้านค้า MALL ในรายการตารางที่แสดงอยู่ขณะนี้ครับ");
-        } else {
-            alert(`🛍️ ทำการเลือกสินค้า MALL ทั้งหมดจำนวน ${mallCount} รายการในตารางให้เรียบร้อยแล้วครับ!`);
         }
     };
 }
