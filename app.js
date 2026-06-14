@@ -2059,3 +2059,103 @@ document.getElementById('categories')?.addEventListener('click', function(e) {
         this.classList.remove('show-all');
     }
 });
+
+/* =========================================================================
+📱 [Mobile Touch Drag & Drop System] ระบบลากจัดเรียงสินค้าบนมือถือด้วยปุ่มจับ
+========================================================================= */
+(function initMobileDragDrop() {
+    let activeDragCard = null;
+    let initialY = 0;
+    let placeholder = null;
+
+    document.addEventListener('touchstart', function(e) {
+        // ทำงานเฉพาะเมื่อเอานิ้วไปแตะที่ปุ่มไอคอนลากสินค้าในโหมดแอดมินเท่านั้น
+        const handle = e.target.closest('.admin-drag-handle-icon');
+        if (!handle) return;
+
+        // ค้นหาการ์ดสินค้าชิ้นที่กำลังจะถูกลาก
+        const card = handle.closest('.card.admin-draggable');
+        if (!card) return;
+
+        activeDragCard = card;
+        initialY = e.touches[0].clientY;
+
+        // สั่งล็อกไม่ให้หน้าจอมือถือเลื่อนหนีขณะลาก
+        e.preventDefault();
+
+        // สร้างเส้นจำลอง (Placeholder) เพื่อบอกตำแหน่งที่จะวางใหม่
+        placeholder = document.createElement('div');
+        placeholder.className = 'drag-placeholder';
+        placeholder.style.height = card.offsetHeight + 'px';
+        placeholder.style.background = 'rgba(234, 179, 8, 0.1)';
+        placeholder.style.border = '2px dashed #eab308';
+        placeholder.style.borderRadius = '12px';
+        placeholder.style.margin = window.getComputedStyle(card).margin;
+    }, { passive: false });
+
+    document.addEventListener('touchmove', function(e) {
+        if (!activeDragCard) return;
+        
+        // ล็อกการ Scroll หน้าจอหลัก
+        e.preventDefault();
+
+        const touchY = e.touches[0].clientY;
+        
+        // ค้นหาองค์ประกอบใต้ตำแหน่งนิ้วปัจจุบัน
+        const elementUnderTouch = document.elementFromPoint(e.touches[0].clientX, touchY);
+        if (!elementUnderTouch) return;
+
+        const targetCard = elementUnderTouch.closest('.card.admin-draggable');
+        
+        if (targetCard && targetCard !== activeDragCard) {
+            const rect = targetCard.getBoundingClientRect();
+            const next = (touchY - rect.top) / (rect.bottom - rect.top) > 0.5;
+            const parent = targetCard.parentNode;
+            
+            // แทรกสลับตำแหน่งในหน้าเว็บซ้าย/ขวา หรือ บน/ล่าง ชั่วคราว
+            parent.insertBefore(placeholder, next ? targetCard.nextSibling : targetCard);
+            parent.insertBefore(activeDragCard, placeholder);
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchend', async function(e) {
+        if (!activeDragCard) return;
+
+        // ลบเส้นจำลองทิ้งเมื่อปล่อยนิ้ว
+        if (placeholder && placeholder.parentNode) {
+            placeholder.parentNode.removeChild(placeholder);
+        }
+
+        activeDragCard = null;
+        placeholder = null;
+
+        // อัปเดตลำดับใหม่ลงฐานข้อมูลหลังการลากสิ้นสุดลง
+        if (typeof currentSortMode !== "undefined" && currentSortMode === "tierlist") {
+            console.log("📱 [Mobile Drag] กำลังบันทึกลำดับสินค้าใหม่บนมือถือ...");
+            
+            const container = document.getElementById("products");
+            if (!container) return;
+
+            const cards = container.querySelectorAll('.card.admin-draggable');
+            const batch = typeof writeBatch === "function" ? writeBatch(db) : null;
+            
+            if (!batch) return;
+
+            cards.forEach((card, index) => {
+                const prodId = card.getAttribute('data-id');
+                if (prodId) {
+                    const docRef = doc(db, "products", prodId);
+                    batch.update(docRef, { order: index });
+                }
+            });
+
+            try {
+                await batch.commit();
+                console.log("⚡ [Mobile Drag] บันทึกลำดับสินค้าใหม่ลงฐานข้อมูลสำเร็จ!");
+                if (typeof bumpCloudVersion === "function") await bumpCloudVersion();
+            } catch (err) {
+                console.error("Error saving mobile drag order:", err);
+            }
+        }
+    });
+})();
