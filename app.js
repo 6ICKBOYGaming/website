@@ -546,22 +546,26 @@ function card(p, index){
     `;
   }
 
-  // 2. Logic จัดการสลับราคาสำหรับโชว์หน้าสินค้า
+  // 2. Logic จัดการสลับราคาสำหรับโชว์หน้าสินค้า (อัปเดตเป็นสีเขียวระบบแล้ว)
   if (p.isSoldOut) {
     priceHtmlDisplay = "";
   } else if (isProductComingSoon) {
     priceHtmlDisplay = `<div class="price coming-soon-text">Coming Soon...</div>`;
   } else if (isFlashSaleActive && priceFlash > 0) {
-    priceHtmlDisplay = `<div class="price flash-active-price" style="color:#ff4d4f; font-weight:bold; text-shadow:0 0 6px rgba(255,77,79,0.25);">${formatPrice(priceFlash)}</div>`;
+    // แก้ไข: เปลี่ยนราคา Flash Sale เป็นสีเขียว พร้อมแสงเรืองโทนเขียวอ่อน
+    priceHtmlDisplay = `<div class="price flash-active-price" style="color:var(--price-green); font-weight:bold; text-shadow:0 0 6px rgba(34,197,94,0.25);">${formatPrice(priceFlash)}</div>`;
   } else if (typeof promoTabConfig !== "undefined" && promoTabConfig && promoTabConfig.active && priceSale > 0 && priceNormal > 0) {
     if (priceSale !== priceNormal) {
-      priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
+      // แก้ไข: เปลี่ยนราคาส่วนลดช่วงเทศกาลเป็นสีเขียว พร้อมแสงเรืองโทนเขียวอ่อน
+      priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price" style="color:var(--price-green); font-weight:bold; text-shadow: 0 0 4px rgba(34,197,94,0.2);">${formatPrice(priceSale)}</div>`;
     } else {
-      priceHtmlDisplay = `<div class="price" style="color:#ff4d4f; font-weight:bold; text-shadow: 0 0 4px rgba(255,77,79,0.2);">${formatPrice(priceSale)}</div>`;
+      // แก้ไข: เปลี่ยนราคาปกติช่วงเทศกาลเป็นสีเขียว พร้อมแสงเรืองโทนเขียวอ่อน
+      priceHtmlDisplay = `<div class="price" style="color:var(--price-green); font-weight:bold; text-shadow: 0 0 4px rgba(34,197,94,0.2);">${formatPrice(priceSale)}</div>`;
     }
   } else {
     if (priceSale > 0 && priceNormal > 0 && priceSale !== priceNormal) {
-      priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price">${formatPrice(priceSale)}</div>`;
+      // แก้ไข: เปลี่ยนราคาส่วนลดปกติทั่วไปเป็นสีเขียวระบบ
+      priceHtmlDisplay = `<div class="price old-price-slashed">${formatPrice(priceNormal)}</div><div class="price" style="color:var(--price-green); font-weight:bold;">${formatPrice(priceSale)}</div>`;
     } else {
       priceHtmlDisplay = `<div class="price">${formatPrice(priceNormal || priceSale)}</div>`;
     }
@@ -864,6 +868,7 @@ function card(p, index){
     </div>
   `;
 }
+
 window.toggleQuickAdminRecommend = async function(productId, isChecked) {
   try {
     // 1. ค้นหาในตัวแปร Local ก่อนเพื่ออัปเดต UI ทันที
