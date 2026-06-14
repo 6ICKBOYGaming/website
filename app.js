@@ -1016,19 +1016,22 @@ function renderMobileView() {
     displayed = [...allProducts];
   } else if (selectedCategory === "⚡ Flash Sale") {
     displayed = allProducts.filter(p => {
-      const hasFlashPrice = p.flashSalePrice && Number(p.flashSalePrice) > 0;
-      if (!p.flashSaleEndTime) {
-        return hasFlashPrice;
+      const priceFlash = p.flashSalePrice ? Number(p.flashSalePrice) : 0;
+      const endTimeStr = p.flashSaleEndTime ? String(p.flashSaleEndTime).trim() : "";
+      
+      // ถ้าราคา Flash Sale เป็น 0 หรือติดลบ ไม่ต้องแสดง
+      if (priceFlash <= 0) return false;
+      
+      // ถ้าแอดมินตั้งเวลาเป็น "un" (ไม่จำกัดเวลา) ให้แสดงได้เลย
+      if (endTimeStr.toLowerCase() === "un" || endTimeStr === "") return true;
+      
+      // ตรวจสอบเวลาหมดอายุ (ต้องมากกว่าเวลาปัจจุบัน)
+      const endTimeTarget = new Date(endTimeStr).getTime();
+      if (isNaN(endTimeTarget)) {
+        // ป้องกันบั๊กถ้าฟอร์แมตวันที่ผิดพลาด แต่มีราคาแฟลชเซลล์ ให้โชว์ไว้ก่อน
+        return true; 
       }
-      return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
-    });
-  } else if (selectedCategory === "❤️ สินค้า Mall") {
-    // 🔥 เพิ่มเงื่อนไขนี้: คัดกรองสินค้าที่ถูกติ๊กเปิดใช้งานระบบ Mall (.isMall เป็น true) ออกมาแสดงผล
-    displayed = allProducts.filter(p => p.isMall);
-  } else {
-    displayed = allProducts.filter(p => {
-      if (!p.category) return false;
-      return p.category.toString().trim() === selectedCategory.toString().trim();
+      return (endTimeTarget - now > 0);
     });
   }
 
