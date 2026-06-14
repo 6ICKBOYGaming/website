@@ -96,6 +96,7 @@ const isHot = document.getElementById("isHot");
 const comingSoon = document.getElementById("comingSoon");
 const isAdminRecommendInput = document.getElementById("isAdminRecommend"); 
 const submitBtn = document.getElementById("submitBtn");
+const isMall = document.getElementById("isMall"); // 🔥 เพิ่มบรรทัดนี้เพื่อชี้ไปที่ Checkbox ใน HTML ของคุณ
 const productKeywords = document.getElementById("productKeywords");//keyword search
 
 const adminCategoryTitle = document.getElementById("adminCategoryTitle");
@@ -724,7 +725,7 @@ function card(p, index){
     `;
   }
 
-  // 🎯 เพิ่มระบบสร้างไอคอนสำหรับลาก (Drag Handle) ไว้ที่มุมซ้ายล่างของรูปสินค้า
+  // 🇲🇷 เพิ่มระบบสร้างไอคอนสำหรับลาก (Drag Handle) ไว้ที่มุมซ้ายล่างของรูปสินค้า
   let adminDragHandleHtml = "";
   if (canDrag) {
     adminDragHandleHtml = `
@@ -840,7 +841,27 @@ function card(p, index){
       ${imageHtml}
       <div class="info" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
         ${promoBadgeHtml}
-        <h4>${p.name}</h4>
+        
+        <h4>
+          ${p.isMall ? `
+            <span style="
+              background-color: #d0011b !important; /* เปลี่ยนเป็นสี่เหลี่ยมสีแดงทึบ */
+              color: #ffffff !important;            /* เปลี่ยนข้อความ MALL เป็นสีขาว */
+              font-size: 10px !important; 
+              font-weight: bold !important; 
+              padding: 2px 5px !important;          /* ปรับระยะขอบให้ได้ทรงสี่เหลี่ยมสวยงาม */
+              border-radius: 3px !important; 
+              margin-right: 6px !important;
+              display: inline-block !important;
+              vertical-align: middle !important;
+              line-height: 1 !important;
+              font-family: sans-serif !important;
+              letter-spacing: 0.5px !important;
+            ">MALL</span>
+          ` : ""}
+          ${p.name}
+        </h4>
+        
         ${flashSaleTimerHtml}
         <div class="price-container">${priceHtmlDisplay}</div>
         ${p.description ? `<p>${p.description}</p>` : ""}
@@ -861,6 +882,14 @@ function card(p, index){
                 <span>ทำเครื่องหมายสินค้าหมด (Sold Out):</span>
               </label>
               <input type="checkbox" ${p.isSoldOut ? "checked" : ""} onchange="toggleQuickSoldOut('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0; accent-color: #ef4444;">
+            </div>
+
+            <div class="quick-mall-badge-box" style="margin-top: 6px; padding-top: 6px; display: flex; align-items: center; justify-content: space-between; width:100%; box-sizing: border-box; border-top: 1px dashed rgba(255,255,255,0.1);">
+              <label style="font-size:12px; color:#d0011b; display:flex; align-items:center; gap:8px; cursor:pointer; flex: 1; font-weight: bold;">
+                <span style="background-color: #d0011b; color: #ffffff; padding: 2px 4px; font-size: 9px; border-radius: 2px; font-weight: bold;">MALL</span>
+                <span>เปิดใช้งานสินค้าระบบ Mall ด่วน:</span>
+              </label>
+              <input type="checkbox" ${p.isMall ? "checked" : ""} onchange="toggleQuickMall('${p.id}', this.checked)" style="width:18px !important; height:18px !important; min-width:18px !important; cursor:pointer; margin: 0; accent-color: #d0011b;">
             </div>
           ` : ""}
         </div>
@@ -983,7 +1012,7 @@ function renderMobileView() {
   let displayed = [];
   const now = Date.now();
 
-  if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+ if (!selectedCategory || selectedCategory === "ทั้งหมด") {
     displayed = [...allProducts];
   } else if (selectedCategory === "⚡ Flash Sale") {
     displayed = allProducts.filter(p => {
@@ -993,6 +1022,9 @@ function renderMobileView() {
       }
       return hasFlashPrice && (new Date(p.flashSaleEndTime).getTime() - now > 0);
     });
+  } else if (selectedCategory === "❤️ สินค้า Mall") {
+    // 🔥 เพิ่มเงื่อนไขนี้: คัดกรองสินค้าที่ถูกติ๊กเปิดใช้งานระบบ Mall (.isMall เป็น true) ออกมาแสดงผล
+    displayed = allProducts.filter(p => p.isMall);
   } else {
     displayed = allProducts.filter(p => {
       if (!p.category) return false;
@@ -1660,6 +1692,7 @@ if (submitBtn) {
         isHot: typeof isHot !== "undefined" && isHot ? isHot.checked : false,
         comingSoon: isComingSoonActive,
         isAdminRecommend: typeof isAdminRecommendInput !== "undefined" && isAdminRecommendInput ? isAdminRecommendInput.checked : false,
+        isMall: typeof isMall !== "undefined" && isMall ? isMall.checked : false, // 🔥 เพิ่มบรรทัดนี้เพื่อเก็บสถานะ Mall ลง Firebase
         lastUpdated: Date.now()
       };
 
@@ -2164,3 +2197,30 @@ document.getElementById('categories')?.addEventListener('click', function(e) {
         }
     });
 })();
+
+// 🔥 ฟังก์ชันสลับเปิด-ปิดระบบ Mall ด่วน และอัปเดตตรงเข้า Firebase Firestore อัตโนมัติ
+window.toggleQuickMall = async function(productId, isChecked) {
+  try {
+    // 1. อัปเดตข้อมูลบน Memory ในแอปพลิเคชันทันทีเพื่อความไว
+    const productIndex = allProducts.findIndex(p => p.id === productId);
+    if (productIndex !== -1) {
+      allProducts[productIndex].isMall = isChecked;
+    }
+
+    // 2. ยิงคำสั่งอัปเดตโครงสร้างฟิลด์ isMall ลง Firebase doc ตรงๆ
+    const productDocRef = doc(db, "products", productId);
+    await updateDoc(productDocRef, {
+      isMall: isChecked,
+      lastUpdated: Date.now()
+    });
+
+    // 3. แจ้งเปลี่ยนเวอร์ชันข้อมูล Cloud เพื่อบังคับโหลดหน้าใหม่
+    if (typeof bumpCloudVersion === "function") await bumpCloudVersion();
+    
+    render(); // สั่งวาดหน้าจอใหม่ทันที
+    console.log(`⚡ [Quick Action] อัปเดตสถานะป้าย MALL สินค้าสำเร็จเรียบร้อย!`);
+  } catch (error) {
+    console.error("🚨 เกิดข้อผิดพลาดในการสลับระบบ Mall ด่วน:", error);
+    alert("ไม่สามารถเปลี่ยนสถานะด่วนได้ในขณะนี้");
+  }
+};

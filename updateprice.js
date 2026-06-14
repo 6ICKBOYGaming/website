@@ -41,7 +41,37 @@ const inspectCodeSelect = document.getElementById("inspectCodeSelect");
 const inspectCountText = document.getElementById("inspectCountText");
 const inspectProductList = document.getElementById("inspectProductList");
 const checkAllInInspectBtn = document.getElementById("checkAllInInspectBtn");
+// 🔥 ฟังก์ชันปุ่มสำหรับเลือกติ๊ก Checkbox เฉพาะสินค้าที่เป็นระบบ MALL ทั้งหมด (เวอร์ชันแก้ไขเพื่อระบบ updateprice)
+const selectAllMallBtn = document.getElementById("selectAllMallBtn");
+if (selectAllMallBtn) {
+    selectAllMallBtn.addEventListener("click", () => {
+        let selectedCount = 0;
 
+        allProducts.forEach(prod => {
+            // ตรวจสอบสถานะว่าเป็นสินค้า Mall หรือไม่
+            if (prod.isMall === true || prod.isMall === "true") {
+                prod.is_checked = true; // 🎯 เปลี่ยนเป็น is_checked ให้ตรงกับโครงสร้างของระบบเดิม
+                selectedCount++;
+                
+                // 🎯 ปรับการค้นหา Checkbox บนหน้าจอผ่านคลาสและ data-id ที่ตรงตามโค้ดดั้งเดิมในตาราง
+                const checkboxElement = document.querySelector(`.product-bulk-checkbox[data-id="${prod.id}"]`);
+                if (checkboxElement) {
+                    checkboxElement.checked = true;
+                }
+            }
+        });
+
+        // 🎯 เรียกคำสั่งนับจำนวนและแสดงผลแถบสรุปของระบบเดิมขึ้นหน้าจอทันที
+        if (typeof updateSelectedCount === "function") {
+            updateSelectedCount();
+        }
+        
+        // บังคับให้ระบบอัปเดตสถิติกราฟและตัวกรองอื่นๆ (ถ้ามี)
+        renderDiscountSummary();
+
+        console.log(`🎯 เลือกสินค้า Mall สำเร็จทั้งหมด ${selectedCount} รายการ`);
+    });
+}
 window.addEventListener("DOMContentLoaded", async () => {
     await loadGlobalPromoSettings();
     await loadPresetsFromConfig();
