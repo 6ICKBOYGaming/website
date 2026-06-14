@@ -1780,7 +1780,12 @@ main h2 {
     background: #dc2626 !important;
 }
 
-/* สไตล์เพิ่มเติมสำหรับปุ่มลากสินค้า */
-.admin-drag-handle-icon:active {
-    cursor: grabbing !important;
+/* การ์ดสินค้าปกติ: สั่งให้เลื่อนขึ้นลง (Scroll แนวตั้ง) ได้เสมอ */
+.card {
+  touch-action: pan-y !important;
+}
+
+/* เฉพาะไอคอนสำหรับลากสินค้า: ปิดระบบ Scroll เพื่อให้ระบบรับรู้การลากย้ายตำแหน่ง */
+.admin-drag-handle-icon {
+  touch-action: none !important;
 }
