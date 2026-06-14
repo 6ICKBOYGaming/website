@@ -24,6 +24,7 @@ const db = getFirestore(app);
 let allProducts = [];
 let discountPresets = ["25%=2000", "30%=2000", "10%=500", "50%=3000"];
 let sortByCheckedAsc = false; // ตัวแปรจัดการสลับคัดเรียง (true = เอาตัวที่เลือกขึ้นข้างบน)
+let priceSortDirection = "none"; // 🆕 'none' -> 'asc' (น้อยไปมาก) -> 'desc' (มากไปน้อย)
 
 const tableBody = document.getElementById("bulkProductTableBody");
 const searchInput = document.getElementById("bulkSearchInput");
@@ -42,6 +43,56 @@ const inspectCountText = document.getElementById("inspectCountText");
 const inspectProductList = document.getElementById("inspectProductList");
 const checkAllInInspectBtn = document.getElementById("checkAllInInspectBtn");
 // 🔥 ฟังก์ชันปุ่มสำหรับเลือกติ๊ก Checkbox เฉพาะสินค้าที่เป็นระบบ MALL ทั้งหมด (เวอร์ชันแก้ไขเพื่อระบบ updateprice)
+
+const sortByPriceBtn = document.getElementById("sortByPriceBtn");
+const priceSortIcon = document.getElementById("priceSortIcon");
+
+if (sortByPriceBtn) {
+    sortByPriceBtn.onclick = () => {
+        // ซิงค์ค่าปัจจุบันบนหน้าจอเข้าสู่ Array หลักก่อน จะได้ไม่หลุดหาย
+        syncCurrentChangesToState();
+
+        // สลับ State: none -> asc -> desc -> none
+        if (priceSortDirection === "none") {
+            priceSortDirection = "asc";
+            priceSortIcon.className = "fa-solid fa-sort-up text-cyan-400";
+        } else if (priceSortDirection === "asc") {
+            priceSortDirection = "desc";
+            priceSortIcon.className = "fa-solid fa-sort-down text-cyan-400";
+        } else {
+            priceSortDirection = "none";
+            priceSortIcon.className = "fa-solid fa-sort text-slate-500";
+        }
+
+        // ประมวลผลคัดกรองตามช่อง Search / Category ก่อน แล้วนำมา Sort ราคา
+        let filtered = [...allProducts];
+
+        // (แถม) ตัวกรองเดิมของคุณที่มีในระบบ (ปรับชื่อตัวแปรให้ตรงกับโค้ดจริงของคุณ)
+        const searchInput = document.getElementById("searchProductInput");
+        const categoryFilter = document.getElementById("categoryFilter");
+        
+        if (searchInput && searchInput.value.trim() !== "") {
+            const query = searchInput.value.toLowerCase();
+            filtered = filtered.filter(p => (p.name || "").toLowerCase().includes(query));
+        }
+        if (categoryFilter && categoryFilter.value !== "") {
+            filtered = filtered.filter(p => p.category === categoryFilter.value);
+        }
+
+        // เริ่มทำการเรียงลำดับราคา
+        if (priceSortDirection === "asc") {
+            filtered.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+        } else if (priceSortDirection === "desc") {
+            filtered.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+        } else {
+            // คืนค่ากลับไปเรียงตามอักษรชื่อหรือตาม ID เดิมของ Firebase
+            filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        }
+
+        // สั่งวาดตารางใหม่ด้วยข้อมูลที่จัดเรียงเรียบร้อยแล้ว
+        renderProductTable(filtered);
+    };
+}
 const selectAllMallBtn = document.getElementById("selectAllMallBtn");
 if (selectAllMallBtn) {
     selectAllMallBtn.addEventListener("click", () => {

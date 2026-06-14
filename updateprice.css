@@ -71,3 +71,11 @@ body {
 .product-mall-toggle-checkbox:checked {
     box-shadow: 0 0 8px rgba(244, 63, 94, 0.5); /* เรืองแสงสี Rose เมื่อเปิดใช้ */
 }
+
+/* เพิ่มความลื่นไหลให้ไอคอนจัดเรียงราคา */
+#sortByPriceBtn:hover #priceSortIcon {
+    transform: scale(1.2);
+}
+#priceSortIcon {
+    transition: transform 0.2s ease, color 0.2s ease;
+}

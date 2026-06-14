@@ -122,6 +122,12 @@
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
                 <input type="text" id="bulkSearchInput" placeholder="ค้นหาด้วยชื่อสินค้าที่นี่..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-white text-sm focus:outline-none focus:border-cyan-500">
             </div>
+            <th class="p-4 text-left font-bold text-slate-300 w-44">
+                <button id="sortByPriceBtn" class="flex items-center gap-1.5 hover:text-cyan-400 transition focus:outline-none">
+                    <i class="fa-solid fa-calculator text-cyan-500"></i> ราคาตั้งต้น (บาท)
+                    <i id="priceSortIcon" class="fa-solid fa-sort text-slate-500 text-xs"></i>
+                </button>
+            </th>
             <div class="w-full sm:w-48">
                 <select id="bulkCategorySelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500">
                     <option value="all">ทุกหมวดหมู่</option>
