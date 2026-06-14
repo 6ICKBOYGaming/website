@@ -242,7 +242,6 @@ function renderProductTable(productsList) {
                 <div class="flex-1">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="font-medium text-slate-200 line-clamp-1">${p.name}</span>
-                        <!-- 🛒 เพิ่ม Checkbox เปิดระบบ Mall ทันทีไว้หลังชื่อสินค้า -->
                         <label class="inline-flex items-center gap-1 bg-rose-950/40 border border-rose-900/60 px-1.5 py-0.5 rounded text-[10px] text-rose-400 font-bold cursor-pointer hover:bg-rose-900/30 transition select-none">
                             <input type="checkbox" class="product-mall-toggle-checkbox w-3 h-3 rounded text-rose-500 bg-slate-950 border-rose-800 cursor-pointer focus:ring-0" data-id="${p.id}" ${isMallChecked}>
                             <span>MALL</span>
@@ -297,11 +296,66 @@ function renderProductTable(productsList) {
         });
     });
 
+    // 🎯 แก้ไขใหม่: ดักจับการกรอกราคา และกด Enter เพื่อบันทึกรายตัวทันที
     document.querySelectorAll(".bulk-price-input").forEach(inp => {
         inp.addEventListener("input", (e) => {
             const id = e.target.getAttribute("data-id");
             const prod = allProducts.find(p => p.id === id);
             if (prod) prod.price = Number(e.target.value) || 0;
+        });
+
+        inp.addEventListener("keydown", async (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault(); // ป้องกันการทำงานซ้ำซ้อนหรือรีเฟรชหน้าเว็บ
+                
+                const id = e.target.getAttribute("data-id");
+                const prod = allProducts.find(p => p.id === id);
+                if (!prod) return;
+
+                const rawPrice = Number(e.target.value) || 0;
+                const rawDiscount = (prod.discount || "").trim();
+                const computedSalePrice = calculateDiscountedPrice(rawPrice, rawDiscount);
+
+                // แสดง Loading เอฟเฟกต์ที่ช่อง Input ชั่วคราว
+                inp.classList.add("opacity-50", "border-amber-500");
+                inp.disabled = true;
+
+                try {
+                    // นำเข้าโมดูล Firestore อัปเดตแบบรายชิ้น
+                    const { updateDoc, doc: firestoreDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+                    const productDocRef = firestoreDoc(db, "products", id);
+                    
+                    // บันทึกเฉพาะข้อมูลราคาสินค้าชิ้นนี้โดยตรง
+                    await updateDoc(productDocRef, {
+                        price: rawPrice,
+                        salePrice: computedSalePrice,
+                        lastUpdated: Date.now()
+                    });
+
+                    // อัปเดตข้อมูลเข้าไปในตัวแปรหลัก
+                    prod.price = rawPrice;
+
+                    // อัปเดตระบบเวอร์ชันคลาวด์เพื่อให้หน้าร้านล้างแคชรับราคาใหม่
+                    const setDocRef = firestoreDoc(db, "system_settings", "cloud_version");
+                    const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+                    await setDoc(setDocRef, { version: Date.now() });
+
+                    // เรียกใช้การแจ้งเตือนความสำเร็จแบบ Toast (ถ้ามีฟังก์ชันนี้ หรือใช้แจ้งเตือนแบบไม่รบกวนการทำงาน)
+                    if (typeof showMiniToast === "function") {
+                        showMiniToast(`✅ บันทึกราคา "${prod.name}" เรียบร้อยแล้ว!`);
+                    } else {
+                        console.log(`[Success] Updated ${prod.name} to ${rawPrice}`);
+                    }
+                    
+                    inp.blur(); // เอาเคอร์เซอร์ออกจากช่องป้อนข้อมูลเมื่อบันทึกเสร็จ
+                } catch (err) {
+                    alert("เกิดข้อผิดพลาดในการบันทึกราคาด่วน: " + err.message);
+                } finally {
+                    // ปลดล็อกคืนสถานะให้ช่อง Input กลับมาใช้งานได้ตามปกติ
+                    inp.classList.remove("opacity-50", "border-amber-500");
+                    inp.disabled = false;
+                }
+            }
         });
     });
 
@@ -779,4 +833,36 @@ if(saveBtn) {
             alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + err.message);
         }
     };
+}
+
+// ฟังก์ชันสั้นสำหรับอัปเดตเอกสารชิ้นเดียวบน Firestore
+async function batchUpdateSingleProduct(id, dataToUpdate) {
+    // นำเข้าฟังก์ชันอัปเดตของ Firebase แบบเดี่ยว
+    const { updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const productDocRef = doc(db, "products", id);
+    await updateDoc(productDocRef, dataToUpdate);
+}
+
+// ฟังก์ชันสร้างกล่องแจ้งเตือนความสำเร็จแบบ Pop-up เล็กๆ มุมจอโดยไม่ขัดจังหวะผู้ใช้งาน
+function showMiniToast(message) {
+    let toastContainer = document.getElementById("mini-toast-container");
+    if (!toastContainer) {
+        toastContainer = document.createElement("div");
+        toastContainer.id = "mini-toast-container";
+        toastContainer.className = "fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none";
+        document.body.appendChild(toastContainer);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = "bg-slate-900 border border-emerald-500 text-emerald-400 font-medium px-4 py-3 rounded-lg shadow-2xl text-xs sm:text-sm animate-bounce duration-300 pointer-events-auto flex items-center gap-2";
+    toast.innerHTML = message;
+
+    toastContainer.appendChild(toast);
+
+    // เลือนหายไปเองภายใน 3 วินาที
+    setTimeout(() => {
+        toast.style.transition = "opacity 0.5s ease";
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
 }
