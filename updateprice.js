@@ -179,14 +179,24 @@ function renderProductTable(productsList) {
             optionsHtml += `<option value="${p.discount}" selected>⚙️ ค่าเดิม: ${p.discount}</option>`;
         }
 
+        // ตรวจสอบค่าสถานะเริ่มต้นของ Mall
+        const isMallChecked = (p.isMall === true || p.isMall === "true") ? 'checked' : '';
+
         tr.innerHTML = `
             <td class="p-4 text-center">
                 <input type="checkbox" class="product-bulk-checkbox w-4 h-4 rounded text-cyan-500 bg-slate-950 border-slate-700 cursor-pointer focus:ring-0 focus:ring-offset-0" data-id="${p.id}" ${p.is_checked ? 'checked' : ''}>
             </td>
             <td class="p-4 flex items-center gap-3">
                 <img src="${p.image || 'https://i.postimg.cc/brG5HJBR/123.jpg'}" class="w-10 h-10 object-cover rounded-lg border border-slate-700 bg-slate-950">
-                <div>
-                    <div class="font-medium text-slate-200 line-clamp-1">${p.name}</div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-medium text-slate-200 line-clamp-1">${p.name}</span>
+                        <!-- 🛒 เพิ่ม Checkbox เปิดระบบ Mall ทันทีไว้หลังชื่อสินค้า -->
+                        <label class="inline-flex items-center gap-1 bg-rose-950/40 border border-rose-900/60 px-1.5 py-0.5 rounded text-[10px] text-rose-400 font-bold cursor-pointer hover:bg-rose-900/30 transition select-none">
+                            <input type="checkbox" class="product-mall-toggle-checkbox w-3 h-3 rounded text-rose-500 bg-slate-950 border-rose-800 cursor-pointer focus:ring-0" data-id="${p.id}" ${isMallChecked}>
+                            <span>MALL</span>
+                        </label>
+                    </div>
                     <div class="text-xs text-slate-500 mt-0.5"><span class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700/60">${p.category || 'ไม่มีหมวดหมู่'}</span></div>
                 </div>
             </td>
@@ -207,7 +217,24 @@ function renderProductTable(productsList) {
         tableBody.appendChild(tr);
     });
 
-    // ดักจับการทำงานเมื่อมีการกดติ๊กกล่อง Checkbox
+    // 🎯 ดักจับการทำงานเมื่อมีการกดเปิด/ปิด Checkbox ของระบบ MALL
+    document.querySelectorAll(".product-mall-toggle-checkbox").forEach(chk => {
+        chk.addEventListener("change", (e) => {
+            const id = e.target.getAttribute("data-id");
+            const prod = allProducts.find(p => p.id === id);
+            if (prod) {
+                prod.isMall = e.target.checked; // บันทึกค่าลง State หลักชั่วคราว
+                
+                // เพื่อความสะดวก: หากต้องการให้ระบบติ๊กเลือก Checkbox หลัก (เลือกอัปเดต) อัตโนมัติเมื่อกดเปิด Mall สามารถเปิดบรรทัดล่างนี้ได้ครับ
+                prod.is_checked = true;
+                const bulkChk = document.querySelector(`.product-bulk-checkbox[data-id="${id}"]`);
+                if(bulkChk) bulkChk.checked = true;
+                updateSelectedCount();
+            }
+        });
+    });
+
+    // ดักจับการทำงานเมื่อมีการกดติ๊กกล่อง Checkbox สำหรับเลือกแถว
     document.querySelectorAll(".product-bulk-checkbox").forEach(chk => {
         chk.addEventListener("change", (e) => {
             const id = e.target.getAttribute("data-id");
@@ -474,11 +501,13 @@ function syncCurrentChangesToState() {
         const id = row.getAttribute("data-id");
         const priceInp = row.querySelector(".bulk-price-input");
         const discountInp = document.getElementById(`discount-input-${id}`);
+        const mallInp = row.querySelector(".product-mall-toggle-checkbox"); // ดึงสถานะคลัง Mall
 
         const prod = allProducts.find(p => p.id === id);
         if (prod) {
             if (priceInp) prod.price = Number(priceInp.value) || 0;
             if (discountInp) prod.discount = discountInp.value.trim();
+            if (mallInp) prod.isMall = mallInp.checked; // ซิงค์สถานะ Mall
         }
     });
 }
@@ -669,11 +698,22 @@ if(saveBtn) {
                     const rawDiscount = (prod.discount || "").trim();
                     const computedSalePrice = calculateDiscountedPrice(rawPrice, rawDiscount);
                     
+                    // 🛒 ตรวจสอบสถานะการติ๊กเปิด Mall ล่าสุดจากอินพุตหน้าตาราง
+                    const rowEl = document.querySelector(`.product-row-item[data-id="${prod.id}"]`);
+                    let isMallStatus = prod.isMall === true; 
+                    if (rowEl) {
+                        const mallInp = rowEl.querySelector(".product-mall-toggle-checkbox");
+                        if (mallInp) {
+                            isMallStatus = mallInp.checked;
+                        }
+                    }
+                    
                     const productDocRef = doc(db, "products", prod.id);
                     batch.update(productDocRef, {
                         price: rawPrice,
                         discount: rawDiscount,
                         salePrice: computedSalePrice, 
+                        isMall: isMallStatus, // 🔥 บันทึกสถานะเปิด/ปิด Mall ลงฐานข้อมูลทันที
                         lastUpdated: Date.now()
                     });
                 });
