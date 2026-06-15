@@ -1012,65 +1012,53 @@ function renderMobileView() {
   let displayed = [];
   const now = Date.now();
 
- if (!selectedCategory || selectedCategory === "ทั้งหมด") {
+  // ปรับปรุงการคัดกรองหมวดหมู่ให้ครอบคลุมและแม่นยำ
+  if (!selectedCategory || selectedCategory === "ทั้งหมด") {
     displayed = [...allProducts];
   } else if (selectedCategory === "⚡ Flash Sale") {
     displayed = allProducts.filter(p => {
       const priceFlash = p.flashSalePrice ? Number(p.flashSalePrice) : 0;
       const endTimeStr = p.flashSaleEndTime ? String(p.flashSaleEndTime).trim() : "";
-      
-      // ถ้าราคา Flash Sale เป็น 0 หรือติดลบ ไม่ต้องแสดง
       if (priceFlash <= 0) return false;
-      
-      // ถ้าแอดมินตั้งเวลาเป็น "un" (ไม่จำกัดเวลา) ให้แสดงได้เลย
       if (endTimeStr.toLowerCase() === "un" || endTimeStr === "") return true;
-      
-      // ตรวจสอบเวลาหมดอายุ (ต้องมากกว่าเวลาปัจจุบัน)
       const endTimeTarget = new Date(endTimeStr).getTime();
-      if (isNaN(endTimeTarget)) {
-        // ป้องกันบั๊กถ้าฟอร์แมตวันที่ผิดพลาด แต่มีราคาแฟลชเซลล์ ให้โชว์ไว้ก่อน
-        return true; 
-      }
+      if (isNaN(endTimeTarget)) return true;
       return (endTimeTarget - now > 0);
     });
+  } else {
+    // 🔥 แก้ไขจุดนี้: ถ้าเลือกหมวดหมู่ย่อย ให้กรองสินค้าตาม category
+    const catFormatted = selectedCategory.toString().toLowerCase().trim();
+    displayed = allProducts.filter(p => 
+      p.category && p.category.toString().toLowerCase().trim() === catFormatted
+    );
   }
 
-  // 🔥 [แก้ไขจุดนี้] ตรรกะแยกกลุ่มสินค้าเฉพาะหมวดหมู่ "ทั้งหมด" (Coming Soon บนสุด -> NEW ตรงกลาง -> สินค้าทั่วไป Dynamic ด้านล่าง)
+  // 🔥 ตรรกะแยกกลุ่มสินค้าเฉพาะหมวดหมู่ "ทั้งหมด"
   if (!selectedCategory || selectedCategory === "ทั้งหมด") {
-    
-    // เรียงลำดับเบื้องต้นตามค่าลำดับที่จัดไว้ก่อนแยกกลุ่ม
     displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    // ฟังก์ชันช่วยเช็กเงื่อนไขสถานะ Coming Soon เพื่อความแม่นยำและครอบคลุมทุกรูปแบบตัวแปร
     const checkComingSoon = (p) => {
       return p.comingSoon === true || p.isComingSoon === true || p.status === "coming-soon" || p.status === "Coming Soon";
     };
 
-    // 1. คัดแยกกลุ่ม Coming Soon (ล็อกไว้ด้านบนสุด ไม่สุ่มตำแหน่ง)
     const comingSoonProducts = displayed.filter(p => checkComingSoon(p));
-    
-    // 2. คัดแยกกลุ่ม NEW (ต่อท้าย Coming Soon ล็อกไว้ ไม่สุ่มตำแหน่ง)
     const newProducts = displayed.filter(p => p.isNew && !checkComingSoon(p));
-    
-    // 3. คัดแยกกลุ่มสินค้าทั่วไป (อยู่ใต้ NEW กลุ่มนี้กลุ่มเดียวที่จะสุ่ม Dynamic ทุกครั้งที่ F5)
     const normalProducts = displayed.filter(p => !p.isNew && !checkComingSoon(p));
-    normalProducts.sort(() => Math.random() - 0.5); // สุ่มตำแหน่งเฉพาะสินค้าทั่วไปด้านล่างสุด
+    normalProducts.sort(() => Math.random() - 0.5);
 
-    // 4. นำมารวมกันตามโครงสร้างเลเยอร์ที่ต้องการ
     displayed = [...comingSoonProducts, ...newProducts, ...normalProducts];
-
   } else {
-    // หากเป็นหมวดหมู่อื่นๆ ให้ใช้การเรียงลำดับตามปกติของระบบ (ไม่มีการสุ่มใดๆ)
+    // หากเป็นหมวดหมู่อื่นๆ ให้เรียงลำดับตามโหมดที่เลือก
     if (currentSortMode === "tierlist") {
       displayed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     } else if (currentSortMode === "price-asc") {
-      displayed.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
+      displayed.sort((a, b) => (Number(a.price || 0) - Number(b.price || 0)));
     } else if (currentSortMode === "price-desc") {
-      displayed.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
+      displayed.sort((a, b) => (Number(b.price || 0) - Number(a.price || 0)));
     }
   }
 
-  // (โค้ดดักตัวกรองคำค้นหาและการ Map Render เข้าสู่ innerHTML ด้านล่าง ให้คงไว้ตามเดิม...)
+  // ดักตัวกรองคำค้นหา
   const kw = searchInput?.value.trim().toLowerCase();
   if (kw) {
     displayed = displayed.filter(p => 
@@ -1958,7 +1946,6 @@ async function trackProductClickCentralized(productId, productName) {
         console.error("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูลลงคอลเลกชัน analytics:", error);
     }
 }
-
 // ระบบดักจับเหตุการณ์คลิกแบบ Global บนหน้าเว็บ
 document.addEventListener("click", (event) => {
     // ดักจับหาการ์ดสินค้า
@@ -2227,3 +2214,4 @@ window.toggleQuickMall = async function(productId, isChecked) {
     alert("ไม่สามารถเปลี่ยนสถานะด่วนได้ในขณะนี้");
   }
 };
+
