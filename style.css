@@ -647,12 +647,29 @@ main h2 {
   font-size: 13px;
   color: var(--text-muted);
   line-height: 1.6;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* บรรทัดที่เพิ่มเข้าไปใหม่ เพื่อสั่งให้ยอมรับการขึ้นบรรทัดใหม่ตามที่พิมพ์ */
+  white-space: pre-line;
+
+  /* แก้ไขจากระบบจำกัดบรรทัด (Line-clamp) เป็นระบุความสูงและเปิดให้ Scrolling */
+  max-height: 75px;           /* จำกัดความสูงสูงสุดของรายละเอียดข้อความ */
+  overflow-y: auto;           /* เปิดให้เลื่อนเลื่อนในแนวตั้งเมื่อข้อความยาวเกิน */
+  padding-right: 4px;         /* เว้นช่องว่างขวาเล็กน้อยไม่ให้ตัวอักษรชนแถบเลื่อน */
   flex-grow: 1;
+}
+
+/* แถม: ปรับแต่งหน้าตาแถบเลื่อน (Scrollbar) ให้ดูบางและโมเดิร์นเข้ากับเว็บของคุณ */
+.card p::-webkit-scrollbar {
+  width: 4px;
+}
+.card p::-webkit-scrollbar-track {
+  background: transparent;
+}
+.card p::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+.card p::-webkit-scrollbar-thumb:hover {
+  background: var(--price-green, #22c55e); /* กลายเป็นสีเขียวราคาเมื่อเมาส์ชี้ */
 }
 
 .btns {
@@ -1347,7 +1364,12 @@ main h2 {
       touch-action: none; /* ช่วยปิดระบบ Scroll พื้นหลังชั่วคราวขณะแตะลาก */
   }
   .card p {
-    display: none !important;
+    display: block !important; /* เปิดการแสดงผลกลับมาบนมือถือ */
+    white-space: pre-line;     /* เพิ่มบรรทัดนี้ในส่วนของมือถือด้วย */
+    max-height: 55px;          /* จำกัดความสูงให้กระชับบนหน้าจอมือถือ */
+    overflow-y: auto;          /* เปิด Scroll */
+    padding-right: 2px;
+    margin-bottom: 8px !important;
   }
 
   .card-flash-sale-box {
