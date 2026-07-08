@@ -99,6 +99,26 @@ function initAppListeners() {
     inputDate.value = new Date().toISOString().split('T')[0];
     inputDate.addEventListener("change", () => loadRealtimeStatsOverviewRecords(inputDate.value));
 
+    // ==========================================
+    // ➕ ดักจับเหตุการณ์กดยกเลิก หรือปิด Modal สินค้าเพื่อล้างค่าฟอร์ม
+    // ==========================================
+    const cancelProductBtn = document.getElementById("cancel-product-btn");
+    if (cancelProductBtn) {
+        cancelProductBtn.addEventListener("click", () => {
+            resetProductForm();              // 1. ล้างค่าและสลับโหมดเป็นเพิ่มสินค้าใหม่
+            closeModal('modal-add-product'); // 2. สั่งปิดหน้าต่าง Modal
+        });
+    }
+
+    const closeProductModalBtn = document.getElementById("close-product-modal-btn");
+    if (closeProductModalBtn) {
+        closeProductModalBtn.addEventListener("click", () => {
+            resetProductForm();              // 1. ล้างค่าและสลับโหมดเป็นเพิ่มสินค้าใหม่
+            closeModal('modal-add-product'); // 2. สั่งปิดหน้าต่าง Modal
+        });
+    }
+    // ==========================================
+
     // Mobile Back Button State Management Controls Layer Router intercepts
     window.addEventListener("popstate", (event) => {
         // ตรวจเช็กว่า ณ ปัจจุบันมีตัวกรองถูกเลือกอยู่ หรือมี Modal เปิดค้างอยู่หรือไม่
@@ -111,6 +131,10 @@ function initAppListeners() {
             if (topModal === 'lightbox') {
                 window.closeLightbox(true);
             } else {
+                // ➕ เพิ่มเติม: หากผู้ใช้กดย้อนกลับบนมือถือในขณะที่เปิดหน้าต่างสินค้า ให้ล้างค่าฟอร์มด้วย
+                if (topModal === 'modal-add-product') {
+                    resetProductForm();
+                }
                 window.closeModal(topModal, true);
             }
             
@@ -223,10 +247,13 @@ window.closeModal = function(modalId, backwardInterrupted = false) {
     if (!target) return;
     target.classList.replace("flex", "hidden");
 
-    // หากเป็นการปิดโดยการคลิกปุ่มปิดหรือภายนอก (ไม่ได้มาจากการกดย้อนกลับของมือถือ)
+    // ➕ เพิ่มเช็กตรงนี้: ถ้าสั่งปิด modal-add-product ให้ทำการรีเซ็ตฟอร์มทันที
+    if (modalId === 'modal-add-product') {
+        resetProductForm();
+    }
+
     if (!backwardInterrupted) {
         modalHistoryStack = modalHistoryStack.filter(id => id !== modalId);
-        // เช็กเพื่อให้แน่ใจว่า state ปัจจุบันเป็นของ modal ตัวนี้ก่อนจะถอยประวัติกลับ 1 ขั้น
         if (window.history.state && window.history.state.tier === modalId) {
             history.back();
         }
@@ -370,8 +397,8 @@ function renderProductsGrid() {
                     
                     <!-- ส่วนแสดงผล จัดส่งในไทย / ต่างประเทศ (ซ่อนทันทีถ้าเป็น Coming Soon) -->
                     ${product.badges?.soon ? '' : `
-                        <div class="text-[10px] font-medium px-1.5 py-0.5 rounded tracking-tighter opacity-90 scale-95 origin-right ${product.shippingMode === 'จัดส่งจากต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
-                            <i class="fa-solid fa-truck-fast mr-0.5 scale-75"></i>${product.shippingMode || "จัดส่งในไทย"}
+                        <div class="text-[10px] font-medium px-1.5 py-0.5 rounded tracking-tighter opacity-90 scale-95 origin-right ${product.shippingMode === 'ต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
+                            <i class="${product.shippingMode === 'ต่างประเทศ' ? 'fa-solid fa-plane-departure' : 'fa-solid fa-truck-fast'} mr-0.5 scale-75"></i>${product.shippingMode || "จัดส่งในไทย"}
                         </div>
                     `}
                 </div>
@@ -877,10 +904,22 @@ window.executeProductDeletionAction = async function(id, event) {
 }
 
 function resetProductForm() {
-    document.getElementById("product-form-title").innerText = "เพิ่มสินค้าใหม่";
-    document.getElementById("edit-product-id").value = "";
-    document.getElementById("product-form").reset();
-    updateFormSubCategories();
+    const formTitle = document.getElementById("product-form-title");
+    const editId = document.getElementById("edit-product-id");
+    const productForm = document.getElementById("product-form");
+
+    // เปลี่ยนหัวข้อกลับเป็น เพิ่มสินค้าใหม่ เสมอ
+    if (formTitle) formTitle.innerText = "เพิ่มสินค้าใหม่"; 
+    
+    // ล้างค่า ID สินค้าที่ใช้แก้ ให้เป็นค่าว่างเพื่อกลับสู่โหมดเพิ่มสินค้า
+    if (editId) editId.value = ""; 
+    
+    // ล้างข้อมูลในช่องกรอก (Input) ทั้งหมดในฟอร์ม
+    if (productForm) productForm.reset(); 
+    
+    if (typeof updateFormSubCategories === "function") {
+        updateFormSubCategories();
+    }
 }
 
 function populateFormDropdownSelections() {
