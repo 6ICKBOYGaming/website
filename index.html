@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6ICK BOY - Gaming Gear Store</title>
+    <!-- Google Fonts: Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Core Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#f4f6f9] text-gray-800 font-['Sarabun'] antialiased min-h-screen flex flex-col">
+
+    <!-- Header Navbar -->
+    <header class="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-100">
+        <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="menu-btn" class="text-xl p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                
+                <a href="index.html" class="flex items-center gap-3 no-underline hover:no-underline group decoration-transparent">
+                    <img src="https://i.postimg.cc/brG5HJBR/123.jpg" alt="6ICK BOY Logo" class="h-8 w-auto object-contain rounded-md">
+                    
+                    <h1 class="text-2xl font-black tracking-wider text-gray-900 m-0 no-underline">
+                        6ICK BOY</span>
+                    </h1>
+                </a>
+            </div>
+
+            <!-- Admin Badge Alert System -->
+            <div id="admin-badge" class="hidden items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl font-medium text-xs">
+                <i class="fa-solid fa-user-shield text-sm"></i> ผู้ดูแลระบบ
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Layout (Matching Layout in Image) -->
+   <div class="max-w-[1600px] mx-auto w-full flex-1 flex p-6 gap-6 items-start app-container">
+        
+        <aside class="w-64 shrink-0 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm sticky top-24 h-[calc(100vh-120px)] flex flex-col justify-between category-section">
+            <div class="category-main-content">
+                <h2 class="text-base font-extrabold text-gray-900 mb-4 px-1 category-title">หมวดหมู่สินค้า</h2>
+                <ul id="sidebar-categories" class="space-y-1 overflow-y-auto max-h-[calc(100vh-260px)] pr-1">
+                    </ul>
+            </div>
+            <div class="text-center text-xs text-gray-400 border-t border-gray-50 pt-4 category-footer">
+                &copy; 2026 6ICK BOY Store
+            </div>
+        </aside>
+
+        <div class="flex-1 space-y-6 product-section">
+
+        <!-- Right Content Block Area (Searchbar + Grid) -->
+        <div class="flex-1 right-container-layout">
+            
+            <div id="search-sort-container" class="flex gap-4 items-center">
+                <div class="relative flex-1">
+                    <input type="text" id="search-input" placeholder="ค้นหาสินค้าเกมมิ่งเกียร์ที่นี่..." class="w-full pl-11 pr-4 py-3 bg-white border border-transparent rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm text-gray-700 placeholder-gray-400">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-gray-400 text-sm"></i>
+                </div>
+                <select id="sort-select" class="px-4 py-3 bg-white border border-transparent rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-xs font-medium cursor-pointer min-w-[180px] text-gray-600">
+                    <option value="default">จัดเรียงสินค้า (เริ่มต้น)</option>
+                    <option value="latest">สินค้าล่าสุด</option>
+                    <option value="price-desc">ราคาจากมากไปน้อย</option>
+                    <option value="price-asc">ราคาจากน้อยไปมาก</option>
+                </select>
+            </div>
+
+            <div class="products-scroll-wrapper">
+                <main id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                    </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3-Line Drawer Menu Overlay Structure -->
+    <div id="drawer-overlay" class="fixed inset-0 bg-black/30 backdrop-blur-sm hidden z-50 transition-opacity">
+        <div id="drawer" class="w-80 h-full bg-white p-6 shadow-2xl flex flex-col justify-between transform -translate-x-full transition-transform duration-300">
+            <div>
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="text-xl font-bold">เมนูเพิ่มเติม</h3>
+                    <button id="close-drawer" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <ul class="space-y-1">
+                    <li>
+                        <button id="menu-login-btn" class="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 rounded-2xl text-left font-medium transition-all text-gray-700">
+                            <i class="fa-solid fa-right-to-bracket text-blue-500 text-lg"></i> เข้าสู่ระบบผู้ดูแล
+                        </button>
+                    </li>
+                    <div id="admin-menu-options" class="hidden space-y-1 border-t border-gray-100 pt-4 mt-4">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-2">แผงควบคุมระบบ</p>
+                        <li><button onclick="openModal('modal-add-product')" class="w-full flex items-center gap-4 px-4 py-2.5 hover:bg-blue-50/50 hover:text-blue-600 rounded-xl text-left font-medium text-sm transition-all"><i class="fa-solid fa-square-plus text-base"></i> เพิ่มสินค้า</button></li>
+                        <li><button onclick="openModal('modal-manage-categories')" class="w-full flex items-center gap-4 px-4 py-2.5 hover:bg-blue-50/50 hover:text-blue-600 rounded-xl text-left font-medium text-sm transition-all"><i class="fa-solid fa-folder-tree text-base"></i> จัดการหมวดหมู่ทั้งหมด</button></li>
+                        <li><button onclick="openModal('modal-manage-discounts')" class="w-full flex items-center gap-4 px-4 py-2.5 hover:bg-blue-50/50 hover:text-blue-600 rounded-xl text-left font-medium text-sm transition-all"><i class="fa-solid fa-ticket text-base"></i> จัดการโค้ดส่วนลด</button></li>
+                        <li><button onclick="openModal('modal-manage-keywords')" class="w-full flex items-center gap-4 px-4 py-2.5 hover:bg-blue-50/50 hover:text-blue-600 rounded-xl text-left font-medium text-sm transition-all"><i class="fa-solid fa-tags text-base"></i> จัดการคีย์เวิร์ดทั้งหมด</button></li>
+                        <li><button onclick="openModal('modal-stats')" class="w-full flex items-center gap-4 px-4 py-2.5 hover:bg-blue-50/50 hover:text-blue-600 rounded-xl text-left font-medium text-sm transition-all"><i class="fa-solid fa-chart-pie text-base"></i> ระบบสถิติ</button></li>
+                    </div>
+                </ul>
+            </div>
+            
+            <div id="drawer-auth-footer" class="border-t border-gray-100 pt-4 hidden">
+                <div class="flex items-center gap-3 mb-3 px-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-xs font-semibold text-gray-500">สถานะ: ผู้ดูแลระบบ</span>
+                </div>
+                <button id="logout-btn" class="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-power-off"></i> ออกจากระบบ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODALS MANAGEMENT SYSTEM ================= -->
+    
+    <!-- 1. Admin Login Popup Modal -->
+    <div id="modal-login" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative border border-gray-100 animate-zoomIn">
+            <h3 class="text-xl font-bold mb-4">เข้าสู่ระบบผู้ดูแล</h3>
+            <div class="space-y-4" id="login-form">
+                <div>
+                    <label class="text-xs font-bold text-gray-400 mb-1 block">Username / Email</label>
+                    <input type="text" id="login-user" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none" placeholder="กรอก Username">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-400 mb-1 block">Password</label>
+                    <input type="password" id="login-pass" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none" placeholder="กรอก Password">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="closeModal('modal-login')" class="w-1/3 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-semibold hover:bg-gray-200 transition-all text-sm">ยกเลิก</button>
+                    <button id="submit-login-btn" class="w-2/3 bg-blue-600 text-white py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all text-sm">เข้าสู่ระบบ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Sub-Category Selector Dialog Panel -->
+    <div id="modal-sub-category" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl relative animate-zoomIn">
+            <button onclick="closeModal('modal-sub-category')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 id="sub-cat-title" class="text-xl font-bold mb-6 text-gray-900">ตัวกรองสินค้า</h3>
+            <div class="space-y-6">
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">หมวดหมู่ย่อย</h4>
+                    <div id="sub-cat-container" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">แบรนด์สินค้า</h4>
+                    <div id="brand-container" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Product Detail Popup Component Layout -->
+    <div id="modal-detail" class="fixed inset-0 bg-black/50 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-4xl shadow-2xl relative flex flex-col md:flex-row gap-6 max-h-[90vh] overflow-y-auto animate-zoomIn">
+            <button onclick="closeModal('modal-detail')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10 bg-white/80 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="w-full md:w-1/2 flex flex-col gap-3">
+                <div class="relative aspect-square bg-gray-50 rounded-2xl overflow-hidden flex items-center justify-center border border-gray-100">
+                    <img id="detail-main-img" src="" class="object-contain w-full h-full p-2 cursor-pointer" onclick="openLightbox()">
+                    <div id="carousel-dots" class="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5"></div>
+                </div>
+                <div id="detail-thumbnails" class="grid grid-cols-4 gap-2"></div>
+            </div>
+
+            <div class="w-full md:w-1/2 flex flex-col justify-between">
+                <div>
+                    <div id="detail-badges" class="mb-2"></div>
+                    <h2 id="detail-title" class="text-2xl font-bold text-gray-900 mb-1"></h2>
+                    <p id="detail-shipping" class="text-xs font-medium text-blue-600 mb-4 bg-blue-50 inline-block px-2.5 py-1 rounded-lg"></p>
+                    <div id="detail-price" class="text-3xl font-black text-blue-600 mb-4"></div>
+                    <hr class="border-gray-100 mb-4">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">รายละเอียดสินค้า</h4>
+                    <p id="detail-desc" class="text-gray-600 text-sm leading-relaxed whitespace-pre-line bg-gray-50 p-4 rounded-2xl h-48 overflow-y-auto"></p>
+                </div>
+                <div class="pt-4">
+                    <a id="detail-buy-btn" href="#" target="_blank" class="w-full py-3.5 rounded-2xl font-bold text-center block transition-all"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Image Lightbox View Area -->
+    <div id="lightbox" onclick="if(event.target === this) closeLightbox()" class="fixed inset-0 bg-black/75 backdrop-blur-lg hidden flex-col items-center justify-center z-[60] p-4 animate-fadeIn cursor-pointer">
+        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white/70 hover:text-white text-2xl z-10"><i class="fa-solid fa-xmark"></i></button>
+        <div class="relative max-w-3xl max-h-[70vh] flex items-center justify-center cursor-default">
+            <img id="lightbox-img" src="" class="max-w-full max-h-[70vh] object-contain rounded-xl">
+        </div>
+        <div id="lightbox-thumbnails" class="flex gap-2 mt-8 overflow-x-auto p-2 max-w-xl cursor-default"></div>
+    </div>
+
+    <!-- 5. Admin Panel Form: Add & Edit Records -->
+    <div id="modal-add-product" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto animate-zoomIn">
+        
+        <button type="button" 
+                onclick="document.getElementById('modal-add-product').classList.replace('flex', 'hidden'); if(typeof resetProductForm === 'function') resetProductForm();" 
+                class="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+
+        <h3 id="product-form-title" class="text-xl font-bold mb-4">เพิ่มสินค้าใหม่</h3>
+            <form id="product-form" class="space-y-4" onsubmit="saveProduct(event)">
+                <input type="hidden" id="edit-product-id">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">ชื่อสินค้า</label>
+                        <input type="text" id="form-title" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">ราคา (บาท)</label>
+                        <input type="number" id="form-price" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">ส่วนลด (เช่น 25%=2000)</label>
+                        <input type="text" id="form-discount" placeholder="25%=2000" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">URL รูปภาพหลัก</label>
+                        <input type="url" id="form-thumb" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-gray-400 mb-2 block">URL รูปภาพแกลเลอรี (สูงสุด 8 รูป)</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 1</label>
+                                <input type="url" id="form-gallery-1" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 2</label>
+                                <input type="url" id="form-gallery-2" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 3</label>
+                                <input type="url" id="form-gallery-3" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 4</label>
+                                <input type="url" id="form-gallery-4" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 5</label>
+                                <input type="url" id="form-gallery-5" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 6</label>
+                                <input type="url" id="form-gallery-6" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 7</label>
+                                <input type="url" id="form-gallery-7" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 font-bold">รูปที่ 8</label>
+                                <input type="url" id="form-gallery-8" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">หมวดหมู่หลัก</label>
+                        <select id="form-cat-main" required onchange="updateFormSubCategories()" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">หมวดหมู่ย่อย</label>
+                        <select id="form-cat-sub" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">แบรนด์สินค้า</label>
+                        <select id="form-brand" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">การจัดส่ง</label>
+                        <select id="form-shipping" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                            <option value="จัดส่งในไทย">จัดส่งในไทย</option>
+                            <option value="จัดส่งต่างประเทศ">จัดส่งต่างประเทศ</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">คีย์เวิร์ดสำหรับการค้นหา</label>
+                        <input type="text" id="form-keywords" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">ลิงก์ปุ่มสั่งซื้อ</label>
+                        <input type="url" id="form-buy-url" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-gray-400 mb-1 block">รายละเอียดสินค้า</label>
+                        <textarea id="form-desc" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl h-24 focus:outline-none text-sm"></textarea>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer"><input type="checkbox" id="badge-mall" class="rounded text-blue-600 w-4 h-4"> MALL</label>
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer"><input type="checkbox" id="badge-new" class="rounded text-blue-600 w-4 h-4"> NEW</label>
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer"><input type="checkbox" id="badge-hot" class="rounded text-blue-600 w-4 h-4"> HOT</label>
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer"><input type="checkbox" id="badge-soon" class="rounded text-blue-600 w-4 h-4"> Coming Soon</label>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="resetProductForm(); closeModal('modal-add-product');" class="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium text-sm">ยกเลิก</button>
+                    <button type="submit" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium text-sm">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. Admin Panel Form: Category Customizer Configuration Matrix -->
+    <div id="modal-manage-categories" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto animate-zoomIn">
+            <button onclick="closeModal('modal-manage-categories')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-xl font-bold mb-6">จัดการโครงสร้างหมวดหมู่ทั้งหมด</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-800 mb-2 flex items-center justify-between">หมวดหมู่หลัก <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">ลากเรียงได้</span></h4>
+                    <div class="flex gap-1.5 mb-3">
+                        <input type="text" id="add-main-cat" placeholder="เพิ่ม..." class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none">
+                        <button onclick="addCategoryField('main')" class="bg-blue-600 text-white px-3 rounded-xl text-xs"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <ul id="manage-main-list" class="space-y-1.5 min-h-[200px]"></ul>
+                </div>
+                <div class="bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-800 mb-2">หมวดหมู่ย่อย</h4>
+                    <div class="flex gap-1.5 mb-3">
+                        <input type="text" id="add-sub-cat" placeholder="เพิ่ม..." class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none">
+                        <button onclick="addCategoryField('sub')" class="bg-blue-600 text-white px-3 rounded-xl text-xs"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <ul id="manage-sub-list" class="space-y-1.5 min-h-[200px]"></ul>
+                </div>
+                <div class="bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-800 mb-2 flex items-center justify-between">แบรนด์สินค้า <span class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">A-Z Auto</span></h4>
+                    <div class="flex gap-1.5 mb-3">
+                        <input type="text" id="add-brand-cat" placeholder="เพิ่ม..." class="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none">
+                        <button onclick="addCategoryField('brand')" class="bg-blue-600 text-white px-3 rounded-xl text-xs"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <ul id="manage-brand-list" class="space-y-1.5 min-h-[200px]"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Admin Panel Panel Component : Discounts Control Grid -->
+    <div id="modal-manage-discounts" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto animate-zoomIn">
+            <button onclick="closeModal('modal-manage-discounts')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-xl font-bold mb-4">จัดการระบบโค้ดส่วนลด</h3>
+            <div class="bg-gray-50 p-4 rounded-2xl space-y-3 mb-4">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="search-discount-items" placeholder="ค้นหาชื่อรายการเพื่อใส่โค้ด..." class="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none">
+                    <input type="text" id="bulk-discount-val" placeholder="ชุดโค้ดกลุ่ม (เช่น 30%=2000)" class="w-full sm:w-48 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none">
+                    <button onclick="applyBulkDiscount()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700">อัปเดตชุดเลือก</button>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <button onclick="selectDiscountCheckboxes('all')" class="bg-white border border-gray-200 px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100">เลือกรายการทั้งหมด</button>
+                    <button onclick="selectDiscountCheckboxes('mall')" class="bg-white border border-gray-200 px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100">เลือกรายการ Mall ทั้งหมด</button>
+                    <button onclick="selectDiscountCheckboxes('none')" class="bg-white border border-gray-200 px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100">ล้างการเลือก</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto border border-gray-100 rounded-2xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-xs font-bold text-gray-400 border-b border-gray-100">
+                            <th class="p-3 w-12 text-center">เลือก</th>
+                            <th class="p-3">สินค้า</th>
+                            <th class="p-3 w-48">โค้ดส่วนลด (กด Enter เพื่อบันทึก)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="discount-table-body" class="divide-y divide-gray-50 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Admin Panel Form Layout: Keywords Manager Data Pipeline -->
+    <div id="modal-manage-keywords" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto animate-zoomIn">
+            <button onclick="closeModal('modal-manage-keywords')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-xl font-bold mb-4">จัดการคีย์เวิร์ดการค้นหาทั้งหมด</h3>
+            <div class="bg-gray-50 p-4 rounded-2xl space-y-3 mb-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input type="text" id="search-keyword-items" placeholder="ค้นหาชื่อสินค้า..." class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none">
+                    <select id="filter-keyword-cat" onchange="renderKeywordManager()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none"></select>
+                    <div class="flex gap-2">
+                        <input type="text" id="bulk-keyword-val" placeholder="คีย์เวิร์ดกลุ่ม..." class="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none">
+                        <button onclick="applyBulkKeywords()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700">เปลี่ยนกลุ่ม</button>
+                    </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto border border-gray-100 rounded-2xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-xs font-bold text-gray-400 border-b border-gray-100">
+                            <th class="p-3 w-12 text-center">เลือก</th>
+                            <th class="p-3">สินค้า</th>
+                            <th class="p-3 w-64">คีย์เวิร์ดสะสม (กด Enter)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="keyword-table-body" class="divide-y divide-gray-50 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. Admin Panel Dashboard Component: Internal Performance Analytics Engine -->
+    <div id="modal-stats" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto animate-zoomIn">
+            <button onclick="closeModal('modal-stats')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-xl font-bold mb-4">ระบบสถิติเชิงลึก</h3>
+            <div class="flex flex-wrap items-center justify-between gap-4 bg-gray-50 p-4 rounded-2xl mb-6">
+                <div>
+                    <label class="text-xs font-bold text-gray-400 block mb-1">เลือกวันที่เข้าดูข้อมูล</label>
+                    <input type="date" id="stats-date-picker" class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none">
+                </div>
+                <div class="flex gap-2 pt-4">
+                    <button onclick="clearStatsData('views')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-4 py-2 rounded-xl text-xs font-bold">ล้างยอดผู้เข้าดูวันนี้</button>
+                    <button onclick="clearStatsData('clicks')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-4 py-2 rounded-xl text-xs font-bold">ล้างยอดคลิกวันนี้</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 text-center">
+                    <p class="text-xs font-bold text-gray-400 uppercase">ผู้เข้าชมเว็บ (Unique IP)</p>
+                    <h2 id="stats-summary-views" class="text-3xl font-black text-blue-600 mt-1">0</h2>
+                </div>
+                <div class="bg-purple-50/50 p-4 rounded-2xl border border-purple-100 text-center">
+                    <p class="text-xs font-bold text-gray-400 uppercase">ยอดการคลิกปุ่มสั่งซื้อรวม</p>
+                    <h2 id="stats-summary-clicks" class="text-3xl font-black text-purple-600 mt-1">0</h2>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider"><i class="fa-solid fa-fire text-amber-500 mr-2"></i>อันดับรายการสินค้าที่ถูกคลิกมากที่สุด</h4>
+                <div class="overflow-hidden border border-gray-100 rounded-xl">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 text-xs font-bold text-gray-400 border-b border-gray-100">
+                                <th class="p-3">ชื่อรายการสินค้า</th>
+                                <th class="p-3 w-28 text-center">จำนวนครั้งที่คลิก</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-clicks-ranking" class="divide-y divide-gray-50 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fire Module Client Core Script Handler Entry Points -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

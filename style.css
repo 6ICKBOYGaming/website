@@ -1,0 +1,386 @@
+* {
+    font-family: 'Prompt', sans-serif;
+}
+
+body, html, p, span, h1, h2, h3, h4, h5, h6, a, input, button, select, textarea, div {
+    font-family: 'Prompt', sans-serif !important;
+}
+/* ==========================================================================
+   GLOBAL STYLES & RESET
+   ========================================================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    -webkit-tap-highlight-color: transparent;
+    background-color: #f4f6f9;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important; /* ล็อกหน้าจอหลักไม่ให้เลื่อนซ้อนกันสองชั้น */
+}
+
+/* คอนเทนเนอร์หลักใต้ Header ปรับแต่งทั้ง PC และ Mobile ให้ความสูงพอดีหน้าจอ */
+header + div.max-w-\[1600px\] {
+        gap: 8px !important;
+        padding-top: 0px !important;     /* ดึงพื้นที่ว่างด้านบนสุดของทั้งหน้าจอออก */
+        padding-bottom: 8px !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+        align-items: flex-start !important; /* บังคับให้เมนูซ้ายและกล่องขวาเริ่มจากด้านบนสุดพร้อมกัน */
+    }
+
+/* ==========================================================================
+   LAYOUT ฝั่งขวา (PC & MOBILE): ช่องค้นหาค้างถาวร + เลื่อนเฉพาะรายการสินค้า
+   ========================================================================== */
+.right-container-layout {
+    display: flex !important;
+    flex-direction: column !important; /* จัดเรียงแบบ บน(ค้นหา) ลง ล่าง(สินค้า) */
+    height: 100% !important;
+    overflow: hidden !important; /* ตัวกล่องภาพรวมห้ามเลื่อน */
+}
+
+/* ส่วนล็อกแผงช่องค้นหาและจัดเรียงสินค้าให้อยู่กับที่ถาวร */
+#search-sort-container {
+    flex-shrink: 0 !important;
+    background-color: #f4f6f9 !important;
+    /* สามารถลองปรับลดหรือเพิ่มค่า padding-top ตรงนี้ (เช่น 0px ถึง 4px) เพื่อขยับแผงค้นหาขึ้น-ลงให้ขอบบนขนานเท่ากับเมนูซ้ายได้เลยครับ */
+    padding-top: 2px !important; 
+    padding-bottom: 16px !important;
+    margin: 0 !important;
+    z-index: 50 !important;
+}
+/* เปิดช่องทางและสิทธิ์การรูดเลื่อน (Scroll) เฉพาะบริเวณกล่องสินค้าชิ้นนี้ชิ้นเดียว */
+.products-scroll-wrapper {
+    flex-grow: 1 !important;
+    overflow-y: auto !important; /* เปิดสิทธิ์ให้ใช้นิ้วปัด/หมุนเมาส์เลื่อนขึ้นลง */
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important; /* เพิ่มความลื่นไหลเป็นพิเศษสำหรับ iOS/iPhone */
+    padding: 4px 2px 40px 2px !important; /* เว้นระยะก้นจอด้านล่างเวลารูด */
+}
+
+/* ส่วนควบคุมขนาดแผงสินค้าหลัก */
+#product-grid {
+    width: 100% !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE (หน้าจอมือถือต่ำกว่าหรือเท่ากับ 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+    
+    /* จัดระยะขอบรอบๆ บนหน้าจอมือถือให้กระชับขึ้น */
+    header + div.max-w-\[1600px\] {
+        gap: 8px !important;
+        padding: 8px !important;
+    }
+
+    /* 1. แถบหมวดหมู่ซ้ายมือ (aside): ล็อกนิ่งอยู่กับที่ฝั่งซ้ายสุด ไม่ย้ายสลับด้าน */
+    header + div > aside {
+        display: block !important;
+        width: 75px !important;
+        min-width: 75px !important;
+        max-width: 75px !important;
+        height: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow-y: auto !important; /* ให้เมนูซ้ายเลื่อนขึ้นลงแยกชิ้นได้ถ้าเมนูเยอะ */
+    }
+    
+    /* ซ่อนแถบเส้น Scrollbar ของฝั่งเมนูซ้ายมือถือ */
+    header + div > aside::-webkit-scrollbar {
+        display: none !important;
+    }
+    
+    /* ซ่อนหัวข้อข้อความคำว่า "หมวดหมู่สินค้า" และลิขสิทธิ์ก้นกล่องบนมือถือ */
+    header + div > aside h2,
+    header + div > aside .text-center,
+    header + div > aside div:last-child {
+        display: none !important;
+    }
+
+    /* จัดกลุ่มรายการกลุ่มปุ่มกดทรงวงรีแคปซูล */
+   #sidebar-categories {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        max-height: none !important;
+        padding: 0 !important; 
+        
+        /* เปลี่ยนจากเลขบวก ให้เป็น "ค่าติดลบ" เพื่อสั่งให้ปุ่มทั้งหมดดีดตัวขึ้นไปด้านบนทันที */
+        margin-top: -10px !important; 
+    }
+    /* สไตล์ปุ่มวงรีแคปซูลขาวลอย แยกชิ้น มีเงานุ่มนวลสไตล์แอปชั้นนำ */
+    #sidebar-categories li,
+    #sidebar-categories button {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        min-height: 38px !important;
+        padding: 6px 4px !important;
+        margin: 0 !important;
+        background-color: #ffffff !important;
+        color: #475569 !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        text-align: center;
+        border-radius: 20px !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06) !important;
+        border: none !important;
+    }
+
+    /* สีปุ่มหมวดหมู่เมื่อถูกคลิกเลือกใช้งาน (Active) */
+    #sidebar-categories button.active,
+    #sidebar-categories li.active {
+        color: #2563eb !important;
+        font-weight: 800 !important;
+        background-color: #ffffff !important;
+    }
+
+    /* ปรับช่องไฟแผงค้นหาด้านบนในเวอร์ชันมือถือ */
+    #search-sort-container {
+        padding-bottom: 10px !important;
+    }
+
+    /* 2. บังคับตารางรายการสินค้าบนมือถือให้คงรูปแบ่งครึ่ง 2 คอลัมน์คู่กันเสมอ */
+    #product-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    /* ป้องกันการ์ดสินค้าชิ้นย่อยดันจนโครงสร้างขอบจอพัง */
+    #product-grid > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+}
+
+/* ==========================================================================
+   ORIENTATION LOCK (หมุนจอแนวนอนแล้วกลับหัวเว็บให้เป็นแนวตั้งอัตโนมัติ)
+   ========================================================================== */
+@media (max-width: 900px) and (orientation: landscape) {
+    html, body {
+        width: 100vh;
+        height: 100vw;
+        overflow-x: hidden;
+    }
+    body {
+        top: 100%;
+        left: 0;
+        transform: rotate(-90deg);
+        transform-origin: top left;
+        position: absolute;
+    }
+}
+
+/* ==========================================================================
+   CUSTOM SCROLLBARS (สไตล์มินิมอลบางเฉียบ)
+   ========================================================================== */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 20px;
+}
+
+/* ==========================================================================
+   GLOBAL ADVANCED SOFT SHADOW THEME (ปรับสไตล์เงานุ่มนวลทั้งเว็บไซต์)
+   ========================================================================== */
+
+/* 1. กล่องเมนูซ้ายมือ (Aside Panel) - บน PC */
+header + div > aside {
+    background-color: #ffffff !important;
+    border: none !important;
+    border-radius: 16px !important;
+    /* เงาฟุ้งละมุนฐานกว้างสำหรับกล่องเมนูขนาดใหญ่ */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 
+                0 1px 8px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 2. แผงช่องค้นหาและจัดเรียงสินค้าด้านบน (Search & Sort Container) */
+#search-sort-container {
+    background-color: #f4f6f9 !important; /* คงสีพื้นหลังเดิมไว้ */
+}
+/* เจาะจงไปที่ตัวกล่อง Input ค้นหา และ Dropdown ด้านในแผงค้นหา */
+#search-sort-container input, 
+#search-sort-container select,
+#search-sort-container .search-box-wrapper {
+    background-color: #ffffff !important;
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 
+                0 1px 4px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.2s ease !important;
+}
+/* เอฟเฟกต์เวลาคลิกพิมพ์ช่องค้นหา (Focus) ให้เงาดูขยายรับรู้การกด */
+#search-sort-container input:focus, 
+#search-sort-container select:focus {
+    outline: none !important;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.06), 
+                0 1px 6px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 3. การ์ดสินค้าทุกชิ้น (Product Cards Inside Grid) */
+#product-grid > div {
+    background-color: #ffffff !important;
+    border: none !important;
+    border-radius: 16px !important; /* ปรับมุมการ์ดให้มนโค้งรับกับสไตล์โมเดิร์น */
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.03), 
+                0 1px 4px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+/* เอฟเฟกต์เมื่อเอาเมาส์ชี้ที่ตัวการ์ดสินค้า (Hover) ให้ลอยขึ้นและเงานุ่มขึ้น */
+#product-grid > div:hover {
+    transform: translateY(-4px) !important; /* ลอยขึ้น 4px */
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.06), 
+                0 4px 12px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 4. ปุ่มและลิสต์รายการหมวดหมู่ทั้งหมด (ตามสไตล์รูปภาพ) */
+#sidebar-categories li,
+#sidebar-categories button,
+.btn-global-style {
+    background-color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 
+                0 1px 4px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.2s ease !important;
+}
+/* ปุ่ม/รายการที่ถูกกดเลือกใช้งาน (Active) */
+#sidebar-categories button.active,
+#sidebar-categories li.active,
+.btn-global-style.active {
+    background: #ffffff !important;
+    color: #2563eb !important;
+    font-weight: 700 !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.06), 
+                0 2px 6px rgba(0, 0, 0, 0.02) !important;
+}
+#sidebar-categories button:hover,
+#sidebar-categories li:hover,
+.btn-global-style:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 5. ส่วนเสริมเพิ่มเติม: ป๊อปอัป หรือกล่องข้อความเตือนอื่นๆ (Modals / Badges) */
+.modal-content, .popup-box, [role="dialog"] {
+    border: none !important;
+    border-radius: 20px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 
+                0 4px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* 6. ปรับแต่งสำหรับเวอร์ชันมือถือ (Mobile Responsive) ให้ลื่นไหลและมนสวยงาม */
+@media (max-width: 768px) {
+    header + div > aside {
+        background: transparent !important; /* บนมือถือเมนูซ้ายปล่อยโปร่งแสงตามสไตล์เดิม */
+        box-shadow: none !important;
+    }
+    
+    #sidebar-categories li,
+    #sidebar-categories button {
+        border-radius: 12px !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    #product-grid > div {
+        border-radius: 12px !important; /* บนมือขอบการ์ดจะกระชับขึ้นเล็กน้อย */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+    }
+    /* ปิดการลอยตัวบนมือถือเพื่อไม่ให้จอกระตุกเวลาเลื่อนนิ้ว แต่คงสไตล์เงานุ่มไว้ */
+    #product-grid > div:hover {
+        transform: none !important;
+    }
+    /* เอฟเฟกต์ตอนเอานิ้วจิ้ม (Active) บนมือถือให้ยุบตัวเบาๆ */
+    #product-grid > div:active,
+    #sidebar-categories button:active {
+        transform: scale(0.98) !important;
+    }
+}
+
+/* ==========================================================================
+   CROSS-PLATFORM SMOOTH POPUP ANIMATION (ปรับปรุงใหม่: สมูททั้ง PC และมือถือ)
+   ========================================================================== */
+
+/* 1. ชุดคำสั่งเคลื่อนไหวหลัก: ค่อยๆ เลื่อนขึ้นจากด้านล่าง (Smooth Slide-Up & Fade-In) */
+@keyframes universalPopupOpen {
+    0% {
+        opacity: 0 !important;
+        /* เริ่มต้นจากเยื้องต่ำลงมา 40px เพื่อให้เห็นมิติการเลื่อน (Transition) ชัดเจน ไม่แวบติดทันที */
+        transform: scale(0.95) translateY(40px) !important; 
+    }
+    100% {
+        opacity: 1 !important;
+        transform: scale(1) translateY(0) !important;
+    }
+}
+
+/* 2. บังคับใช้ทั้งบน PC และอุปกรณ์เคลื่อนที่ทั้งหมด */
+.modal-content, 
+.popup-box, 
+[role="dialog"] {
+    /* ป้องกันปัญหา JavaScript สั่งสลับดิสเพลย์แล้วทำให้แอนิเมชันกระตุกหาย */
+    display: block !important; 
+    opacity: 0; /* ซ่อนตัวไว้ก่อนเสี้ยววินาทีเพื่อรออนิเมชันทำงาน */
+    
+    /* สั่งรันอนิเมชัน */
+    animation-name: universalPopupOpen !important;
+    animation-duration: 850ms !important;    /* ปรับเวลาให้หน่วงนุ่มขึ้นเป็น 0.85 วินาที เห็น Transition เต็มตา */
+    animation-delay: 200ms !important;       /* คงการหน่วงเวลา 200ms ก่อนเริ่มทำงานตามโจทย์ */
+    
+    /* ใช้สูตรลับสมูทระดับท็อป (Cubic-Bezier แบบชะลอปลายพิเศษ) ปลายจะนุ่มนวล ไม่กระแทกสายตา */
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important; 
+    animation-fill-mode: forwards !important; 
+    
+    /* เร่งประสิทธิภาพการเร่งความเร็วด้วยการ์ดจอ (Hardware Acceleration) ป้องกันอาการเฟรมเรตร่วงทั้งบน PC และมือถือ */
+    transform-style: preserve-3d !important;
+    backface-visibility: hidden !important;
+    will-change: transform, opacity !important;
+}
+
+/* ==========================================================================
+   3. พื้นหลังจางสีดำ (Backdrop) ค่อยๆ ละมุนขึ้นพร้อมกัน
+   ========================================================================== */
+.modal-backdrop,
+.popup-overlay,
+.modal-bg {
+    opacity: 0 !important;
+    display: block !important;
+    animation: universalFadeIn 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    animation-delay: 100ms !important; /* ให้พื้นหลังดำขึ้นมาก่อนตัวกล่องป๊อปอัปเล็กน้อยเพื่อมิติที่สมจริง */
+}
+
+@keyframes universalFadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 0.5; } /* ระดับความมืดของพื้นหลังหลังป๊อปอัปเปิดเสร็จ */
+}
+
+/* 4. ปรับแต่งเพิ่มเติมเฉพาะหน้าจอมือถือเพื่อความเสถียร */
+@media (max-width: 768px) {
+    .modal-content, 
+    .popup-box, 
+    [role="dialog"] {
+        /* บนมือถือดึงเวลาเพิ่มเป็น 950ms (เกือบ 1 วินาที) เพื่อลอกเลียนแบบแอนิเมชันของระบบ iOS/Android Native */
+        animation-duration: 950ms !important;
+    }
+}
