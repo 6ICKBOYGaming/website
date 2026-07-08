@@ -473,3 +473,160 @@ input, textarea {
     overflow: hidden !important;
     height: 100vh !important;
 }
+
+/* ==========================================================================
+   PRODUCT IMAGE ALIGNMENT & FIT SYSTEM (จัดการรูปสินค้าให้พอดีกรอบรูป)
+   ========================================================================== */
+
+/* 1. คอนเทนเนอร์หรือกล่องที่ใส่รูปภาพสินค้า */
+#product-grid > div .image-container,
+#product-grid > div div[class*="image"],
+#product-grid > div a div {
+    width: 100% !important;
+    aspect-ratio: 1 / 1 !important; /* บังคับให้กรอบรูปภาพเป็นสี่เหลี่ยมจัตุรัสเท่ากันทุกชิ้น */
+    overflow: hidden !important;    /* ตัดรูปส่วนที่ล้นกรอบออก */
+    position: relative !important;
+    background-color: #f8fafc !important; /* ใส่สีพื้นหลังซอฟต์ๆ รองรับกรณีรูปโปร่งใส */
+    border-top-left-radius: 16px !important;  /* ให้ขอบมนรับกับการ์ดสินค้า */
+    border-top-right-radius: 16px !important;
+}
+
+/* 2. ตัวรูปภาพสินค้า (Image Element) */
+#product-grid > div img {
+    width: 100% !important;
+    height: 100% !important;
+    /* อัตราส่วนทองคำ: คลุมพื้นที่ให้พอดีกรอบอย่างสมบูรณ์แบบ โดยไม่เสียสัดส่วนรูป (ไม่ยืด/ไม่บี้) */
+    object-fit: cover !important; 
+    object-position: center !important; /* จัดให้จุดศูนย์กลางของรูปอยู่ตรงกลางกรอบเสมอ */
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important; /* เพิ่มความนุ่มนวลเวลา Hover */
+}
+
+/* 3. เอฟเฟกต์ซูมรูปภาพเบาๆ เมื่อเอาเมาส์ชี้ (Hover) เพิ่มความพรีเมียม */
+#product-grid > div:hover img {
+    transform: scale(1.05) !important; /* ขยายรูปขึ้น 5% เฉพาะภายในกรอบ */
+}
+
+/* 4. ปรับแต่งส่วนขอบมนสำหรับเวอร์ชันมือถือให้แมตช์กับการ์ดเดิม */
+@media (max-width: 768px) {
+    #product-grid > div .image-container,
+    #product-grid > div div[class*="image"],
+    #product-grid > div a div {
+        border-top-left-radius: 12px !important;
+        border-top-right-radius: 12px !important;
+    }
+}
+
+/* ==========================================================================
+   PRODUCT IMAGE ALIGNMENT & FIT SYSTEM (จัดการรูปสินค้าให้พอดีกรอบรูป)
+   ========================================================================== */
+
+/* 1. คอนเทนเนอร์หรือกล่องที่ใส่รูปภาพสินค้า */
+#product-grid > div .image-container,
+#product-grid > div div[class*="image"],
+#product-grid > div a div {
+    width: 100% !important;
+    aspect-ratio: 1 / 1 !important; /* บังคับให้กรอบรูปภาพเป็นสี่เหลี่ยมจัตุรัสเท่ากันทุกชิ้น */
+    overflow: hidden !important;    /* ตัดรูปส่วนที่ล้นกรอบออก */
+    position: relative !important;
+    background-color: #f8fafc !important; /* ใส่สีพื้นหลังซอฟต์ๆ รองรับกรณีรูปโปร่งใส */
+    border-top-left-radius: 16px !important;  /* ให้ขอบมนรับกับการ์ดสินค้า */
+    border-top-right-radius: 16px !important;
+}
+
+/* 2. ตัวรูปภาพสินค้า (Image Element) */
+#product-grid > div img {
+    width: 100% !important;
+    height: 100% !important;
+    /* อัตราส่วนทองคำ: คลุมพื้นที่ให้พอดีกรอบอย่างสมบูรณ์แบบ โดยไม่เสียสัดส่วนรูป (ไม่ยืด/ไม่บี้) */
+    object-fit: cover !important; 
+    object-position: center !important; /* จัดให้จุดศูนย์กลางของรูปอยู่ตรงกลางกรอบเสมอ */
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important; /* เพิ่มความนุ่มนวลเวลา Hover */
+}
+
+/* 3. เอฟเฟกต์ซูมรูปภาพเบาๆ เมื่อเอาเมาส์ชี้ (Hover) เพิ่มความพรีเมียม */
+#product-grid > div:hover img {
+    transform: scale(1.05) !important; /* ขยายรูปขึ้น 5% เฉพาะภายในกรอบ */
+}
+
+/* 4. ปรับแต่งส่วนขอบมนสำหรับเวอร์ชันมือถือให้แมตช์กับการ์ดเดิม */
+@media (max-width: 768px) {
+    #product-grid > div .image-container,
+    #product-grid > div div[class*="image"],
+    #product-grid > div a div {
+        border-top-left-radius: 12px !important;
+        border-top-right-radius: 12px !important;
+    }
+}
+
+/* ==========================================================================
+   FIX: EXPAND PRODUCT IMAGE & REDUCE WHITE BORDER (ขยายภาพสินค้า ลดขอบขาวรอบรูป)
+   ========================================================================== */
+
+/* ลบระยะขอบ Padding ในคอนเทนเนอร์ที่หุ้มรูปภาพ เพื่อให้รูปขยายใหญ่ได้เต็มพื้นที่การ์ด */
+#product-grid > div .image-container,
+#product-grid > div div[class*="image"],
+#product-grid > div a div {
+    padding: 0 !important;             /* ดึงพื้นที่ว่าง (ขอบขาว) ด้านในออก */
+    margin: 0 !important;              /* เคลียร์ระยะห่างภายนอก */
+    background-color: #ffffff !important; /* เปลี่ยนพื้นหลังคอนเทนเนอร์เป็นสีขาวเพื่อให้เนียนตา */
+    border-top-left-radius: 16px !important;  /* ล็อกขอบบนซ้ายให้มนเท่าตัวการ์ด */
+    border-top-right-radius: 16px !important; /* ล็อกขอบบนขวาให้มนเท่าตัวการ์ด */
+    overflow: hidden !important;       /* ตัดส่วนเกินของรูปที่ล้นขอบมนออก */
+}
+
+/* บังคับให้ตัวรูปภาพสินค้าขยายใหญ่แบบเต็ม 100% และคงอัตราส่วนดั้งเดิมไม่ให้เบี้ยว */
+#product-grid > div img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;     /* ขยายภาพคลุมเต็มพื้นที่กรอบรูป */
+    object-position: center !important; /* จัดวางตำแหน่งรูปให้อยู่ตรงกลางเสมอ */
+}
+
+/* ปรับแต่งความโค้งมนของขอบคอนเทนเนอร์สำหรับหน้าจอมือถือ (Mobile) ให้เข้ากับการ์ดชิ้นหลัก */
+@media (max-width: 768px) {
+    #product-grid > div .image-container,
+    #product-grid > div div[class*="image"],
+    #product-grid > div a div {
+        border-top-left-radius: 12px !important;
+        border-top-right-radius: 12px !important;
+    }
+}
+
+/* ==========================================================================
+   DEFAULT ZOOM FIX (ปรับรูปภาพให้ซูมใหญ่ขึ้นตั้งแต่แรก โดยไม่ต้องเอาเมาส์ชี้)
+   ========================================================================== */
+
+/* ตั้งค่าให้รูปภาพปกติ ซูมขึ้นมา 15% ตั้งแต่แรก */
+#product-grid > div img {
+    transform: scale(1.15) !important; /* ซูมเริ่มต้น 15% (ถ้าอยากให้เล็กลงอีก ปรับลดเป็น 1.10 ได้ครับ) */
+    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* เอฟเฟกต์เวลาเอาเมาส์ชี้ (Hover) ให้ซูมเพิ่มขึ้นอีกนิดหน่อยพองาม */
+#product-grid > div:hover img {
+    transform: scale(1.25) !important; /* ตอนเอาเมาส์ชี้ จะขยับซูมเพิ่มเป็น 25% ให้ดูมีมิติ */
+}
+/* ==========================================================================
+   ROUNDED CORNERS & DEFAULT ZOOM (ปรับรูปซูมตั้งแต่แรก + ทำขอบมนทั้ง 4 ด้าน)
+   ========================================================================== */
+
+/* 1. ปรับกล่องข้อความ/คอนเทนเนอร์ที่หุ้มรูป ให้มนทั้ง 4 ด้าน */
+#product-grid > div .image-container,
+#product-grid > div div[class*="image"],
+#product-grid > div a div {
+    border-radius: 12px !important; /* ทำมุมโค้งมนเท่ากันทั้ง 4 ด้าน (บน ล่าง ซ้าย ขวา) */
+    margin: 8px 8px 0 8px !important; /* ขยับตัวรูปให้มีช่องไฟห่างจากขอบการ์ดเล็กน้อย จะเห็นความมนชัดเจนและสวยขึ้น */
+    overflow: hidden !important;    /* บังคับตัดรูปภาพที่ล้นขอบมนออก */
+}
+
+/* 2. ตั้งค่ารูปภาพด้านในให้ซูมและนุ่มนวล */
+#product-grid > div img {
+    border-radius: 12px !important; /* ล็อกขอบรูปภาพให้มนตามกล่อง */
+    transform: scale(1.15) !important; /* ซูมเริ่มต้น 15% ตั้งแต่แรก */
+    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* 3. เอฟเฟกต์ตอนเมาส์ชี้ให้ซูมเพิ่มขึ้นอีกเล็กน้อย */
+#product-grid > div:hover img {
+    transform: scale(1.25) !important; /* ซูมเพิ่มเป็น 25% ตอนเอาเมาส์ชี้ */
+}
