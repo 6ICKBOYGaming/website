@@ -745,11 +745,18 @@ window.saveProduct = async function(e) {
     if(!activeAdmin) return alert("โปรดเข้าสู่ระบบผู้ดูแลก่อนทำรายการดังกล่าว");
 
     const id = document.getElementById("edit-product-id").value;
+    
+    // ➕ ดึงค่ารูปภาพหลักมาเช็ก หากไม่ได้กรอก (ค่าว่าง) ให้ใส่ URL รูปภาพทดแทน (Placeholder Image)
+    let thumbInput = document.getElementById("form-thumb").value.trim();
+    if (!thumbInput) {
+        thumbInput = "https://placehold.co/600x600?text=No+Image"; // แอดมินสามารถเปลี่ยน URL รูปภาพทดแทนได้ตามต้องการ
+    }
+
     const productPayload = {
         title: document.getElementById("form-title").value.trim(),
-        price: parseFloat(document.getElementById("form-price").value),
+        price: parseFloat(document.getElementById("form-price").value) || 0, // ➕ ป้องกันกรณีไม่ได้กรอกราคา ให้เป็น 0
         discountRule: document.getElementById("form-discount").value.trim(),
-        thumbnailUrl: document.getElementById("form-thumb").value.trim(),
+        thumbnailUrl: thumbInput, // ใช้ค่าที่เช็กแล้วข้างต้น
         galleryUrls: [
             document.getElementById("form-gallery-1").value.trim(),
             document.getElementById("form-gallery-2").value.trim(),
@@ -759,7 +766,7 @@ window.saveProduct = async function(e) {
             document.getElementById("form-gallery-6").value.trim(),
             document.getElementById("form-gallery-7").value.trim(),
             document.getElementById("form-gallery-8").value.trim()
-        ].filter(Boolean), // กรองเอาเฉพาะช่องที่มีการกรอกข้อมูลจริง
+        ].filter(Boolean), // กรองเอาเฉพาะช่องที่มีการกรอกข้อมูลจริง (รูปย่อยใส่ไม่ครบ 8 รูปก็เซฟได้)
         categoryMain: document.getElementById("form-cat-main").value,
         categorySub: document.getElementById("form-cat-sub").value,
         brand: document.getElementById("form-brand").value,
