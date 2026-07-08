@@ -402,7 +402,10 @@ function renderProductsGrid() {
                         </div>
                     `}
                 </div>
-                <button onclick="trackButtonLinkMetricEvent('${product.id}', '${product.buyUrl}')" class="w-full ${btnColorClass} font-bold text-xs py-2.5 rounded-xl transition-all text-center block shadow-sm">${btnLabelString}</button>
+                <button onclick="trackButtonLinkMetricEvent('${product.id}', '${product.buyUrl}')" class="w-full ${btnColorClass} font-bold text-xs py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>${btnLabelString}</span>
+                </button>
             </div>
         `;
         grid.appendChild(card);
@@ -587,11 +590,24 @@ window.launchProductDetailsModal = function(id) {
     buyBtn.onclick = () => trackButtonLinkMetricEvent(p.id, p.buyUrl);
     
     if (p.badges?.soon) {
-        buyBtn.innerText = "เร็วๆ นี้";
-        buyBtn.className = "w-full bg-[#71d4a4] text-white py-3.5 rounded-2xl font-bold text-center block shadow-sm pointer-events-none";
+        buyBtn.removeAttribute('href'); // สินค้าเร็วๆ นี้ ไม่ต้องมีลิงค์
+        buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>เร็วๆ นี้</span>`;
+        buyBtn.className = "w-full bg-[#71d4a4] text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm pointer-events-none";
     } else {
-        buyBtn.innerText = "สั่งซื้อสินค้าตอนนี้";
-        buyBtn.className = "w-full bg-[#10b981] hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold text-center block shadow-md transition-all";
+        // ⭐️ เพิ่มบรรทัดนี้เพื่อให้ส่งลิงค์สินค้าไปยังปลายทางที่ถูกต้อง
+        buyBtn.href = p.buyUrl || "#"; 
+        buyBtn.target = "_blank"; // ให้เปิดลิงค์ในแท็บใหม่เหมือนหน้าแรก
+        
+        buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>สั่งซื้อสินค้าตอนนี้</span>`;
+        buyBtn.className = "w-full bg-[#10b981] hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md transition-all";
+        
+        // ⭐️ ตรวจสอบเรื่องการบันทึกสถิติ (Metric) 
+        // หากมีฟังก์ชันนี้อยู่เดิม ให้ผูกฟังก์ชันคลิกไปด้วยเพื่อให้เก็บสถิติได้เหมือนหน้าแรกครับ
+        buyBtn.onclick = function() {
+            if (typeof trackButtonLinkMetricEvent === "function") {
+                trackButtonLinkMetricEvent(p.id, p.buyUrl);
+            }
+        };
     }
 
     openModal('modal-detail');
