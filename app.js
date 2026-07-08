@@ -340,7 +340,7 @@ function renderProductsGrid() {
             `;
         }
 
-        const breadcrumbStr = `${product.categoryMain || ''} > ${product.categorySub || ''} > ${product.brand || ''}`;
+        const breadcrumbStr = product.badges?.soon ? "" : `${product.categoryMain || ''} > ${product.categorySub || ''} > ${product.brand || ''}`;
         const displayPrice = product.badges?.soon ? "Coming Soon..." : `${pricingMeta.finalPrice.toLocaleString()} บาท`;
         
         const btnColorClass = product.badges?.soon ? "bg-[#71d4a4] hover:bg-[#5ec493] text-white" : "bg-[#10b981] hover:bg-[#0ea5e9] text-white";
@@ -362,7 +362,19 @@ function renderProductsGrid() {
                 </div>
             </div>
             <div class="px-4 pb-4 pt-1 space-y-2">
-                <div class="text-sm font-black ${product.badges?.soon ? 'text-gray-900 font-extrabold text-xs' : 'text-gray-900'}">${displayPrice}</div>
+                <!-- ใช้ flex เพื่อแบ่งพื้นที่ราคาไว้ฝั่งซ้าย และ แหล่งจัดส่งไว้ฝั่งขวา -->
+                <div class="flex justify-between items-center">
+                    <div class="text-sm font-black ${product.badges?.soon ? 'text-gray-900 font-extrabold text-xs' : 'text-gray-900'}">
+                        ${displayPrice}
+                    </div>
+                    
+                    <!-- ส่วนแสดงผล จัดส่งในไทย / ต่างประเทศ (ซ่อนทันทีถ้าเป็น Coming Soon) -->
+                    ${product.badges?.soon ? '' : `
+                        <div class="text-[10px] font-medium px-1.5 py-0.5 rounded tracking-tighter opacity-90 scale-95 origin-right ${product.shippingMode === 'จัดส่งจากต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
+                            <i class="fa-solid fa-truck-fast mr-0.5 scale-75"></i>${product.shippingMode || "จัดส่งในไทย"}
+                        </div>
+                    `}
+                </div>
                 <button onclick="trackButtonLinkMetricEvent('${product.id}', '${product.buyUrl}')" class="w-full ${btnColorClass} font-bold text-xs py-2.5 rounded-xl transition-all text-center block shadow-sm">${btnLabelString}</button>
             </div>
         `;
@@ -471,7 +483,21 @@ window.launchProductDetailsModal = function(id) {
     
     currentActiveDetailProduct = p;
     document.getElementById("detail-title").innerText = p.title;
-    document.getElementById("detail-shipping").innerText = p.shippingMode || "จัดส่งในไทย";
+    
+    // 🛠️ แก้ไขจุดนี้: ถ้าเป็น Coming Soon ให้ซ่อนข้อความการจัดส่ง (หรือใส่ค่าว่าง)
+    const shippingEl = document.getElementById("detail-shipping");
+    if (shippingEl) {
+        if (p.badges?.soon) {
+            shippingEl.innerText = ""; 
+            // หรือถ้าต้องการซ่อน Element ไปเลย (กรณีมี Icon หรือ Layout แบ็กกราวด์หุ้มอยู่) สามารถใช้:
+            // shippingEl.parentElement.classList.add("hidden");
+        } else {
+            shippingEl.innerText = p.shippingMode || "จัดส่งในไทย";
+            // อย่าลืมเคลียร์คลาสซ่อนออก เผื่อเปิดสินค้าตัวถัดไปที่ไม่ได้เป็น Coming Soon
+            // shippingEl.parentElement.classList.remove("hidden");
+        }
+    }
+    
     document.getElementById("detail-desc").innerText = p.description || "ไม่มีรายละเอียดสินค้า";
     
     const pricingMeta = calculateDiscountValue(p.price, p.discountRule);
