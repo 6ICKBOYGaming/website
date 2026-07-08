@@ -47,6 +47,10 @@ function syncRealtimeDatabase() {
         snapshot.forEach(doc => {
             globalProducts.push({ id: doc.id, ...doc.data() });
         });
+        
+        // 🛠️ แก้ไข: เรียงลำดับตาม sortOrder เป็นค่าเริ่มต้น (ถ้าไม่มีให้เป็น 0) สำหรับ "จัดเรียงปกติ"
+        globalProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
         renderProductsGrid();
         renderSidebarCategoriesStructure();
         renderDiscountManager();
@@ -260,6 +264,7 @@ function calculateDiscountValue(basePrice, discountStringRule) {
 // ================= CORE CLIENT PRODUCTS RENDER FEED (MATCHING IMAGE PREVIEW) =================
 function renderProductsGrid() {
     const grid = document.getElementById("product-grid");
+    if (!grid) return; // ➕ ดักเอาไว้เผื่อไม่มี Element หน้าเว็บจะได้ไม่พัง
     grid.innerHTML = "";
 
     let targetDataset = [...globalProducts];
@@ -275,13 +280,19 @@ function renderProductsGrid() {
         targetDataset = targetDataset.filter(p => p.title.toLowerCase().includes(query) || (p.keywords && p.keywords.toLowerCase().includes(query)));
     }
 
-    const sorterVal = document.getElementById("sort-select").value;
+    // 🛠️ แก้ไข: ป้องกันกรณีไม่มีหน้า select หรือหน้าเว็บเพิ่งโหลดเสร็จ และเพิ่มการเรียงลำดับเริ่มต้น (Default)
+    const sortSelectEl = document.getElementById("sort-select");
+    const sorterVal = sortSelectEl ? sortSelectEl.value : "normal"; 
+
     if (sorterVal === "latest") {
         targetDataset.sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } else if (sorterVal === "price-desc") {
         targetDataset.sort((a,b) => (b.badges?.soon ? 0 : calculateDiscountValue(b.price, b.discountRule).finalPrice) - (a.badges?.soon ? 0 : calculateDiscountValue(a.price, a.discountRule).finalPrice));
     } else if (sorterVal === "price-asc") {
         targetDataset.sort((a,b) => (a.badges?.soon ? Infinity : calculateDiscountValue(a.price, a.discountRule).finalPrice) - (b.badges?.soon ? Infinity : calculateDiscountValue(b.price, b.discountRule).finalPrice));
+    } else {
+        // ➕ เพิ่มเงื่อนไขนี้ เพื่อรองรับ "จัดเรียงปกติ" และป้องกันโค้ดเออร์เรอร์หลุดการทำงาน
+        targetDataset.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     }
 
     if(targetDataset.length === 0) {
@@ -289,10 +300,22 @@ function renderProductsGrid() {
         return;
     }
 
-    targetDataset.forEach(product => {
+    targetDataset.forEach((product, index) => {
         const pricingMeta = calculateDiscountValue(product.price, product.discountRule);
         const card = document.createElement("div");
-        card.className = "bg-white rounded-[24px] shadow-sm overflow-hidden relative flex flex-col justify-between group border border-gray-100/60 transition-all duration-300 hover:shadow-md";
+        
+        // 🛠️ ผูก Event Drag and Drop สำหรับ Admin บนหน้าเว็บหลัก
+        if (activeAdmin) {
+            card.className = "bg-white rounded-[24px] shadow-sm overflow-hidden relative flex flex-col justify-between group border border-gray-100/60 transition-all duration-300 hover:shadow-md cursor-grab active:cursor-grabbing";
+            card.draggable = true;
+            card.dataset.id = product.id;
+            card.dataset.index = index;
+            if (typeof setupProductDragAndDropListeners === "function") {
+                setupProductDragAndDropListeners(card);
+            }
+        } else {
+            card.className = "bg-white rounded-[24px] shadow-sm overflow-hidden relative flex flex-col justify-between group border border-gray-100/60 transition-all duration-300 hover:shadow-md";
+        }
         
         // Dynamic Badges Placement Matrix matching parameters layout
         let inlineBadgesLayout = "";
@@ -320,7 +343,6 @@ function renderProductsGrid() {
         const breadcrumbStr = `${product.categoryMain || ''} > ${product.categorySub || ''} > ${product.brand || ''}`;
         const displayPrice = product.badges?.soon ? "Coming Soon..." : `${pricingMeta.finalPrice.toLocaleString()} บาท`;
         
-        // Specialized styling rules maps configurations for coming soon buttons attributes references rules values
         const btnColorClass = product.badges?.soon ? "bg-[#71d4a4] hover:bg-[#5ec493] text-white" : "bg-[#10b981] hover:bg-[#0ea5e9] text-white";
         const btnLabelString = product.badges?.soon ? "เร็วๆ นี้" : "สั่งซื้อ";
 
@@ -469,24 +491,43 @@ window.launchProductDetailsModal = function(id) {
     }
 
     currentActiveDetailProduct.imagesArray = imagesPool;
+
+    // 🛠️ แก้ไขจุดนี้: ตรวจสอบและสร้างกล่องสำหรับไอคอนจุด (detail-dots) ในกรณีที่ในหน้า HTML ไม่มี หรือถูกเคลียร์ไป
+    let dotsArea = document.getElementById("detail-dots");
+    if (!dotsArea) {
+        // ถ้าหาไอคอนจุดไม่เจอใน HTML ให้สร้างสร้างกล่องฝังเข้าไปใต้รูปภาพหลักอัตโนมัติ
+        const mainImgEl = document.getElementById("detail-main-img");
+        if (mainImgEl && mainImgEl.parentElement) {
+            dotsArea = document.createElement("div");
+            dotsArea.id = "detail-dots";
+            dotsArea.className = "flex justify-center items-center gap-1.5 mt-3";
+            // นำไปวางต่อท้ายรูปภาพหลัก
+            mainImgEl.parentElement.insertAdjacentElement('afterend', dotsArea);
+        }
+    } else {
+        // ถ้ามีกล่องอยู่แล้ว ให้รีเซ็ตความสวยงามเผื่อไว้
+        dotsArea.className = "flex justify-center items-center gap-1.5 mt-3";
+    }
+
+    // เรียก Render รูปภาพและจุดนำทางพร้อมกัน
     setupProductGallerySliderUI(0);
 
-    // === ระบบ Touch Swipe สำหรับรูปภาพหลักในหน้ารายละเอียดสินค้า ===
+    // === ระบบ Touch Swipe สำหรับรูปภาพหลัก ===
     const mainImgEl = document.getElementById("detail-main-img");
     if (mainImgEl && !mainImgEl.dataset.swipeBound) {
         bindTouchSwipeElement(
             mainImgEl,
-            () => { // ปัดซ้าย -> ดูรูปถัดไป
+            () => { 
                 const images = currentActiveDetailProduct.imagesArray || [];
                 let nextIdx = currentLightboxIndex + 1;
                 if (nextIdx < images.length) setupProductGallerySliderUI(nextIdx);
             },
-            () => { // ปัดขวา -> ย้อนกลับไปรูปก่อนหน้า
+            () => { 
                 let prevIdx = currentLightboxIndex - 1;
                 if (prevIdx >= 0) setupProductGallerySliderUI(prevIdx);
             }
         );
-        mainImgEl.dataset.swipeBound = "true"; // ป้องกันการผูก Event ซ้ำซ้อนตอนเปิด Modal ซ้ำ ๆ
+        mainImgEl.dataset.swipeBound = "true"; 
     }
 
     const buyBtn = document.getElementById("detail-buy-btn");
@@ -508,25 +549,115 @@ function setupProductGallerySliderUI(index) {
     if(!images || images.length === 0) return;
     
     currentLightboxIndex = index;
-    document.getElementById("detail-main-img").src = images[index];
+    
+    // 1. อัปเดตรูปภาพหลัก
+    const mainImg = document.getElementById("detail-main-img");
+    if (mainImg) mainImg.src = images[index];
 
-    const dotsContainer = document.getElementById("carousel-dots");
-    dotsContainer.innerHTML = "";
-    images.forEach((_, idx) => {
-        const dot = document.createElement("div");
-        dot.className = `w-2 h-2 rounded-full transition-all cursor-pointer ${idx === index ? 'bg-blue-600 w-4' : 'bg-gray-300'}`;
-        dot.onclick = () => setupProductGallerySliderUI(idx);
-        dotsContainer.appendChild(dot);
+    // 2. ระบบไอคอนจุดตรงกลาง (Dots Container)
+    const dotsContainer = document.getElementById("detail-dots");
+    if (dotsContainer) {
+        dotsContainer.innerHTML = "";
+        images.forEach((_, idx) => {
+            const dot = document.createElement("button");
+            dot.className = `w-2 h-2 rounded-full transition-all duration-300 ${idx === index ? 'bg-gray-800 w-4' : 'bg-gray-300 hover:bg-gray-400'}`;
+            dot.onclick = () => setupProductGallerySliderUI(idx);
+            dotsContainer.appendChild(dot);
+        });
+    }
+
+    // 3. ปรับแต่งโครงสร้างรูปย่อย (Thumbnails) ให้สไลด์แนวนอนได้ ไม่ตกไปแถวที่ 2
+    const thumbContainer = document.getElementById("detail-thumbnails");
+    if (thumbContainer) {
+        thumbContainer.innerHTML = "";
+        
+        // 🛠️ เพิ่ม Tailwind CSS เพื่อล็อกให้เป็นแถวเดียว และเปิดการสไลด์แนวนอน (Horizontal Scroll)
+        thumbContainer.className = "flex flex-row flex-nowrap gap-2 overflow-x-auto pb-2 scrollbar-none w-full";
+        // บังคับให้ใช้สไตล์สไลด์ของมือถือแบบนุ่มนวล
+        thumbContainer.style.webkitOverflowScrolling = "touch"; 
+        
+        images.forEach((url, idx) => {
+            const thumbBox = document.createElement("div");
+            
+            // ตั้งค่าคุณสมบัติสำหรับ Admin และ บุคคลทั่วไป โดยล็อกขนาดไว้ที่ w-16 h-16 และไม่ให้บีบขนาดตัวเอง (shrink-0)
+            if (activeAdmin) {
+                thumbBox.className = `w-16 h-16 bg-[#fbfbfb] border rounded-xl overflow-hidden p-1 shrink-0 cursor-grab active:cursor-grabbing transition-all ${idx === index ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-gray-200/80 hover:border-gray-400'}`;
+                thumbBox.draggable = true;
+                thumbBox.dataset.index = idx;
+                setupGalleryDragListeners(thumbBox); // ระบบลากจัดเรียงรูปภาพเดิมของ Admin[cite: 2]
+            } else {
+                thumbBox.className = `w-16 h-16 bg-[#fbfbfb] border rounded-xl overflow-hidden p-1 shrink-0 cursor-pointer transition-all ${idx === index ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-gray-200/80 hover:border-gray-400'}`;
+            }
+            
+            thumbBox.innerHTML = `<img src="${url}" class="object-contain w-full h-full pointer-events-none" loading="lazy">`;
+            
+            // คลิกเปลี่ยนรูปภาพหลัก
+            thumbBox.onclick = (e) => {
+                if (e.target.tagName !== 'DIV' && thumbBox.draggable) return; 
+                setupProductGallerySliderUI(idx);
+            };
+            
+            thumbContainer.appendChild(thumbBox);
+        });
+
+        // ➕ เสริมตัวช่วยสไลด์อัตโนมัติ: เลื่อนแถวสไลด์ให้โฟกัสที่รูปภาพที่เรากดเลือกอยู่เสมอ
+        const activeThumb = thumbContainer.children[index];
+        if (activeThumb) {
+            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }
+}
+
+let dragGallerySourceRef = null;
+
+function setupGalleryDragListeners(element) {
+    element.addEventListener('dragstart', (e) => {
+        dragGallerySourceRef = element;
+        element.classList.add('opacity-40');
+        e.dataTransfer.effectAllowed = 'move';
     });
 
-    const thumbContainer = document.getElementById("detail-thumbnails");
-    thumbContainer.innerHTML = "";
-    images.forEach((url, idx) => {
-        const thumbBox = document.createElement("div");
-        thumbBox.className = `aspect-square bg-gray-50 border rounded-xl overflow-hidden p-1 cursor-pointer transition-all ${idx === index ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-gray-200 hover:border-gray-400'}`;
-        thumbBox.innerHTML = `<img src="${url}" class="object-contain w-full h-full">`;
-        thumbBox.onclick = () => setupProductGallerySliderUI(idx);
-        thumbContainer.appendChild(thumbBox);
+    element.addEventListener('dragover', (e) => e.preventDefault());
+
+    element.addEventListener('drop', async (e) => {
+        e.stopPropagation();
+        if (dragGallerySourceRef !== element) {
+            const sourceIndex = parseInt(dragGallerySourceRef.dataset.index);
+            const targetIndex = parseInt(element.dataset.index);
+            
+            // สลับตำแหน่ง URL รูปภาพใน Array ภายใน Memory
+            const images = currentActiveDetailProduct.imagesArray;
+            const movedUrl = images.splice(sourceIndex, 1)[0];
+            images.splice(targetIndex, 0, movedUrl);
+            
+            // แยกโครงสร้างกลับเป็น รูปหลักรูปแรก (thumbnailUrl) และรูปย่อยที่เหลือ (galleryUrls)
+            const newThumbnailUrl = images[0] || "";
+            const newGalleryUrls = images.slice(1); // ดึงตั้งแต่ตัวที่ 2 เป็นต้นไป
+            
+            try {
+                // ยิงคำสั่งเซฟลง Firestore ทันทีที่สลับ URL เสร็จ
+                const productRef = doc(db, "products", currentActiveDetailProduct.id);
+                await updateDoc(productRef, {
+                    thumbnailUrl: newThumbnailUrl,
+                    galleryUrls: newGalleryUrls
+                });
+                
+                // อัปเดตข้อมูลใน object หลักของแอปและวาด UI ใหม่
+                currentActiveDetailProduct.thumbnailUrl = newThumbnailUrl;
+                currentActiveDetailProduct.galleryUrls = newGalleryUrls;
+                currentActiveDetailProduct.imagesArray = images;
+                
+                // สั่ง Render หน้า Gallery ใหม่เพื่อให้เห็นลำดับปัจจุบัน
+                setupProductGallerySliderUI(targetIndex);
+                console.log("อัปเดตสลับ URL รูปภาพบนระบบสำเร็จ");
+            } catch (err) {
+                alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งรูปภาพ: " + err.message);
+            }
+        }
+    });
+
+    element.addEventListener('dragend', () => {
+        element.classList.remove('opacity-40');
     });
 }
 
@@ -1133,6 +1264,231 @@ function bindTouchSwipeElement(element, onSwipeLeft, onSwipeRight) {
         }
         if (touchEndX > touchStartX + swipeThreshold) {
             if (typeof onSwipeRight === 'function') onSwipeRight();
+        }
+    }
+}
+// ================= PRODUCT DRAG & DROP SORTING SYSTEM =================
+let dragProductSourceRef = null;
+
+window.setupProductDragAndDropListeners = function(element) {
+    element.addEventListener('dragstart', (e) => {
+        dragProductSourceRef = element;
+        element.classList.add('opacity-40', 'scale-95');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+
+    element.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    element.addEventListener('drop', async (e) => {
+        e.stopPropagation();
+        if (dragProductSourceRef !== element) {
+            const sourceIndex = parseInt(dragProductSourceRef.dataset.index);
+            const targetIndex = parseInt(element.dataset.index);
+
+            // คัดลอก Array สินค้าปัจจุบันออกมาคำนวณตำแหน่งใหม่
+            let targetDataset = [...globalProducts];
+
+            // กรองสินค้าตามตัวกรองปัจจุบัน (เพื่อให้เรียงตรงกับหน้าจอที่แอดมินเห็น)
+            if (currentFilters.main !== 'all') {
+                targetDataset = targetDataset.filter(p => p.categoryMain === currentFilters.main);
+                if (currentFilters.sub !== 'all') targetDataset = targetDataset.filter(p => p.categorySub === currentFilters.sub);
+                if (currentFilters.brand !== 'all') targetDataset = targetDataset.filter(p => p.brand === currentFilters.brand);
+            }
+            if (currentFilters.query) {
+                const query = currentFilters.query;
+                targetDataset = targetDataset.filter(p => p.title.toLowerCase().includes(query) || (p.keywords && p.keywords.toLowerCase().includes(query)));
+            }
+
+            // ค้นหาสินค้าตัวที่ถูกลาก และตัวที่ถูกวางทับ ใน globalProducts หลัก
+            const sourceProduct = targetDataset[sourceIndex];
+            const targetProduct = targetDataset[targetIndex];
+
+            if (!sourceProduct || !targetProduct) return;
+
+            const globalSourceIdx = globalProducts.findIndex(p => p.id === sourceProduct.id);
+            const globalTargetIdx = globalProducts.findIndex(p => p.id === targetProduct.id);
+
+            // สลับตำแหน่งในหน่วยความจำ
+            const [movedItem] = globalProducts.splice(globalSourceIdx, 1);
+            globalProducts.splice(globalTargetIdx, 0, movedItem);
+
+            try {
+                // สร้าง Batch เพื่ออัปเดต sortOrder ของสินค้าทุกตัวพร้อมกันรวดเดียว
+                const batch = writeBatch(db);
+                
+                globalProducts.forEach((product, idx) => {
+                    const productRef = doc(db, "products", product.id);
+                    batch.update(productRef, { sortOrder: idx });
+                });
+
+                await batch.commit();
+                console.log("บันทึกลำดับสินค้าลงฐานข้อมูลสำเร็จ");
+            } catch (err) {
+                alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งสินค้า: " + err.message);
+            }
+        }
+    });
+
+    element.addEventListener('dragend', () => {
+        element.classList.remove('opacity-40', 'scale-95');
+    });
+}
+
+// ==========================================================================
+// ADVANCED PRODUCT DRAG & DROP FOR BOTH SORTING MODES (PC & MOBILE SUPPORT)
+// ==========================================================================
+
+// ฟังก์ชันเสริมค้นหา Element ณ พิกเซลที่นิ้วสัมผัสบนมือถือ
+function getTouchTargetElement(e) {
+    if (e.touches && e.touches.length > 0) {
+        const touch = e.touches[0];
+        return document.elementFromPoint(touch.clientX, touch.clientY);
+    }
+    return null;
+}
+
+// ผูก Event การลากจัดเรียงสินค้า (อัปเกรดให้รองรับ PC + Mobile + สลับโหมดล่าสุดได้)
+setupProductDragAndDropListeners = function(element) {
+    
+    // --- [ ส่วนที่ 1: สำหรับการใช้งานบนหน้าจอคอมพิวเตอร์ PC ] ---
+    element.addEventListener('dragstart', (e) => {
+        dragProductSourceRef = element;
+        element.classList.add('opacity-40', 'scale-95');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+
+    element.addEventListener('dragover', (e) => e.preventDefault());
+
+    element.addEventListener('drop', async (e) => {
+        e.stopPropagation();
+        if (dragProductSourceRef !== element) {
+            await executeProductReorderLogic(dragProductSourceRef, element);
+        }
+    });
+
+    element.addEventListener('dragend', () => {
+        element.classList.remove('opacity-40', 'scale-95');
+    });
+
+    // --- [ ส่วนที่ 2: สำหรับการใช้งานบนหน้าจอมือถือ TOUCH SCREEN ] ---
+    element.addEventListener('touchstart', (e) => {
+        // ปลดล็อกให้แอดมินสัมผัสการ์ดเพื่อเตรียมลากจัดเรียงได้ทันทีโดยไม่ต้องรอเปลี่ยน Select 
+        if (!activeAdmin) return;
+
+        dragProductSourceRef = element;
+        element.classList.add('opacity-40', 'scale-95', 'ring-4', 'ring-blue-500/20');
+    }, { passive: true });
+
+    element.addEventListener('touchmove', (e) => {
+        if (dragProductSourceRef === element && e.cancelable) {
+            e.preventDefault(); // ล็อกหน้าจอไม่ให้เลื่อนหลุดสะดุดขณะลากการ์ดสินค้าบนมือถือ
+        }
+    }, { passive: false });
+
+    element.addEventListener('touchend', async (e) => {
+        if (!dragProductSourceRef) return;
+        element.classList.remove('opacity-40', 'scale-95', 'ring-4', 'ring-blue-500/20');
+
+        const targetEl = getTouchTargetElement(e.changedTouches ? { touches: [e.changedTouches[0]] } : e);
+        if (!targetEl) return;
+
+        const closestTarget = targetEl.closest('div[data-id]');
+        if (closestTarget && dragProductSourceRef !== closestTarget) {
+            await executeProductReorderLogic(dragProductSourceRef, closestTarget);
+        }
+        dragProductSourceRef = null;
+    });
+};
+
+// ฟังก์ชันหลักในการคำนวณและบันทึกค่าลง Firebase ทันทีที่การลากเสร็จสิ้น
+async function executeProductReorderLogic(sourceCard, targetCard) {
+    const sortSelectEl = document.getElementById("sort-select");
+    // หากไม่พบ Element หรือค่าว่าง ให้ถือว่าเป็นโหมดจัดเรียงเริ่มต้น ("normal") 
+    let sorterVal = sortSelectEl ? sortSelectEl.value : "normal";
+    if (!sorterVal) sorterVal = "normal";
+
+    const sourceIndex = parseInt(sourceCard.dataset.index);
+    const targetIndex = parseInt(targetCard.dataset.index);
+
+    // ดึง Dataset สินค้าตามฟิลเตอร์หน้าจอปัจจุบันออกมาคำนวณ
+    let targetDataset = [...globalProducts];
+    if (currentFilters.main !== 'all') {
+        targetDataset = targetDataset.filter(p => p.categoryMain === currentFilters.main);
+        if (currentFilters.sub !== 'all') targetDataset = targetDataset.filter(p => p.categorySub === currentFilters.sub);
+        if (currentFilters.brand !== 'all') targetDataset = targetDataset.filter(p => p.brand === currentFilters.brand);
+    }
+    if (currentFilters.query) {
+        const query = currentFilters.query;
+        targetDataset = targetDataset.filter(p => p.title.toLowerCase().includes(query) || (p.keywords && p.keywords.toLowerCase().includes(query)));
+    }
+
+    // จัดเรียง Dataset จำลองให้ตรงกับรูปแบบสายตาที่แอดมินกำลังเห็นอยู่ขณะนั้น
+    if (sorterVal === "latest") {
+        targetDataset.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    } else {
+        targetDataset.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    }
+
+    const sourceProduct = targetDataset[sourceIndex];
+    const targetProduct = targetDataset[targetIndex];
+    if (!sourceProduct || !targetProduct) return;
+
+    // หาตำแหน่งดัชนีของสินค้าในอาเรย์หลัก (globalProducts)
+    const globalSourceIdx = globalProducts.findIndex(p => p.id === sourceProduct.id);
+    
+    if (sorterVal === "latest") {
+        // ==========================================================================
+        // ตรรกะกรณีลากจัดเรียงในโหมด "สินค้าล่าสุด" (อิงจากค่าเวลา updatedAt)
+        // ==========================================================================
+        const targetUpdatedAt = targetProduct.updatedAt || Date.now();
+        let calculatedNewTime = targetUpdatedAt;
+
+        if (targetIndex === 0) {
+            // กรณีลากมาอยู่บนสุดของหน้าจอ: ปรับให้เวลาล่าสุดมากกว่าตัวบนสุดเดิม 1 วินาที
+            calculatedNewTime = targetUpdatedAt + 1000;
+        } else if (targetIndex === targetDataset.length - 1) {
+            // กรณีลากมาไว้ท้ายสุดของหน้าจอ: ปรับให้เวลาน้อยกว่าตัวล่างสุดเดิม 1 วินาที
+            calculatedNewTime = targetUpdatedAt - 1000;
+        } else {
+            // กรณีลากมาแทรกตรงกลางระหว่างการ์ด: คำนวณหาค่าเฉลี่ยกึ่งกลางเวลาระหว่างสินค้าตัวบนและตัวล่างเพื่อแทรกตำแหน่ง
+            const neighborIndex = sourceIndex > targetIndex ? targetIndex - 1 : targetIndex + 1;
+            const neighborProduct = targetDataset[neighborIndex];
+            if (neighborProduct) {
+                const neighborTime = neighborProduct.updatedAt || Date.now();
+                calculatedNewTime = Math.round((targetUpdatedAt + neighborTime) / 2);
+            } else {
+                calculatedNewTime = sourceIndex > targetIndex ? targetUpdatedAt + 500 : targetUpdatedAt - 500;
+            }
+        }
+
+        try {
+            // อัปเดตเวลาชิ้นที่ลากชิ้นเดียวลงฐานข้อมูล โครงสร้างฐานข้อมูลจะเรียงลำดับใหม่ทันที
+            await updateDoc(doc(db, "products", sourceProduct.id), { updatedAt: calculatedNewTime });
+            console.log("บันทึกลำดับสินค้าล่าสุดลง Firestore เรียบร้อยแล้ว");
+        } catch (err) {
+            alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งสินค้าล่าสุด: " + err.message);
+        }
+
+    } else {
+        // ==========================================================================
+        // ตรรกะกรณีลากจัดเรียงในโหมด "จัดเรียงปกติ" (อิงจากค่าเลข sortOrder เดิมของคุณ)
+        // ==========================================================================
+        const globalTargetIdx = globalProducts.findIndex(p => p.id === targetProduct.id);
+        const [movedItem] = globalProducts.splice(globalSourceIdx, 1);
+        globalProducts.splice(globalTargetIdx, 0, movedItem);
+
+        try {
+            const batch = writeBatch(db);
+            globalProducts.forEach((product, idx) => {
+                const productRef = doc(db, "products", product.id);
+                batch.update(productRef, { sortOrder: idx });
+            });
+            await batch.commit();
+            console.log("บันทึกลำดับจัดเรียงปกติลง Firestore เรียบร้อยแล้ว");
+        } catch (err) {
+            alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งสินค้า: " + err.message);
         }
     }
 }

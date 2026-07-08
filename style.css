@@ -384,3 +384,92 @@ header + div > aside {
         animation-duration: 950ms !important;
     }
 }
+
+/* ==========================================================================
+   APP-LIKE MOBILE APP LOCK & FULLSCREEN SYSTEM (ล็อกหน้าจอสัมผัสแบบแอป)
+   ========================================================================== */
+
+/* ล็อกโครงสร้างหลักของทั้งเว็บไซต์ไม่ให้มีการเลื่อนซ้าย-ขวาเด็ดขาดในทุกมิติ */
+html, body {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    position: relative;
+    /* ป้องกันการกดค้างแล้วขึ้นเมนูเลือกข้อความเพื่อความรู้สึกเหมือนแอป */
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* อนุญาตให้เลือกข้อความเฉพาะในช่อง Input หรือ Textarea เท่านั้น */
+input, textarea {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+/* ==========================================================================
+   MOBILE POPUP & MODAL RESPONSIVE FIX (บังคับทุกป๊อปอัปให้พอดีจอมือถือทุกรุ่น)
+   ========================================================================== */
+@media (max-width: 768px) {
+    
+    /* 1. บังคับตัวครอบนอกสุดของ Popup / Dialog ทุกประเภทให้เต็มจอหรือพอดีจอ */
+    .modal,
+    .popup-overlay,
+    [role="dialog"]-wrapper,
+    div[class*="modal"],
+    div[class*="popup"] {
+        padding: 12px !important; /* เว้นระยะจากขอบจอเล็กน้อยไม่ให้ติดขอบเกินไป */
+        display: flex !important;
+        align-items: center !important; /* จัดให้อยู่กึ่งกลางหน้าจอแนวตั้ง */
+        justify-content: center !important; /* จัดให้อยู่กึ่งกลางหน้าจอแนวนอน */
+        box-sizing: border-box !important;
+    }
+
+    /* 2. บังคับตัวกล่องเนื้อหา Popup (Content Box) ให้ยืดหยุ่นตามหน้าจอมือถืออัตโนมัติ */
+    .modal-content, 
+    .popup-box, 
+    [role="dialog"],
+    div[class*="modal-content"],
+    div[class*="popup-content"] {
+        width: 100% !important;
+        max-width: calc(100vw - 24px) !important; /* บังคับความกว้างสูงสุดไม่เกินขนาดหน้าจอลบด้วย Padding */
+        max-height: 85vh !important; /* จำกัดความสูงไม่ให้ล้นทะลุหน้าจอ (เผื่อพื้นที่ปุ่มปิด/หัวท้าย) */
+        margin: 0 auto !important;
+        overflow-y: auto !important; /* ถ้าเนื้อหาข้างใน Popup ยาวเกินไป ให้รูดเลื่อนขึ้นลง "ภายในกล่อง" ได้ */
+        overflow-x: hidden !important; /* ห้ามเลื่อนซ้ายขวาภายในป๊อปอัปเด็ดขาด */
+        border-radius: 16px !important; /* มุมโค้งมนสไตล์แอปสมัยใหม่ */
+        
+        /* สไตล์ความลื่นไหลในการรูดเลื่อนสำหรับ iOS */
+        -webkit-overflow-scrolling: touch !important; 
+    }
+
+    /* 3. จัดการรูปภาพหรือตารางภายใน Popup ไม่ให้ดันขอบจนโครงสร้างพัง */
+    .modal-content img,
+    .popup-box img,
+    [role="dialog"] img,
+    .modal-content table,
+    .popup-box table {
+        max-width: 100% !important;
+        height: auto !important;
+        object-fit: contain !important;
+    }
+
+    /* 4. กรณีที่ต้องการให้ Popup บางตัวเป็นแบบดึงขึ้นมาจากด้านล่าง (Bottom Sheet) เหมือนแอปธนาคาร/เดลิเวอรี่ */
+    /* (สามารถใส่คลาส .popup-bottom เพิ่มที่ตัว Popup ได้ถ้าต้องการ) */
+    .popup-bottom {
+        align-items: flex-end !important; /* ดันลงก้นจอ */
+        padding: 0 !important;
+    }
+    .popup-bottom .modal-content,
+    .popup-bottom .popup-box {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 80vh !important;
+        border-radius: 20px 20px 0 0 !important; /* มนเฉพาะขอบบน */
+        transform: translateY(0) !important;
+    }
+}
+
+/* ป้องกันปัญหา Element แปลกปลอม หรือแอนิเมชันตอนโหลดหน้าเว็บที่ชอบดันขอบขวาออก */
+.scroll-lock {
+    overflow: hidden !important;
+    height: 100vh !important;
+}
