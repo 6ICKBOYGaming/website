@@ -410,10 +410,10 @@ function renderProductsGrid() {
                         </div>
                     `}
                 </div>
-                <button onclick="trackButtonLinkMetricEvent('${product.id}', '${product.buyUrl}')" class="w-full ${btnColorClass} font-bold text-xs py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-sm">
+                <a href="${product.buyUrl || '#'}" target="_blank" onclick="if(typeof trackButtonLinkMetricEvent === 'function') { trackButtonLinkMetricEvent('${product.id}', '${product.buyUrl}') }" class="w-full ${btnColorClass} font-bold text-xs py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-sm">
                     <i class="fa-solid fa-cart-shopping"></i>
                     <span>${btnLabelString}</span>
-                </button>
+                </a>
             </div>
         `;
         grid.appendChild(card);
@@ -1277,20 +1277,28 @@ async function initIPViewStatsCounter() {
     }
 }
 
+// ประกาศให้เป็น window เพื่อให้ HTML ทุกจุดบนหน้าเว็บเรียกใช้งานได้แน่นอน
 window.trackButtonLinkMetricEvent = function(productId, targetDestinationUrl) {
-    // ตรวจสอบว่ามีลิงก์ปลายทางส่งมาจริงไหม
-    if (!targetDestinationUrl || targetDestinationUrl === 'undefined' || targetDestinationUrl === '') {
-        console.error("ไม่พบลิงก์ปลายทาง");
+    // 1. ตรวจสอบและจัดการเคลียร์ช่องว่างของลิงก์ที่ส่งมา
+    if (!targetDestinationUrl || targetDestinationUrl === 'undefined' || targetDestinationUrl.trim() === '') {
+        console.error("ไม่พบลิงก์ปลายทางสำหรับสินค้านี้");
+        alert("ไม่พบลิงก์สำหรับสั่งซื้อสินค้านี้");
         return;
     }
 
-    // 1. สั่งเปิดแท็บใหม่ทันทีตอนคลิก (วิธีนี้การันตีว่าเบราว์เซอร์จะไม่บล็อกป๊อปอัป 100%)
-    const newWindow = window.open(targetDestinationUrl, '_blank');
+    // ล้างช่องว่างซ้ายขวาของ URL ป้องกันลิงก์พัง
+    const cleanUrl = targetDestinationUrl.trim();
 
-    // 2. ให้ระบบหลังบ้านบันทึกสถิติขนานไปด้านหลัง โดยแยกการทำงานออกไปไม่ให้ขัดขวางการเปิดเว็บ
+    try {
+        // 2. ชิงเปิดแท็บใหม่ทันทีตอนคลิก (วิธีนี้จะผ่านระบบความปลอดภัยเบราว์เซอร์ชัวร์ 100% ไม่โดนบล็อกป๊อปอัป)
+        window.open(cleanUrl, '_blank');
+    } catch (err) {
+        console.error("Browser blocked window.open, falling back to location.href", err);
+        window.location.href = cleanUrl;
+    }
+
+    // 3. ปล่อยให้ระบบบันทึกสถิติลง Firebase ทำงานเบื้องหลังเงียบๆ (Background Process) ลูกค้าไม่ต้องรอดาวน์โหลด
     const todayStr = new Date().toISOString().split('T')[0];
-    
-    // ใช้ async/await ภายใน เพื่อให้โค้ด Firebase ทำงานแยกส่วนได้
     (async () => {
         try {
             await runTransaction(db, async (transaction) => {
@@ -1299,9 +1307,9 @@ window.trackButtonLinkMetricEvent = function(productId, targetDestinationUrl) {
                 reg[productId] = (reg[productId] || 0) + 1;
                 transaction.set(doc(db, "statistics", todayStr), { clicksRegistry: reg }, { merge: true });
             });
-            console.log("บันทึกสถิติสำเร็จ");
+            console.log("บันทึกสถิติลง Firebase สำเร็จ");
         } catch(e) {
-            console.error("ไม่สามารถบันทึกสถิติได้ แต่นำทางผู้ใช้ไปยังลิงก์แล้ว:", e);
+            console.error("Firebase Error (สถิติไม่บันทึก แต่เปิดลิงก์ให้ผู้ใช้แล้ว):", e);
         }
     })();
 }
