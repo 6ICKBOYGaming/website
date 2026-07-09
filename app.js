@@ -1278,15 +1278,15 @@ async function initIPViewStatsCounter() {
 }
 
 window.trackButtonLinkMetricEvent = async function(productId, targetDestinationUrl) {
-    // 1. สร้างหน้าต่างใหม่รอไว้ทันทีตอนคลิก เพื่อไม่ให้เบราว์เซอร์บล็อกป๊อปอัป (Popup Blocked)
+    // 1. ชิงสร้างหน้าต่างแท็บใหม่รอไว้ทันทีตอนคลิก เพื่อไม่ให้เบราว์เซอร์บล็อกป๊อปอัป
     const newWindow = window.open('', '_blank');
     if (newWindow && targetDestinationUrl) {
         newWindow.location.href = targetDestinationUrl;
     }
 
+    // 2. ให้ระบบหลังบ้านรันสถิติขนานไปด้านหลังตามปกติ
     const todayStr = new Date().toISOString().split('T')[0];
     try {
-        // 2. บันทึกสถิติลง Firestore ด้านหลังบ้าน
         await runTransaction(db, async (transaction) => {
             const snap = await transaction.get(doc(db, "statistics", todayStr));
             let reg = snap.exists() && snap.data().clicksRegistry ? snap.data().clicksRegistry : {};
