@@ -602,21 +602,25 @@ window.launchProductDetailsModal = function(id) {
         buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>เร็วๆ นี้</span>`;
         buyBtn.className = "w-full bg-[#71d4a4] text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm pointer-events-none";
     } else {
-        // ⭐️ เพิ่มบรรทัดนี้เพื่อให้ส่งลิงค์สินค้าไปยังปลายทางที่ถูกต้อง
-        buyBtn.href = p.buyUrl || "#"; 
-        buyBtn.target = "_blank"; // ให้เปิดลิงค์ในแท็บใหม่เหมือนหน้าแรก
-        
-        buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>สั่งซื้อสินค้าตอนนี้</span>`;
-        buyBtn.className = "w-full bg-[#10b981] hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md transition-all";
-        
-        // ⭐️ ตรวจสอบเรื่องการบันทึกสถิติ (Metric) 
-        // หากมีฟังก์ชันนี้อยู่เดิม ให้ผูกฟังก์ชันคลิกไปด้วยเพื่อให้เก็บสถิติได้เหมือนหน้าแรกครับ
-        buyBtn.onclick = function() {
-            if (typeof trackButtonLinkMetricEvent === "function") {
-                trackButtonLinkMetricEvent(p.id, p.buyUrl);
-            }
-        };
+    buyBtn.href = p.buyUrl || "#"; 
+    
+    // ตรวจสอบว่าเป็นลิงก์แอปหรือไม่ หากใช่ ไม่ต้องใช้ target="_blank" เพื่อให้ระเบิดเข้าแอปในเครื่องทันที
+    const isAppLink = p.buyUrl && !p.buyUrl.startsWith('http://') && !p.buyUrl.startsWith('https://');
+    if (isAppLink) {
+        buyBtn.removeAttribute('target');
+    } else {
+        buyBtn.target = "_blank";
     }
+    
+    buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>สั่งซื้อสินค้าตอนนี้</span>`;
+    buyBtn.className = "w-full bg-[#10b981] hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md transition-all";
+    
+    buyBtn.onclick = function() {
+        if (typeof trackButtonLinkMetricEvent === "function") {
+            trackButtonLinkMetricEvent(p.id, p.buyUrl);
+        }
+    };
+}
 
     openModal('modal-detail');
 }
