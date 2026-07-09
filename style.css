@@ -226,6 +226,15 @@ header + div.max-w-\[1600px\] {
         object-fit: cover !important;
     }
 
+    /* 🟢 วางแทรกตรงนี้เลยครับ */
+    #product-grid > div .product-category,
+    #product-grid > div div[class*="category"],
+    #product-grid > div span[class*="category"],
+    #product-grid > div p.text-gray-400,
+    #product-grid > div p.text-sm {
+        display: none !important;
+    }
+
     /* ปิดเอฟเฟกต์โฮเวอร์ลดอาการจอกระตุกขณะสไลด์หน้าจอมือถือ */
     #product-grid > div:hover {
         transform: none !important;
