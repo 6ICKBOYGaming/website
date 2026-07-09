@@ -1277,42 +1277,30 @@ async function initIPViewStatsCounter() {
     }
 }
 
-// ประกาศให้เป็น window เพื่อให้ HTML ทุกจุดบนหน้าเว็บเรียกใช้งานได้แน่นอน
-window.trackButtonLinkMetricEvent = function(productId, targetDestinationUrl) {
-    // 1. ตรวจสอบและจัดการเคลียร์ช่องว่างของลิงก์ที่ส่งมา
-    if (!targetDestinationUrl || targetDestinationUrl === 'undefined' || targetDestinationUrl.trim() === '') {
-        console.error("ไม่พบลิงก์ปลายทางสำหรับสินค้านี้");
-        alert("ไม่พบลิงก์สำหรับสั่งซื้อสินค้านี้");
-        return;
-    }
-
-    // ล้างช่องว่างซ้ายขวาของ URL ป้องกันลิงก์พัง
-    const cleanUrl = targetDestinationUrl.trim();
+window.trackButtonLinkMetricEvent = async function(productId, targetUrl) {
+    if (!targetUrl || targetUrl === "undefined") return;
 
     try {
-        // 2. ชิงเปิดแท็บใหม่ทันทีตอนคลิก (วิธีนี้จะผ่านระบบความปลอดภัยเบราว์เซอร์ชัวร์ 100% ไม่โดนบล็อกป๊อปอัป)
-        window.open(cleanUrl, '_blank');
-    } catch (err) {
-        console.error("Browser blocked window.open, falling back to location.href", err);
-        window.location.href = cleanUrl;
+        const metricRef = doc(db, "metrics", "button_clicks");
+        await runTransaction(db, async (transaction) => {
+            const metricDoc = await transaction.get(metricRef);
+            let currentClicks = 0;
+            if (metricDoc.exists()) {
+                currentClicks = metricDoc.data()[productId] || 0;
+            }
+            transaction.set(metricRef, { [productId]: currentClicks + 1 }, { merge: true });
+        });
+        console.log(`บันทึกสถิติการคลิกสำหรับสินค้า ${productId} สำเร็จ`);
+        
+        // ❌ ลบ window.open(targetUrl, '_blank'); ตรงนี้ออกไปเลยครับ!
+        
+    } catch (error) {
+        console.error("เกิดข้อผิดพลาดในการบันทึกสถิติ:", error);
+        
+        // ❌ ลบ window.open(targetUrl, '_blank'); ตรงนี้ออกไปด้วยเช่นกันครับ!
     }
+};
 
-    // 3. ปล่อยให้ระบบบันทึกสถิติลง Firebase ทำงานเบื้องหลังเงียบๆ (Background Process) ลูกค้าไม่ต้องรอดาวน์โหลด
-    const todayStr = new Date().toISOString().split('T')[0];
-    (async () => {
-        try {
-            await runTransaction(db, async (transaction) => {
-                const snap = await transaction.get(doc(db, "statistics", todayStr));
-                let reg = snap.exists() && snap.data().clicksRegistry ? snap.data().clicksRegistry : {};
-                reg[productId] = (reg[productId] || 0) + 1;
-                transaction.set(doc(db, "statistics", todayStr), { clicksRegistry: reg }, { merge: true });
-            });
-            console.log("บันทึกสถิติลง Firebase สำเร็จ");
-        } catch(e) {
-            console.error("Firebase Error (สถิติไม่บันทึก แต่เปิดลิงก์ให้ผู้ใช้แล้ว):", e);
-        }
-    })();
-}
 async function loadRealtimeStatsOverviewRecords(selectedDateString) {
     if(!selectedDateString) return;
     const snapshot = await getDoc(doc(db, "statistics", selectedDateString));
