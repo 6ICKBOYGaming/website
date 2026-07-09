@@ -724,3 +724,40 @@ input, textarea {
 #product-grid > div:hover img {
     transform: scale(1.25) !important; /* ซูมเพิ่มเป็น 25% ตอนเอาเมาส์ชี้ */
 }
+
+/* ==========================================================================
+   FIX FOR MOBILE: HIDE CATEGORY & RE-STYLE SHIPPING BADGE
+   ========================================================================== */
+@media (max-width: 768px) {
+    
+    /* 1. ซ่อนหมวดหมู่ย่อยใต้ชื่อสินค้า (เช่น แผ่นรองเม้าส์ > แผ่นผ้า > Artisan) */
+    #product-grid > div .product-category,
+    #product-grid > div div[class*="category"],
+    #product-grid > div span[class*="category"],
+    #product-grid > div p.text-gray-400,
+    #product-grid > div p.text-sm {
+        display: none !important;
+    }
+
+    /* 2. ป้องกันป้ายจัดส่งในไทย / ต่างประเทศ ตกเป็น 2 บรรทัด */
+    #product-grid > div span[class*="blue"],
+    #product-grid > div div[class*="blue"],
+    #product-grid > div .shipping-badge,
+    #product-grid > div i + span,
+    #product-grid > div svg + span {
+        display: inline-flex !important;
+        align-items: center !important;
+        white-space: nowrap !important;    /* บังคับห้ามตัดตัวหนังสือขึ้นบรรทัดใหม่ */
+        width: auto !important;            /* ให้ความกว้างยืดตามข้อความอัตโนมัติ */
+        min-width: max-content !important; /* บังคับขนาดให้พอดีกับคำข้างใน */
+        font-size: 10px !important;        /* ลดฟอนต์ป้ายลงเล็กน้อยเพื่อให้พอดีพื้นที่ */
+        padding: 4px 6px !important;       /* กระชับขอบซ้ายขวาของป้าย */
+        gap: 3px !important;               /* ปรับระยะห่างระหว่างไอคอนกับข้อความ */
+    }
+
+    /* ลดขนาดไอคอนรถส่งของลงเล็กน้อยเพื่อให้สมดุลกับตัวหนังสือ */
+    #product-grid > div span[class*="blue"] svg,
+    #product-grid > div span[class*="blue"] i {
+        transform: scale(0.85) !important;
+    }
+}
