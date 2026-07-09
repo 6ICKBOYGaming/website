@@ -1278,18 +1278,25 @@ async function initIPViewStatsCounter() {
 }
 
 window.trackButtonLinkMetricEvent = async function(productId, targetDestinationUrl) {
+    // 1. สร้างหน้าต่างใหม่รอไว้ทันทีตอนคลิก เพื่อไม่ให้เบราว์เซอร์บล็อกป๊อปอัป (Popup Blocked)
+    const newWindow = window.open('', '_blank');
+    if (newWindow && targetDestinationUrl) {
+        newWindow.location.href = targetDestinationUrl;
+    }
+
     const todayStr = new Date().toISOString().split('T')[0];
     try {
+        // 2. บันทึกสถิติลง Firestore ด้านหลังบ้าน
         await runTransaction(db, async (transaction) => {
             const snap = await transaction.get(doc(db, "statistics", todayStr));
             let reg = snap.exists() && snap.data().clicksRegistry ? snap.data().clicksRegistry : {};
             reg[productId] = (reg[productId] || 0) + 1;
             transaction.set(doc(db, "statistics", todayStr), { clicksRegistry: reg }, { merge: true });
         });
-    } catch(e) {}
-    window.open(targetDestinationUrl, '_blank');
+    } catch(e) {
+        console.error("Error updating stats:", e);
+    }
 }
-
 async function loadRealtimeStatsOverviewRecords(selectedDateString) {
     if(!selectedDateString) return;
     const snapshot = await getDoc(doc(db, "statistics", selectedDateString));
