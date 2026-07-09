@@ -88,7 +88,7 @@ header + div.max-w-\[1600px\] {
         display: block !important;
         height: auto !important;
         
-        padding: -10px !important;
+        padding: 15px !important;
         overflow: visible !important;
     }
 
