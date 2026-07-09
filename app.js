@@ -385,19 +385,27 @@ function renderProductsGrid() {
                         ${product.badges?.mall ? `<span class="bg-[#e11d48] text-white font-extrabold text-[9px] px-1.5 py-0.2 rounded-md shrink-0 shadow-sm mr-1 tracking-tight">MALL</span>` : ''}
                         ${product.title}
                     </h3>
-                    <p class="text-[11px] text-gray-400 font-medium">${breadcrumbStr}</p>
+                    
+                    <!-- 🟢 เวอร์ชั่น PC: แสดงหมวดหมู่ย่อยปกติ (แต่จะถูก CSS ซ่อนอัตโนมัติเมื่ออยู่บนมือถือ) -->
+                    <p class="text-[11px] text-gray-400 font-medium product-category">${breadcrumbStr}</p>
+
+                    <!-- 🟢 เวอร์ชั่น Mobile: ดึงป้ายจัดส่งมาแสดงตรงนี้แทนที่หมวดหมู่ย่อย (และซ่อนอัตโนมัติบน PC) -->
+                    ${product.badges?.soon ? '' : `
+                        <div class="md:hidden mobile-shipping-wrapper ${product.shippingMode === 'ต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
+                            <i class="${product.shippingMode === 'ต่างประเทศ' ? 'fa-solid fa-plane-departure' : 'fa-solid fa-truck-fast'} mr-0.5 scale-75"></i>${product.shippingMode || "จัดส่งในไทย"}
+                        </div>
+                    `}
                 </div>
             </div>
             <div class="px-4 pb-4 pt-1 space-y-2">
-                <!-- ใช้ flex เพื่อแบ่งพื้นที่ราคาไว้ฝั่งซ้าย และ แหล่งจัดส่งไว้ฝั่งขวา -->
                 <div class="flex justify-between items-center">
                     <div class="text-sm font-black ${product.badges?.soon ? 'text-gray-900 font-extrabold text-xs' : 'text-gray-900'}">
                         ${displayPrice}
                     </div>
                     
-                    <!-- ส่วนแสดงผล จัดส่งในไทย / ต่างประเทศ (ซ่อนทันทีถ้าเป็น Coming Soon) -->
+                    <!-- 🟢 เวอร์ชั่น PC: แสดงป้ายจัดส่งฝั่งขวาของราคาตามปกติ (และจะถูกซ่อนบนมือถือเพื่อไม่ให้ซ้ำซ้อน) -->
                     ${product.badges?.soon ? '' : `
-                        <div class="text-[10px] font-medium px-1.5 py-0.5 rounded tracking-tighter opacity-90 scale-95 origin-right ${product.shippingMode === 'ต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
+                        <div class="hidden md:inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded tracking-tighter opacity-90 scale-95 origin-right ${product.shippingMode === 'ต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
                             <i class="${product.shippingMode === 'ต่างประเทศ' ? 'fa-solid fa-plane-departure' : 'fa-solid fa-truck-fast'} mr-0.5 scale-75"></i>${product.shippingMode || "จัดส่งในไทย"}
                         </div>
                     `}

@@ -730,7 +730,7 @@ input, textarea {
    ========================================================================== */
 @media (max-width: 768px) {
     
-    /* 1. ซ่อนหมวดหมู่ย่อยใต้ชื่อสินค้า (เช่น แผ่นรองเม้าส์ > แผ่นผ้า > Artisan) */
+    /* 1. ซ่อนหมวดหมู่ย่อยใต้ชื่อสินค้าเดิมออก */
     #product-grid > div .product-category,
     #product-grid > div div[class*="category"],
     #product-grid > div span[class*="category"],
@@ -739,25 +739,23 @@ input, textarea {
         display: none !important;
     }
 
-    /* 2. ป้องกันป้ายจัดส่งในไทย / ต่างประเทศ ตกเป็น 2 บรรทัด */
-    #product-grid > div span[class*="blue"],
-    #product-grid > div div[class*="blue"],
-    #product-grid > div .shipping-badge,
-    #product-grid > div i + span,
-    #product-grid > div svg + span {
+    /* 2. สไตล์ป้ายจัดส่งเมื่อย้ายไปอยู่ใต้ชื่อสินค้า */
+    .mobile-shipping-wrapper {
         display: inline-flex !important;
         align-items: center !important;
-        white-space: nowrap !important;    /* บังคับห้ามตัดตัวหนังสือขึ้นบรรทัดใหม่ */
-        width: auto !important;            /* ให้ความกว้างยืดตามข้อความอัตโนมัติ */
-        min-width: max-content !important; /* บังคับขนาดให้พอดีกับคำข้างใน */
-        font-size: 10px !important;        /* ลดฟอนต์ป้ายลงเล็กน้อยเพื่อให้พอดีพื้นที่ */
-        padding: 4px 6px !important;       /* กระชับขอบซ้ายขวาของป้าย */
-        gap: 3px !important;               /* ปรับระยะห่างระหว่างไอคอนกับข้อความ */
+        white-space: nowrap !important;    /* ป้องกันตัวหนังสือตัดขึ้นบรรทัดใหม่ */
+        width: auto !important;
+        min-width: max-content !important;
+        font-size: 10px !important;        /* ปรับขนาดฟอนต์ให้กระชับพอดีกับการ์ด */
+        padding: 3px 6px !important;       /* ช่องไฟรอบป้าย */
+        border-radius: 6px !important;
+        gap: 3px !important;               /* ระยะห่างระหว่างไอคอนกับข้อความ */
+        margin-top: 4px !important;        /* เว้นระยะจากชื่อสินค้าด้านบน */
     }
 
-    /* ลดขนาดไอคอนรถส่งของลงเล็กน้อยเพื่อให้สมดุลกับตัวหนังสือ */
-    #product-grid > div span[class*="blue"] svg,
-    #product-grid > div span[class*="blue"] i {
+    /* ลดขนาดไอคอนลงเล็กน้อยเพื่อให้สมดุลกับฟอนต์บนมือถือ */
+    .mobile-shipping-wrapper svg,
+    .mobile-shipping-wrapper i {
         transform: scale(0.85) !important;
     }
 }
