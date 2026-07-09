@@ -72,100 +72,185 @@ header + div.max-w-\[1600px\] {
 }
 
 /* ==========================================================================
-   MOBILE RESPONSIVE (หน้าจอมือถือต่ำกว่าหรือเท่ากับ 768px)
+   MOBILE RESPONSIVE (เวอร์ชันแก้หน้าขาวถาวร: ดึง Logo กลับมา ล็อกแถบบน เลื่อนแค่สินค้า)
    ========================================================================== */
 @media (max-width: 768px) {
     
-    /* จัดระยะขอบรอบๆ บนหน้าจอมือถือให้กระชับขึ้น */
-    header + div.max-w-\[1600px\] {
-        gap: 8px !important;
-        padding: 8px !important;
+    /* 1. คืนค่ามาตรฐานให้หน้าจอใหญ่สุด ห้ามล็อกสกรอลล์ที่นี่เด็ดขาด เพื่อป้องกันหน้าขาว */
+    html, body {
+        overflow: auto !important;
+        height: auto !important;
     }
 
-    /* 1. แถบหมวดหมู่ซ้ายมือ (aside): ล็อกนิ่งอยู่กับที่ฝั่งซ้ายสุด ไม่ย้ายสลับด้าน */
-    header + div > aside {
+    /* คอนเทนเนอร์หลักใต้ Header ปล่อยให้ไหลอิสระตามธรรมชาติ */
+    header + div.max-w-\[1600px\],
+    div[class*="max-w-\[1600px\]"] {
         display: block !important;
-        width: 75px !important;
-        min-width: 75px !important;
-        max-width: 75px !important;
-        height: 100% !important;
-        background: transparent !important;
+        height: auto !important;
+        
+        padding: -10px !important;
+        overflow: visible !important;
+    }
+
+    /* กล่องฝั่งขวา ปล่อยให้ไหลปกติ */
+    .right-container-layout,
+    div[class*="right-container-layout"] {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* 2. บังคับแผงค้นหาและตัวจัดเรียงสินค้า (อยู่อันดับ 1 บนสุดของกองเนื้อหา) */
+    #search-sort-container,
+    div[id*="search-sort"] {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 6px 0 8px 0 !important;
+        width: 100% !important;
+        background-color: #f4f6f9 !important;
+    }
+
+    #search-sort-container .search-box-wrapper,
+    #search-sort-container input {
+        flex-grow: 1 !important;
+        width: 100% !important;
+    }
+
+    #search-sort-container select {
+        flex-shrink: 0 !important;
+        width: 110px !important;
+        min-width: 110px !important;
+        max-width: 110px !important;
+        font-size: 11px !important;
+        text-align: center !important;
+    }
+
+    /* 3. บังคับแถบหมวดหมู่สินค้า (aside) ให้อยู่ลำดับ 2 ต่อจากช่องค้นหาทันที */
+    header + div.max-w-\[1600px\] > aside,
+    header + div > aside,
+    aside {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        background: #f4f6f9 !important;
         border: none !important;
         box-shadow: none !important;
-        padding: 0 !important;
+        padding: 0 0 10px 0 !important;
         margin: 0 !important;
-        overflow-y: auto !important; /* ให้เมนูซ้ายเลื่อนขึ้นลงแยกชิ้นได้ถ้าเมนูเยอะ */
+        overflow: visible !important; 
     }
     
-    /* ซ่อนแถบเส้น Scrollbar ของฝั่งเมนูซ้ายมือถือ */
-    header + div > aside::-webkit-scrollbar {
-        display: none !important;
-    }
-    
-    /* ซ่อนหัวข้อข้อความคำว่า "หมวดหมู่สินค้า" และลิขสิทธิ์ก้นกล่องบนมือถือ */
+    /* ซ่อนหัวข้อคำว่า "หมวดหมู่สินค้า" ที่ไม่จำเป็นบนมือถือ */
     header + div > aside h2,
     header + div > aside .text-center,
     header + div > aside div:last-child {
         display: none !important;
     }
 
-    /* จัดกลุ่มรายการกลุ่มปุ่มกดทรงวงรีแคปซูล */
-   #sidebar-categories {
+    /* เปิดระบบรูดปัดซ้าย-ขวา แนวนอนของแคปซูลหมวดหมู่ */
+    #sidebar-categories,
+    ul[id*="sidebar-categories"] {
         display: flex !important;
-        flex-direction: column !important;
+        flex-direction: row !important; 
         gap: 8px !important;
+        width: 100% !important;
         max-height: none !important;
-        padding: 0 !important; 
-        
-        /* เปลี่ยนจากเลขบวก ให้เป็น "ค่าติดลบ" เพื่อสั่งให้ปุ่มทั้งหมดดีดตัวขึ้นไปด้านบนทันที */
-        margin-top: -10px !important; 
+        overflow-x: auto !important; 
+        overflow-y: hidden !important; 
+        padding: 4px 4px 10px 4px !important; 
+        margin-top: 0px !important; 
+        -webkit-overflow-scrolling: touch !important; 
     }
-    /* สไตล์ปุ่มวงรีแคปซูลขาวลอย แยกชิ้น มีเงานุ่มนวลสไตล์แอปชั้นนำ */
+
+    #sidebar-categories::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* แคปซูลปุ่มหมวดหมู่ */
     #sidebar-categories li,
     #sidebar-categories button {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 100% !important;
-        min-height: 38px !important;
-        padding: 6px 4px !important;
-        margin: 0 !important;
+        flex-shrink: 0 !important; 
+        width: auto !important;    
+        min-width: max-content !important;
+        min-height: 34px !important;
+        padding: 6px 14px !important; 
         background-color: #ffffff !important;
-        color: #475569 !important;
-        font-size: 11px !important;
-        font-weight: 600 !important;
-        text-align: center;
+        font-size: 12px !important;
         border-radius: 20px !important;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06) !important;
-        border: none !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
     }
 
-    /* สีปุ่มหมวดหมู่เมื่อถูกคลิกเลือกใช้งาน (Active) */
-    #sidebar-categories button.active,
-    #sidebar-categories li.active {
-        color: #2563eb !important;
-        font-weight: 800 !important;
-        background-color: #ffffff !important;
+    /* 4. จุดสำคัญ: ล็อกความสูงและเปิดพื้นที่สกรอลล์ (Scroll) เฉพาะส่วนกล่องสินค้าชิ้นนี้ชิ้นเดียว! */
+    .products-scroll-wrapper,
+    div[class*="products-scroll-wrapper"] {
+        display: block !important;
+        width: 100% !important;
+        /* ใช้ความสูงล็อกคงที่โดยคำนวณจากความสูงหน้าจอ ลบด้วยพื้นที่ของ Header + Search + หมวดหมู่ */
+        height: calc(100vh - 190px) !important; 
+        overflow-y: auto !important; /* เปิดสิทธิ์ให้ใช้นิ้วปัดเลื่อนเฉพาะพื้นที่สินค้าตรงนี้ */
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important; /* เพิ่มความลื่นพิเศษบนระบบ iOS */
+        padding: 4px 2px 60px 2px !important; /* เผื่อระยะก้นจอเวลาเลื่อนดูชิ้นสุดท้าย */
     }
 
-    /* ปรับช่องไฟแผงค้นหาด้านบนในเวอร์ชันมือถือ */
-    #search-sort-container {
-        padding-bottom: 10px !important;
-    }
-
-    /* 2. บังคับตารางรายการสินค้าบนมือถือให้คงรูปแบ่งครึ่ง 2 คอลัมน์คู่กันเสมอ */
     #product-grid {
         display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
+        grid-template-columns: repeat(2, 1fr) !important; 
         gap: 8px !important;
+        width: 100% !important;
+        height: auto !important;
     }
 
-    /* ป้องกันการ์ดสินค้าชิ้นย่อยดันจนโครงสร้างขอบจอพัง */
-    #product-grid > div {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+    /* 5. จัดรูปภาพสินค้าให้ขอบมนและสัดส่วนพอดีการ์ดเต็มแผ่น */
+    #product-grid > div .image-container,
+    #product-grid > div div[class*="image"],
+    #product-grid > div a div {
+        border-radius: 12px 12px 0 0 !important;
         margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        aspect-ratio: 1 / 1 !important;
+        background-color: #ffffff !important;
+    }
+
+    #product-grid > div img {
+        border-radius: 12px 12px 0 0 !important;
+        transform: scale(1.0) !important; 
+        object-fit: cover !important;
+    }
+
+    /* ปิดเอฟเฟกต์โฮเวอร์ลดอาการจอกระตุกขณะสไลด์หน้าจอมือถือ */
+    #product-grid > div:hover {
+        transform: none !important;
+    }
+    #product-grid > div:active,
+    #sidebar-categories button:active {
+        transform: scale(0.98) !important;
+    }
+}
+
+/* ==========================================================================
+   ORIENTATION LOCK (หมุนจอแนวนอนแล้วปรับกลับเป็นแนวตั้งอัตโนมัติ)
+   ========================================================================== */
+@media (max-width: 900px) and (orientation: landscape) {
+    html, body {
+        width: 100vh;
+        height: 100vw;
+        overflow-x: hidden;
+    }
+    body {
+        top: 100%;
+        left: 0;
+        transform: rotate(-90deg);
+        transform-origin: top left;
+        position: absolute;
     }
 }
 
