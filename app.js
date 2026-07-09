@@ -1277,25 +1277,33 @@ async function initIPViewStatsCounter() {
     }
 }
 
-window.trackButtonLinkMetricEvent = async function(productId, targetDestinationUrl) {
-    // 1. ชิงสร้างหน้าต่างแท็บใหม่รอไว้ทันทีตอนคลิก เพื่อไม่ให้เบราว์เซอร์บล็อกป๊อปอัป
-    const newWindow = window.open('', '_blank');
-    if (newWindow && targetDestinationUrl) {
-        newWindow.location.href = targetDestinationUrl;
+window.trackButtonLinkMetricEvent = function(productId, targetDestinationUrl) {
+    // ตรวจสอบว่ามีลิงก์ปลายทางส่งมาจริงไหม
+    if (!targetDestinationUrl || targetDestinationUrl === 'undefined' || targetDestinationUrl === '') {
+        console.error("ไม่พบลิงก์ปลายทาง");
+        return;
     }
 
-    // 2. ให้ระบบหลังบ้านรันสถิติขนานไปด้านหลังตามปกติ
+    // 1. สั่งเปิดแท็บใหม่ทันทีตอนคลิก (วิธีนี้การันตีว่าเบราว์เซอร์จะไม่บล็อกป๊อปอัป 100%)
+    const newWindow = window.open(targetDestinationUrl, '_blank');
+
+    // 2. ให้ระบบหลังบ้านบันทึกสถิติขนานไปด้านหลัง โดยแยกการทำงานออกไปไม่ให้ขัดขวางการเปิดเว็บ
     const todayStr = new Date().toISOString().split('T')[0];
-    try {
-        await runTransaction(db, async (transaction) => {
-            const snap = await transaction.get(doc(db, "statistics", todayStr));
-            let reg = snap.exists() && snap.data().clicksRegistry ? snap.data().clicksRegistry : {};
-            reg[productId] = (reg[productId] || 0) + 1;
-            transaction.set(doc(db, "statistics", todayStr), { clicksRegistry: reg }, { merge: true });
-        });
-    } catch(e) {
-        console.error("Error updating stats:", e);
-    }
+    
+    // ใช้ async/await ภายใน เพื่อให้โค้ด Firebase ทำงานแยกส่วนได้
+    (async () => {
+        try {
+            await runTransaction(db, async (transaction) => {
+                const snap = await transaction.get(doc(db, "statistics", todayStr));
+                let reg = snap.exists() && snap.data().clicksRegistry ? snap.data().clicksRegistry : {};
+                reg[productId] = (reg[productId] || 0) + 1;
+                transaction.set(doc(db, "statistics", todayStr), { clicksRegistry: reg }, { merge: true });
+            });
+            console.log("บันทึกสถิติสำเร็จ");
+        } catch(e) {
+            console.error("ไม่สามารถบันทึกสถิติได้ แต่นำทางผู้ใช้ไปยังลิงก์แล้ว:", e);
+        }
+    })();
 }
 async function loadRealtimeStatsOverviewRecords(selectedDateString) {
     if(!selectedDateString) return;
