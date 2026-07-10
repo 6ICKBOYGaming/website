@@ -767,7 +767,7 @@ input, textarea {
 
 /* คลาสควบคุมความจาง-เข้มของพื้นหลัง (Backdrop) */
 .modal-zoom-backdrop {
-    transition: opacity 500ms cubic-bezier(0.25, 1, 0.5, 1) !important;
+    transition: opacity 300ms cubic-bezier(0.25, 1, 0.5, 1) !important;
     opacity: 0 !important;
 }
 .modal-zoom-backdrop.zoom-show {
@@ -777,7 +777,7 @@ input, textarea {
 /* คลาสควบคุมการซูมเข้า-ออกของกล่องเนื้อหาภายใน (Content Box) */
 .modal-zoom-content {
     transform: scale(0.7) !important;
-    transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 .modal-zoom-backdrop.zoom-show .modal-zoom-content {
     transform: scale(1) !important;

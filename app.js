@@ -266,7 +266,7 @@ window.closeModal = function(modalId, backwardInterrupted = false) {
         if (!target.classList.contains("zoom-show")) {
             target.classList.replace("flex", "hidden");
         }
-    }, 1500);
+    }, 300);
 
     if (modalId === 'modal-add-product') resetProductForm();
 
