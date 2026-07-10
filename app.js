@@ -121,20 +121,20 @@ function initAppListeners() {
 
     // Mobile Back Button State Management Controls Layer Router intercepts
     window.addEventListener("popstate", (event) => {
-        // ตรวจเช็กว่า ณ ปัจจุบันมีตัวกรองถูกเลือกอยู่ หรือมี Modal เปิดค้างอยู่หรือไม่
         const hasActiveFilters = currentFilters.main !== 'all' || currentFilters.sub !== 'all' || currentFilters.brand !== 'all';
         
-        // 1. จัดการปิด Modal หรือ Lightbox ออกทีละชั้นก่อนหากเปิดอยู่
+        // 🎯 หัวใจสำคัญของการปิดทีละชั้น: เบราว์เซอร์จะเป็นคนดึงค่าบนสุดมาปิดให้เอง
         if (modalHistoryStack.length > 0) {
             event.preventDefault();
-            const topModal = modalHistoryStack.pop();
-            if (topModal === 'lightbox') {
+            const topModal = modalHistoryStack.pop(); 
+            
+            // เช็กชื่อ Modal ว่าเป็นกล่องไหนแล้วสั่งปิด Visual UI ของกล่องนั้นๆ 
+            if (topModal === 'lightbox' && typeof window.closeLightbox === 'function') {
                 window.closeLightbox(true);
+            } else if (topModal === 'modal-image-lightbox' && typeof window.closeLightboxView === 'function') {
+                window.closeLightboxView(true);
+                window.closeModal('modal-image-lightbox', true);
             } else {
-                // ➕ เพิ่มเติม: หากผู้ใช้กดย้อนกลับบนมือถือในขณะที่เปิดหน้าต่างสินค้า ให้ล้างค่าฟอร์มด้วย
-                if (topModal === 'modal-add-product') {
-                    resetProductForm();
-                }
                 window.closeModal(topModal, true);
             }
             
@@ -144,25 +144,18 @@ function initAppListeners() {
             return; 
         }
 
-        // 2. ตรวจเช็กเพิ่ม: ถ้าผู้ใช้กดย้อนกลับจากหน้า subcategory จริงๆ ถึงค่อยรีเซ็ตค่า
         if (hasActiveFilters && event.state && event.state.tier === 'homepage') {
             event.preventDefault();
             resetToAllCategories();
             return;
         }
-        // 2. ถ้าไม่มี Modal เปิดอยู่ แต่มีการเลือกหมวดหมู่ย่อย/แบรนด์ ค้างไว้ ให้ดึงกลับสู่เมนูทั้งหมดแทนการออกจากเว็บ
         if (hasActiveFilters) {
             event.preventDefault();
             resetToAllCategories();
             return;
         }
 
-        // โค้ดดั้งเดิมของระบบคุณที่ใช้แสดงผลสินค้าทั่วไป
-        try {
-            renderProductsGrid();
-        } catch(e) {
-            console.log("Navigation render bypass:", e);
-        }
+        try { renderProductsGrid(); } catch(e) {}
     });
 
     // ฟังก์ชันส่วนกลางสำหรับล้างค่าตัวกรองกลับสู่เมนู "ทั้งหมด" อย่างปลอดภัย
@@ -222,20 +215,34 @@ onAuthStateChanged(auth, (user) => {
 window.openModal = function(modalId) {
     const target = document.getElementById(modalId);
     if (!target) return;
-    target.classList.replace("hidden", "flex");
     
-    // ดันสถานะและจัดคิวเข้า Stack
-    history.pushState({ tier: modalId }, '');
-    modalHistoryStack.push(modalId);
+    const contentBox = target.querySelector('div');
+    target.classList.add("modal-zoom-backdrop");
+    if (contentBox) contentBox.classList.add("modal-zoom-content");
+    
+    target.classList.replace("hidden", "flex");
+    void target.offsetWidth; 
+    target.classList.add("zoom-show");
+    
+    // บันทึกประวัติเฉพาะเมื่อมันยังไม่ได้เป็นตัวบนสุด (ป้องกันบั๊กการกดเปิดรัวๆ)
+    if (modalHistoryStack[modalHistoryStack.length - 1] !== modalId) {
+        history.pushState({ tier: modalId }, '');
+        modalHistoryStack.push(modalId);
+    }
 
     if(modalId === 'modal-stats') loadRealtimeStatsOverviewRecords(document.getElementById("stats-date-picker").value);
     if(modalId === 'modal-manage-categories') renderCategoryManagementUI();
 
-    // ป้องกันการผูก Event ซ้ำซ้อนโดยเช็คล่วงหน้า
+    // 🔒 ระบบ Click Outside (คลิกพื้นที่ว่าง)
     if (!target.dataset.clickOutsideListener) {
         target.addEventListener("click", (e) => {
             if (e.target === target) {
-                window.closeModal(modalId);
+                // 🎯 ชัวร์ 100%: ถ้าตัวที่คลิกคือตัวบนสุดของจอ ให้สั่งบราวเซอร์ถอยหลัง 1 ก้าวเท่านั้น
+                if (modalHistoryStack[modalHistoryStack.length - 1] === modalId) {
+                    window.history.back();
+                } else {
+                    window.closeModal(modalId);
+                }
             }
         });
         target.dataset.clickOutsideListener = "true";
@@ -245,19 +252,43 @@ window.openModal = function(modalId) {
 window.closeModal = function(modalId, backwardInterrupted = false) {
     const target = document.getElementById(modalId);
     if (!target) return;
-    target.classList.replace("flex", "hidden");
 
-    // ➕ เพิ่มเช็กตรงนี้: ถ้าสั่งปิด modal-add-product ให้ทำการรีเซ็ตฟอร์มทันที
-    if (modalId === 'modal-add-product') {
-        resetProductForm();
+    // 🚀 THE FIX 100%: หากเป็นการคลิกปิดด้วยมือ (ปุ่มกากบาท/ยกเลิก) และมันคือหน้าต่างตัวบนสุด
+    // ให้โยนหน้าที่ไปให้ระบบประวัติ (popstate) เป็นคนปิด เพื่อป้องกันการปิดซ้อนกัน 2 ชั้น
+    if (!backwardInterrupted && modalHistoryStack[modalHistoryStack.length - 1] === modalId) {
+        window.history.back();
+        return; 
     }
 
+    // --- ส่วนแสดงผลแอนิเมชันตอนปิด (จะถูกเรียกโดย popstate เท่านั้น) ---
+    target.classList.remove("zoom-show");
+    setTimeout(() => {
+        if (!target.classList.contains("zoom-show")) {
+            target.classList.replace("flex", "hidden");
+        }
+    }, 1500);
+
+    if (modalId === 'modal-add-product') resetProductForm();
+
+    // ระบบเซฟตี้ หากเป็นการปิดลัดคิวที่ไม่ได้อยู่บนสุด
     if (!backwardInterrupted) {
         modalHistoryStack = modalHistoryStack.filter(id => id !== modalId);
-        if (window.history.state && window.history.state.tier === modalId) {
-            history.back();
-        }
     }
+}
+window.closeLightboxView = function(backwardInterrupted = false) {
+    if (!backwardInterrupted && modalHistoryStack[modalHistoryStack.length - 1] === 'modal-image-lightbox') {
+        window.history.back(); // สั่งย้อนประวัติให้ popstate จัดการอย่างปลอดภัย
+        return;
+    }
+    
+    // (ส่วนล้างค่าตัวแปร)
+    const lightbox = document.getElementById('modal-image-lightbox');
+    if (lightbox) {
+        lightbox.classList.remove("zoom-show");
+        setTimeout(() => { if (!lightbox.classList.contains("zoom-show")) lightbox.classList.replace("flex", "hidden"); }, 1500);
+    }
+    currentLightboxIndex = 0;
+    lightboxImagesArray = [];
 }
 function toggleDrawer(openStatus) {
     const overlay = document.getElementById("drawer-overlay");
@@ -797,14 +828,20 @@ window.openLightbox = function() {
 window.closeLightbox = function(backwardInterrupted = false) {
     const lightboxEl = document.getElementById("lightbox");
     if (!lightboxEl) return;
+
+    // 🚀 THE FIX: หากเป็นการคลิกปิดด้วยมือ และมันคือหน้าต่างบนสุด
+    // ให้โยนหน้าที่ไปให้ระบบประวัติ (popstate) เป็นคนปิด เพื่อป้องกันการปิดซ้อนกัน
+    if (!backwardInterrupted && modalHistoryStack[modalHistoryStack.length - 1] === 'lightbox') {
+        window.history.back();
+        return;
+    }
+
+    // --- ส่วนแสดงผลแอนิเมชันตอนปิด ---
     lightboxEl.classList.replace("flex", "hidden");
     
-    // หากเป็นการปิดโดยไม่ใช่การกดย้อนกลับจากโทรศัพท์
+    // ระบบเซฟตี้ ล้างค่าออกจาก Stack เฉพาะเมื่อไม่ได้ถูกขัดจังหวะจาก popstate
     if (!backwardInterrupted) {
         modalHistoryStack = modalHistoryStack.filter(id => id !== 'lightbox');
-        if (window.history.state && window.history.state.tier === 'lightbox') {
-            history.back();
-        }
     }
 }
 
@@ -1603,3 +1640,47 @@ async function executeProductReorderLogic(sourceCard, targetCard) {
         }
     }
 }
+
+// ==========================================================================
+// ➕ เพิ่มระบบกดลูกศร ซ้าย-ขวา บน PC เพื่อเลื่อนรูปภาพ (PC KEYBOARD NAVIGATION)
+// ==========================================================================
+window.addEventListener("keydown", (e) => {
+    // เช็คก่อนว่ามีรูปภาพในสินค้าที่เลือกอยู่หรือไม่
+    if (!currentActiveDetailProduct || !currentActiveDetailProduct.imagesArray) return;
+    
+    const images = currentActiveDetailProduct.imagesArray;
+    let nextIdx = currentLightboxIndex;
+
+    // ตรวจสอบว่าผู้ใช้กำลังพิมพ์อยู่ใน Input หรือ Textarea หรือไม่ (เพื่อป้องกันการเลื่อนรูปขณะพิมพ์ข้อความ)
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    // 1. ถ้าผู้ใช้เปิด Lightbox อยู่ (ดูจาก modalHistoryStack ตัวบนสุด)
+    if (modalHistoryStack[modalHistoryStack.length - 1] === 'lightbox') {
+        if (e.key === "ArrowRight") {
+            nextIdx = currentLightboxIndex + 1;
+            // ถ้าเลื่อนขวาจนเลยรูปสุดท้าย ให้วนกลับไปรูปแรกสุด (index 0)
+            if (nextIdx >= images.length) nextIdx = 0;
+            navigateLightboxView(nextIdx);
+        } else if (e.key === "ArrowLeft") {
+            nextIdx = currentLightboxIndex - 1;
+            // ลบตัวแปร prevIdx ที่บั๊กออกแล้วเปลี่ยนเป็นระบบวนลูป: ถ้าเลื่อนซ้ายจนเลยรูปแรก ให้วนไปรูปสุดท้าย
+            if (nextIdx < 0) nextIdx = images.length - 1;
+            navigateLightboxView(nextIdx);
+        }
+        return; // ปฏิบัติการเสร็จสิ้นในชั้น Lightbox
+    }
+
+    // 2. ถ้าไม่ได้เปิด Lightbox แต่เปิดหน้า Popup Detail สินค้าปกติอยู่ (modal-detail)
+    if (modalHistoryStack.includes('modal-detail')) {
+        if (e.key === "ArrowRight") {
+            nextIdx = currentLightboxIndex + 1;
+            if (nextIdx >= images.length) nextIdx = 0; // วนกลับไปรูปแรก
+            setupProductGallerySliderUI(nextIdx);
+        } else if (e.key === "ArrowLeft") {
+            nextIdx = currentLightboxIndex - 1;
+            if (nextIdx < 0) nextIdx = images.length - 1; // วนไปรูปสุดท้าย
+            setupProductGallerySliderUI(nextIdx);
+        }
+    }
+});
+
