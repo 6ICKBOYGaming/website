@@ -243,43 +243,144 @@
                     </div>
                     <div class="col-span-2">
                         <label class="text-xs font-bold text-gray-400 mb-1 block">URL รูปภาพหลัก</label>
-                        <input type="url" id="form-thumb"  class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none">
+                        <div class="flex items-center gap-2">
+                            <input type="url" id="form-thumb" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none">
+                            
+                            <input type="file" id="file-main-thumb" accept="image/*" class="hidden imgbb-file-element" data-target="form-thumb">
+                            <label for="file-main-thumb" class="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap flex items-center gap-1">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                            </label>
+                        </div>
+                        <div id="preview-div-form-thumb" class="hidden w-16 h-16 border border-gray-200 rounded-xl overflow-hidden bg-white p-0.5 mt-2 relative group shadow-sm">
+                            <img id="img-view-form-thumb" src="" class="w-full h-full object-contain">
+                            <button type="button" onclick="clearSingleImage('form-thumb')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity rounded-xl">ลบ</button>
+                        </div>
                     </div>
+
                     <div class="col-span-2">
                         <label class="text-xs font-bold text-gray-400 mb-2 block">URL รูปภาพแกลเลอรี (สูงสุด 8 รูป)</label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                            <div>
+                            
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 1</label>
-                                <input type="url" id="form-gallery-1" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-1" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-1" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-1">
+                                    <label for="file-gallery-1" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-1" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-1" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-1')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
-                            <div>
+
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 2</label>
-                                <input type="url" id="form-gallery-2" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-2" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-2" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-2">
+                                    <label for="file-gallery-2" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-2" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-2" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-2')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
-                            <div>
+
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 3</label>
-                                <input type="url" id="form-gallery-3" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-3" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-3" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-3">
+                                    <label for="file-gallery-3" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-3" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-3" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-3')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
-                            <div>
+
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 4</label>
-                                <input type="url" id="form-gallery-4" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-4" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-4" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-4">
+                                    <label for="file-gallery-4" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-4" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-4" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-4')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
-                            <div>
+
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 5</label>
-                                <input type="url" id="form-gallery-5" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-5" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-5" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-5">
+                                    <label for="file-gallery-5" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-5" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-5" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-5')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
-                            <div>
+
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 6</label>
-                                <input type="url" id="form-gallery-6" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-6" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-6" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-6">
+                                    <label for="file-gallery-6" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-6" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-6" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-6')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
-                            <div>
+
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 7</label>
-                                <input type="url" id="form-gallery-7" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-7" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-7" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-7">
+                                    <label for="file-gallery-7" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-7" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-7" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-7')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
-                            <div>
+
+                            <div class="bg-white p-3 border border-gray-200/60 rounded-xl flex flex-col gap-1.5">
                                 <label class="text-[10px] text-gray-400 font-bold">รูปที่ 8</label>
-                                <input type="url" id="form-gallery-8" class="gallery-input w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="form-gallery-8" class="gallery-input w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none" placeholder="https://...">
+                                    <input type="file" id="file-gallery-8" accept="image/*" class="hidden imgbb-file-element" data-target="form-gallery-8">
+                                    <label for="file-gallery-8" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer hover:bg-blue-100 whitespace-nowrap">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
+                                    </label>
+                                </div>
+                                <div id="preview-div-form-gallery-8" class="hidden w-12 h-12 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-0.5 mt-0.5 relative group">
+                                    <img id="img-view-form-gallery-8" src="" class="w-full h-full object-contain">
+                                    <button type="button" onclick="clearSingleImage('form-gallery-8')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold flex items-center justify-center transition-opacity">ลบ</button>
+                                </div>
                             </div>
+
                         </div>
                     </div>
                     <div>

@@ -1,6 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, deleteDoc, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+// เพิ่มตัวแปรสำหรับใช้งาน
 
 // Firebase App Configurations
 const firebaseConfig = {
@@ -16,6 +19,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // Application Memory Stores Global Variables Context State Maps
 let globalProducts = [];
@@ -541,12 +545,8 @@ window.launchProductDetailsModal = function(id) {
     if (shippingEl) {
         if (p.badges?.soon) {
             shippingEl.innerText = ""; 
-            // หรือถ้าต้องการซ่อน Element ไปเลย (กรณีมี Icon หรือ Layout แบ็กกราวด์หุ้มอยู่) สามารถใช้:
-            // shippingEl.parentElement.classList.add("hidden");
         } else {
             shippingEl.innerText = p.shippingMode || "จัดส่งในไทย";
-            // อย่าลืมเคลียร์คลาสซ่อนออก เผื่อเปิดสินค้าตัวถัดไปที่ไม่ได้เป็น Coming Soon
-            // shippingEl.parentElement.classList.remove("hidden");
         }
     }
     
@@ -573,24 +573,21 @@ window.launchProductDetailsModal = function(id) {
     // 🛠️ แก้ไขจุดนี้: ตรวจสอบและสร้างกล่องสำหรับไอคอนจุด (detail-dots) ในกรณีที่ในหน้า HTML ไม่มี หรือถูกเคลียร์ไป
     let dotsArea = document.getElementById("detail-dots");
     if (!dotsArea) {
-        // ถ้าหาไอคอนจุดไม่เจอใน HTML ให้สร้างสร้างกล่องฝังเข้าไปใต้รูปภาพหลักอัตโนมัติ
         const mainImgEl = document.getElementById("detail-main-img");
         if (mainImgEl && mainImgEl.parentElement) {
             dotsArea = document.createElement("div");
             dotsArea.id = "detail-dots";
             dotsArea.className = "flex justify-center items-center gap-1.5 mt-3";
-            // นำไปวางต่อท้ายรูปภาพหลัก
             mainImgEl.parentElement.insertAdjacentElement('afterend', dotsArea);
         }
     } else {
-        // ถ้ามีกล่องอยู่แล้ว ให้รีเซ็ตความสวยงามเผื่อไว้
         dotsArea.className = "flex justify-center items-center gap-1.5 mt-3";
     }
 
     // เรียก Render รูปภาพและจุดนำทางพร้อมกัน
     setupProductGallerySliderUI(0);
 
-    // === ระบบ Touch Swipe สำหรับรูปภาพหลัก ===
+    // === ระบบ Touch Swipe สำหรับรูปภาพหลัก (มือถือ) ===
     const mainImgEl = document.getElementById("detail-main-img");
     if (mainImgEl && !mainImgEl.dataset.swipeBound) {
         bindTouchSwipeElement(
@@ -608,33 +605,61 @@ window.launchProductDetailsModal = function(id) {
         mainImgEl.dataset.swipeBound = "true"; 
     }
 
+    // === ระบบกดปุ่มคีย์บอร์ด ซ้าย-ขวา สำหรับ PC ===
+    const handleDetailKeyDown = (e) => {
+        const images = currentActiveDetailProduct.imagesArray || [];
+        if (images.length <= 1) return;
+
+        if (e.key === "ArrowRight") {
+            let nextIdx = currentLightboxIndex + 1;
+            if (nextIdx < images.length) setupProductGallerySliderUI(nextIdx);
+        } else if (e.key === "ArrowLeft") {
+            let prevIdx = currentLightboxIndex - 1;
+            if (prevIdx >= 0) setupProductGallerySliderUI(prevIdx);
+        }
+    };
+
+    // ลงทะเบียน Event กดปุ่มคีย์บอร์ด
+    window.addEventListener("keydown", handleDetailKeyDown);
+
+    // ปรับปรุงฟังก์ชันปิด Modal เพื่อทำลาย Event ลบหน่วยความจำทิ้งเมื่อปิดหน้าต่าง
+    const originalCloseModal = window.closeModal;
+    window.closeModal = function(modalId, backwardInterrupted = false) {
+        if (modalId === 'modal-detail') {
+            window.removeEventListener("keydown", handleDetailKeyDown);
+        }
+        if (typeof originalCloseModal === "function") {
+            originalCloseModal(modalId, backwardInterrupted);
+        }
+    };
+
+    // === ระบบปุ่มกดซื้อสินค้า ===
     const buyBtn = document.getElementById("detail-buy-btn");
     buyBtn.onclick = () => trackButtonLinkMetricEvent(p.id, p.buyUrl);
     
     if (p.badges?.soon) {
-        buyBtn.removeAttribute('href'); // สินค้าเร็วๆ นี้ ไม่ต้องมีลิงค์
+        buyBtn.removeAttribute('href'); 
         buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>เร็วๆ นี้</span>`;
         buyBtn.className = "w-full bg-[#71d4a4] text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm pointer-events-none";
     } else {
-    buyBtn.href = p.buyUrl || "#"; 
-    
-    // ตรวจสอบว่าเป็นลิงก์แอปหรือไม่ หากใช่ ไม่ต้องใช้ target="_blank" เพื่อให้ระเบิดเข้าแอปในเครื่องทันที
-    const isAppLink = p.buyUrl && !p.buyUrl.startsWith('http://') && !p.buyUrl.startsWith('https://');
-    if (isAppLink) {
-        buyBtn.removeAttribute('target');
-    } else {
-        buyBtn.target = "_blank";
-    }
-    
-    buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>สั่งซื้อสินค้าตอนนี้</span>`;
-    buyBtn.className = "w-full bg-[#10b981] hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md transition-all";
-    
-    buyBtn.onclick = function() {
-        if (typeof trackButtonLinkMetricEvent === "function") {
-            trackButtonLinkMetricEvent(p.id, p.buyUrl);
+        buyBtn.href = p.buyUrl || "#"; 
+        
+        const isAppLink = p.buyUrl && !p.buyUrl.startsWith('http://') && !p.buyUrl.startsWith('https://');
+        if (isAppLink) {
+            buyBtn.removeAttribute('target');
+        } else {
+            buyBtn.target = "_blank";
         }
-    };
-}
+        
+        buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>สั่งซื้อสินค้าตอนนี้</span>`;
+        buyBtn.className = "w-full bg-[#10b981] hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md transition-all";
+        
+        buyBtn.onclick = function() {
+            if (typeof trackButtonLinkMetricEvent === "function") {
+                trackButtonLinkMetricEvent(p.id, p.buyUrl);
+            }
+        };
+    }
 
     openModal('modal-detail');
 }
@@ -757,6 +782,47 @@ function setupGalleryDragListeners(element) {
     });
 }
 
+// ====================================================
+// 🛠️ แก้ไขปัญหาการกระโดดข้ามรูป: ใช้ระบบ Single Event Listener ที่สมบูรณ์
+// ====================================================
+if (window.lightboxKeydownBound) {
+    // ป้องกันไม่ให้ไฟล์สคริปต์โหลดซ้ำแล้วผูกเพิ่ม
+    window.removeEventListener("keydown", window.lightboxKeydownHandler);
+}
+
+window.lightboxKeydownHandler = function(e) {
+    const imgs = currentActiveDetailProduct?.imagesArray || [];
+    if (imgs.length <= 1) return;
+
+    // เช็คว่าหน้าต่าง Lightbox กำลังแสดงอยู่จริงหรือไม่
+    const lightboxEl = document.getElementById("lightbox");
+    if (!lightboxEl || lightboxEl.classList.contains("hidden")) return;
+
+    if (e.key === "ArrowRight" || e.key === "Right") {
+        e.preventDefault();
+        e.stopImmediatePropagation(); // 🛑 หยุดการทำงานซ้อนจากตัวดักจับอื่น ๆ ทันที
+        let nextIdx = currentLightboxIndex + 1;
+        if (nextIdx < imgs.length) {
+            navigateLightboxView(nextIdx);
+        }
+    } else if (e.key === "ArrowLeft" || e.key === "Left") {
+        e.preventDefault();
+        e.stopImmediatePropagation(); // 🛑 หยุดการทำงานซ้อนจากตัวดักจับอื่น ๆ ทันที
+        let prevIdx = currentLightboxIndex - 1;
+        if (prevIdx >= 0) {
+            navigateLightboxView(prevIdx);
+        }
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        window.closeLightbox();
+    }
+};
+
+// ลงทะเบียนแบบ Global เพียงที่เดียว
+window.addEventListener("keydown", window.lightboxKeydownHandler, true); // ใช้ true (Capture phase) เพื่อให้ดักได้ไวที่สุด
+window.lightboxKeydownBound = true;
+
+
 window.openLightbox = function() {
     const images = currentActiveDetailProduct.imagesArray;
     if(!images) return;
@@ -768,7 +834,8 @@ window.openLightbox = function() {
     thumbTrack.innerHTML = "";
     images.forEach((url, idx) => {
         const item = document.createElement("div");
-        item.className = `w-14 h-14 bg-white/10 rounded-lg p-1 shrink-0 cursor-pointer transition-all border ${idx === currentLightboxIndex ? 'border-blue-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
+        item.id = `lightbox-thumb-${idx}`;
+        item.className = `w-14 h-14 bg-white/10 rounded-lg p-1 shrink-0 cursor-pointer transition-all border ${idx === currentLightboxIndex ? 'border-blue-500 scale-105 opacity-100' : 'border-transparent opacity-60 hover:opacity-100'}`;
         item.innerHTML = `<img src="${url}" class="object-contain w-full h-full rounded-md">`;
         item.onclick = () => navigateLightboxView(idx);
         thumbTrack.appendChild(item);
@@ -776,11 +843,11 @@ window.openLightbox = function() {
 
     lightboxEl.classList.replace("hidden", "flex");
     
-    // ดันประวัติสำหรับ Lightbox เข้าไปในระบบอย่างชัดเจน
+    // ดันประวัติสำหรับ Lightbox เข้าไปในระบบ
     history.pushState({ tier: 'lightbox' }, '');
     modalHistoryStack.push('lightbox');
 
-    // === ระบบ Touch Swipe (ปัดซ้าย-ขวาบนมือถือเพื่อเลื่อนรูป) ===
+    // === ระบบ Touch Swipe (ดักจับเฉพาะปัดหน้าจอบนมือถือ ไม่ยุ่งกับคีย์บอร์ด PC) ===
     const lightboxImgEl = document.getElementById("lightbox-img");
     if (lightboxImgEl && !lightboxImgEl.dataset.swipeBound) {
         bindTouchSwipeElement(
@@ -813,7 +880,7 @@ window.closeLightbox = function(backwardInterrupted = false) {
     const lightboxEl = document.getElementById("lightbox");
     if (!lightboxEl) return;
     lightboxEl.classList.replace("flex", "hidden");
-    
+
     // หากเป็นการปิดโดยไม่ใช่การกดย้อนกลับจากโทรศัพท์
     if (!backwardInterrupted) {
         modalHistoryStack = modalHistoryStack.filter(id => id !== 'lightbox');
@@ -824,15 +891,41 @@ window.closeLightbox = function(backwardInterrupted = false) {
 }
 
 function navigateLightboxView(index) {
-    currentLightboxIndex = index;
     const images = currentActiveDetailProduct.imagesArray;
-    document.getElementById("lightbox-img").src = images[index];
+    if (!images || !images[index]) return; 
     
-    const children = document.getElementById("lightbox-thumbnails").children;
-    Array.from(children).forEach((el, idx) => {
-        el.className = idx === index ? "w-14 h-14 bg-white/10 rounded-lg p-1 shrink-0 cursor-pointer transition-all border border-blue-500 scale-105 opacity-100" : "w-14 h-14 bg-white/10 rounded-lg p-1 shrink-0 cursor-pointer transition-all border border-transparent opacity-60 hover:opacity-100";
-    });
-    setupProductGallerySliderUI(index);
+    // อัปเดตสถานะ Index ปัจจุบันทันที
+    currentLightboxIndex = index;
+    
+    // เปลี่ยนรูปภาพหลักของ Lightbox
+    const lightboxImg = document.getElementById("lightbox-img");
+    if (lightboxImg) {
+        lightboxImg.src = images[index];
+    }
+    
+    // ไฮไลต์เลือกกรอบภาพเล็ก (Thumbnails)
+    const thumbTrack = document.getElementById("lightbox-thumbnails");
+    if (thumbTrack) {
+        const children = thumbTrack.children;
+        Array.from(children).forEach((el, idx) => {
+            if (idx === index) {
+                el.className = "w-14 h-14 bg-white/10 rounded-lg p-1 shrink-0 cursor-pointer transition-all border border-blue-500 scale-105 opacity-100";
+            } else {
+                el.className = "w-14 h-14 bg-white/10 rounded-lg p-1 shrink-0 cursor-pointer transition-all border border-transparent opacity-60 hover:opacity-100";
+            }
+        });
+
+        // สไลด์จัดตำแหน่งแถบรูปเล็กให้อยู่ตรงกลางหน้าจออัตโนมัติ
+        const activeThumb = thumbTrack.children[index];
+        if (activeThumb) {
+            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }
+    
+    // ซิงค์ตำแหน่งสไลเดอร์หลักที่อยู่ด้านหลังด้วย
+    if (typeof setupProductGallerySliderUI === "function") {
+        setupProductGallerySliderUI(index);
+    }
 }
 
 // ================= ADMIN FUNCTIONS CONTROLS PIPELINE LAYOUT RULES =================
@@ -1684,5 +1777,131 @@ async function executeProductReorderLogic(sourceCard, targetCard) {
         } catch (err) {
             alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งสินค้า: " + err.message);
         }
+    }
+}
+
+// ฟังก์ชันล้างค่ารูปภาพรายช่อง (ระบุไว้ระดับ Global)
+window.clearSingleImage = function(targetId) {
+    const targetInput = document.getElementById(targetId);
+    if (targetInput) targetInput.value = "";
+    
+    const previewDiv = document.getElementById(`preview-div-${targetId}`);
+    const imgView = document.getElementById(`img-view-${targetId}`);
+    if (previewDiv) previewDiv.classList.add("hidden");
+    if (imgView) imgView.src = "";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const API_KEY = "095c39746011f543a08e9ce88e8c65f9";
+
+    // 1. ตรรกะตรวจจับการเลือกไฟล์และทำการอัปโหลดผ่าน ImgBB API
+    const fileInputs = document.querySelectorAll(".imgbb-file-element");
+    fileInputs.forEach(input => {
+        input.addEventListener("change", async (e) => {
+            const targetId = e.target.getAttribute("data-target");
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const targetInput = document.getElementById(targetId);
+            const previewDiv = document.getElementById(`preview-div-${targetId}`);
+            const imgView = document.getElementById(`img-view-${targetId}`);
+
+            // ล็อกการทำงานหน้าฟอร์มชั่วคราวขณะอัปโหลด
+            const originalPlaceholder = targetInput.placeholder;
+            targetInput.value = "กำลังอัปโหลดรูปภาพ...";
+            targetInput.disabled = true;
+
+            const formData = new FormData();
+            formData.append("image", file);
+
+            try {
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
+                    method: "POST",
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    const directUrl = result.data.url;
+                    
+                    // หยอด direct URL ลงช่อง Input
+                    targetInput.value = directUrl;
+                    
+                    // เปิดแสดงภาพ Preview เล็กๆ ด้านล่างช่องกรอก
+                    if (imgView) imgView.src = directUrl;
+                    if (previewDiv) previewDiv.classList.remove("hidden");
+                } else {
+                    throw new Error(result.error ? result.error.message : "การอัปโหลดผิดพลาด");
+                }
+            } catch (err) {
+                alert("เกิดข้อผิดพลาดในการอัปโหลด: " + err.message);
+                targetInput.value = "";
+            } finally {
+                targetInput.disabled = false;
+                targetInput.placeholder = originalPlaceholder;
+                input.value = ""; // เคลียร์ค่าของอินพุตไฟล์เดิมออกให้เลือกซ้ำได้
+            }
+        });
+    });
+
+    // 2. ตรรกะกรณีพิมพ์ URL เอง หรือระบบเรียกแก้ไขสินค้าเดิมขึ้นมา 
+    // ตรวจจับให้แสดงผลภาพ Preview ด้านล่างให้สอดคล้องกันโดยอัตโนมัติ
+    const monitorTargets = ["form-thumb", "form-gallery-1", "form-gallery-2", "form-gallery-3", "form-gallery-4", "form-gallery-5", "form-gallery-6", "form-gallery-7", "form-gallery-8"];
+    
+    // ตั้งตัวตรวจจับลูปสั้นๆ เพื่อคอยเช็กการเปลี่ยนแปลงค่า (Value) ในอินพุต
+    setInterval(() => {
+        monitorTargets.forEach(id => {
+            const inputEl = document.getElementById(id);
+            const previewDiv = document.getElementById(`preview-div-${id}`);
+            const imgView = document.getElementById(`img-view-${id}`);
+            
+            if (inputEl && previewDiv && imgView) {
+                const currentVal = inputEl.value.trim();
+                // เช็กว่าเป็นลิงก์จริงและไม่ได้อยู่ในสภาวะกำลังดาวน์โหลด
+                if (currentVal && currentVal.startsWith("http")) {
+                    if (imgView.src !== currentVal) {
+                        imgView.src = currentVal;
+                        previewDiv.classList.remove("hidden");
+                    }
+                } else if (currentVal === "" || currentVal === "กำลังอัปโหลดรูปภาพ...") {
+                    previewDiv.classList.add("hidden");
+                }
+            }
+        });
+    }, 500);
+});
+
+// UPLOAD ImgBB
+async function uploadImageToStorage(file) {
+    if (!file) return null;
+    // สร้างชื่อไฟล์ไม่ให้ซ้ำกันด้วยเวลา
+    const fileRef = ref(storage, `products/${Date.now()}_${file.name}`);
+    
+    // อัปโหลดไฟล์ดิบ
+    await uploadBytes(fileRef, file);
+    // ดึง URL ที่เป็นสาธารณะออกมา
+    const downloadURL = await getDownloadURL(fileRef);
+    return downloadURL;
+}
+
+async function uploadToImgBB(file) {
+    const apiKey = '095c39746011f543a08e9ce88e8c65f9';
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.success) {
+            return data.data.url; // จะได้ลิงก์ URL รูปภาพกลับมาใช้งานทันที
+        } else {
+            throw new Error(data.error.message);
+        }
+    } catch (error) {
+        console.error("ImgBB Upload Error:", error);
+        alert("อัปโหลดรูปภาพล้มเหลว: " + error.message);
     }
 }
