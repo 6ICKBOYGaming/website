@@ -1905,3 +1905,85 @@ async function uploadToImgBB(file) {
         alert("อัปโหลดรูปภาพล้มเหลว: " + error.message);
     }
 }
+
+// ==========================================================================
+// PASTE IMAGE TO UPLOAD WITH IMGBB API ENGINE
+// ==========================================================================
+document.addEventListener("DOMContentLoaded", () => {
+    const IMGBB_API_KEY = "095c39746011f543a08e9ce88e8c65f9";
+    
+    // รายชื่อ ID ของช่อง Input รูปภาพทั้งหมดในฟอร์มของคุณ
+    const targetInputIds = [
+        "form-thumb", 
+        "form-gallery-1", "form-gallery-2", "form-gallery-3", "form-gallery-4",
+        "form-gallery-5", "form-gallery-6", "form-gallery-7", "form-gallery-8"
+    ];
+
+    targetInputIds.forEach(id => {
+        const inputEl = document.getElementById(id);
+        if (!inputEl) return;
+
+        // ดักจับเหตุการณ์การ "วาง (Paste)" ลงในช่องกรอก
+        inputEl.addEventListener("paste", async (e) => {
+            // ดึงข้อมูลจาก Clipboard
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const items = clipboardData.items;
+            
+            let imageFile = null;
+            
+            // วนลูปหาไฟล์รูปภาพจากสิ่งที่คุณก็อปปี้มา
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1) {
+                    imageFile = items[i].getAsFile();
+                    break;
+                }
+            }
+
+            // ถ้าสิ่งที่แอดมินกดวางเป็นรูปภาพจริง ให้ทำงานต่อทันที
+            if (imageFile) {
+                // ป้องกันไม่ให้ Text หรือ String เดิมแสดง (เช่น พิมพ์ค้างไว้ หรือวาง URL ดิบสับสน)
+                e.preventDefault();
+
+                const previewDiv = document.getElementById(`preview-div-${id}`);
+                const imgView = document.getElementById(`img-view-${id}`);
+
+                // แสดงสถานะระหว่างอัปโหลด
+                const originalPlaceholder = inputEl.placeholder;
+                inputEl.value = "กำลังอัปโหลดรูปภาพที่คัดลอกมา...";
+                inputEl.disabled = true;
+
+                const formData = new FormData();
+                formData.append("image", imageFile);
+
+                try {
+                    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                        method: "POST",
+                        body: formData
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        const directUrl = result.data.url;
+                        
+                        // หยอด URL สาธารณะจาก ImgBB ลงช่อง Input สำเร็จ
+                        inputEl.value = directUrl;
+                        
+                        // แสดงรูปภาพ Preview ขนาดเล็กทันที
+                        if (imgView) imgView.src = directUrl;
+                        if (previewDiv) previewDiv.classList.remove("hidden");
+                        
+                        console.log(`วางและอัปโหลดรูปภาพไปยัง ImgBB สำเร็จ (${id}): ${directUrl}`);
+                    } else {
+                        throw new Error(result.error ? result.error.message : "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์ ImgBB");
+                    }
+                } catch (err) {
+                    alert("ไม่สามารถวางเพื่ออัปโหลดรูปภาพได้: " + err.message);
+                    inputEl.value = "";
+                } finally {
+                    inputEl.disabled = false;
+                    inputEl.placeholder = originalPlaceholder;
+                }
+            }
+        });
+    });
+});
