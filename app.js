@@ -121,20 +121,20 @@ function initAppListeners() {
 
     // Mobile Back Button State Management Controls Layer Router intercepts
     window.addEventListener("popstate", (event) => {
+        // ตรวจเช็กว่า ณ ปัจจุบันมีตัวกรองถูกเลือกอยู่ หรือมี Modal เปิดค้างอยู่หรือไม่
         const hasActiveFilters = currentFilters.main !== 'all' || currentFilters.sub !== 'all' || currentFilters.brand !== 'all';
         
-        // 🎯 หัวใจสำคัญของการปิดทีละชั้น: เบราว์เซอร์จะเป็นคนดึงค่าบนสุดมาปิดให้เอง
+        // 1. จัดการปิด Modal หรือ Lightbox ออกทีละชั้นก่อนหากเปิดอยู่
         if (modalHistoryStack.length > 0) {
             event.preventDefault();
-            const topModal = modalHistoryStack.pop(); 
-            
-            // เช็กชื่อ Modal ว่าเป็นกล่องไหนแล้วสั่งปิด Visual UI ของกล่องนั้นๆ 
-            if (topModal === 'lightbox' && typeof window.closeLightbox === 'function') {
+            const topModal = modalHistoryStack.pop();
+            if (topModal === 'lightbox') {
                 window.closeLightbox(true);
-            } else if (topModal === 'modal-image-lightbox' && typeof window.closeLightboxView === 'function') {
-                window.closeLightboxView(true);
-                window.closeModal('modal-image-lightbox', true);
             } else {
+                // ➕ เพิ่มเติม: หากผู้ใช้กดย้อนกลับบนมือถือในขณะที่เปิดหน้าต่างสินค้า ให้ล้างค่าฟอร์มด้วย
+                if (topModal === 'modal-add-product') {
+                    resetProductForm();
+                }
                 window.closeModal(topModal, true);
             }
             
@@ -144,18 +144,25 @@ function initAppListeners() {
             return; 
         }
 
+        // 2. ตรวจเช็กเพิ่ม: ถ้าผู้ใช้กดย้อนกลับจากหน้า subcategory จริงๆ ถึงค่อยรีเซ็ตค่า
         if (hasActiveFilters && event.state && event.state.tier === 'homepage') {
             event.preventDefault();
             resetToAllCategories();
             return;
         }
+        // 2. ถ้าไม่มี Modal เปิดอยู่ แต่มีการเลือกหมวดหมู่ย่อย/แบรนด์ ค้างไว้ ให้ดึงกลับสู่เมนูทั้งหมดแทนการออกจากเว็บ
         if (hasActiveFilters) {
             event.preventDefault();
             resetToAllCategories();
             return;
         }
 
-        try { renderProductsGrid(); } catch(e) {}
+        // โค้ดดั้งเดิมของระบบคุณที่ใช้แสดงผลสินค้าทั่วไป
+        try {
+            renderProductsGrid();
+        } catch(e) {
+            console.log("Navigation render bypass:", e);
+        }
     });
 
     // ฟังก์ชันส่วนกลางสำหรับล้างค่าตัวกรองกลับสู่เมนู "ทั้งหมด" อย่างปลอดภัย
@@ -215,34 +222,20 @@ onAuthStateChanged(auth, (user) => {
 window.openModal = function(modalId) {
     const target = document.getElementById(modalId);
     if (!target) return;
-    
-    const contentBox = target.querySelector('div');
-    target.classList.add("modal-zoom-backdrop");
-    if (contentBox) contentBox.classList.add("modal-zoom-content");
-    
     target.classList.replace("hidden", "flex");
-    void target.offsetWidth; 
-    target.classList.add("zoom-show");
     
-    // บันทึกประวัติเฉพาะเมื่อมันยังไม่ได้เป็นตัวบนสุด (ป้องกันบั๊กการกดเปิดรัวๆ)
-    if (modalHistoryStack[modalHistoryStack.length - 1] !== modalId) {
-        history.pushState({ tier: modalId }, '');
-        modalHistoryStack.push(modalId);
-    }
+    // ดันสถานะและจัดคิวเข้า Stack
+    history.pushState({ tier: modalId }, '');
+    modalHistoryStack.push(modalId);
 
     if(modalId === 'modal-stats') loadRealtimeStatsOverviewRecords(document.getElementById("stats-date-picker").value);
     if(modalId === 'modal-manage-categories') renderCategoryManagementUI();
 
-    // 🔒 ระบบ Click Outside (คลิกพื้นที่ว่าง)
+    // ป้องกันการผูก Event ซ้ำซ้อนโดยเช็คล่วงหน้า
     if (!target.dataset.clickOutsideListener) {
         target.addEventListener("click", (e) => {
             if (e.target === target) {
-                // 🎯 ชัวร์ 100%: ถ้าตัวที่คลิกคือตัวบนสุดของจอ ให้สั่งบราวเซอร์ถอยหลัง 1 ก้าวเท่านั้น
-                if (modalHistoryStack[modalHistoryStack.length - 1] === modalId) {
-                    window.history.back();
-                } else {
-                    window.closeModal(modalId);
-                }
+                window.closeModal(modalId);
             }
         });
         target.dataset.clickOutsideListener = "true";
@@ -252,43 +245,19 @@ window.openModal = function(modalId) {
 window.closeModal = function(modalId, backwardInterrupted = false) {
     const target = document.getElementById(modalId);
     if (!target) return;
+    target.classList.replace("flex", "hidden");
 
-    // 🚀 THE FIX 100%: หากเป็นการคลิกปิดด้วยมือ (ปุ่มกากบาท/ยกเลิก) และมันคือหน้าต่างตัวบนสุด
-    // ให้โยนหน้าที่ไปให้ระบบประวัติ (popstate) เป็นคนปิด เพื่อป้องกันการปิดซ้อนกัน 2 ชั้น
-    if (!backwardInterrupted && modalHistoryStack[modalHistoryStack.length - 1] === modalId) {
-        window.history.back();
-        return; 
+    // ➕ เพิ่มเช็กตรงนี้: ถ้าสั่งปิด modal-add-product ให้ทำการรีเซ็ตฟอร์มทันที
+    if (modalId === 'modal-add-product') {
+        resetProductForm();
     }
 
-    // --- ส่วนแสดงผลแอนิเมชันตอนปิด (จะถูกเรียกโดย popstate เท่านั้น) ---
-    target.classList.remove("zoom-show");
-    setTimeout(() => {
-        if (!target.classList.contains("zoom-show")) {
-            target.classList.replace("flex", "hidden");
-        }
-    }, 300);
-
-    if (modalId === 'modal-add-product') resetProductForm();
-
-    // ระบบเซฟตี้ หากเป็นการปิดลัดคิวที่ไม่ได้อยู่บนสุด
     if (!backwardInterrupted) {
         modalHistoryStack = modalHistoryStack.filter(id => id !== modalId);
+        if (window.history.state && window.history.state.tier === modalId) {
+            history.back();
+        }
     }
-}
-window.closeLightboxView = function(backwardInterrupted = false) {
-    if (!backwardInterrupted && modalHistoryStack[modalHistoryStack.length - 1] === 'modal-image-lightbox') {
-        window.history.back(); // สั่งย้อนประวัติให้ popstate จัดการอย่างปลอดภัย
-        return;
-    }
-    
-    // (ส่วนล้างค่าตัวแปร)
-    const lightbox = document.getElementById('modal-image-lightbox');
-    if (lightbox) {
-        lightbox.classList.remove("zoom-show");
-        setTimeout(() => { if (!lightbox.classList.contains("zoom-show")) lightbox.classList.replace("flex", "hidden"); }, 1500);
-    }
-    currentLightboxIndex = 0;
-    lightboxImagesArray = [];
 }
 function toggleDrawer(openStatus) {
     const overlay = document.getElementById("drawer-overlay");
@@ -364,8 +333,19 @@ function renderProductsGrid() {
         
         // 🛠️ ผูก Event Drag and Drop สำหรับ Admin บนหน้าเว็บหลัก
         if (activeAdmin) {
-            card.className = "bg-white rounded-[24px] shadow-sm overflow-hidden relative flex flex-col justify-between group border border-gray-100/60 transition-all duration-300 hover:shadow-md cursor-grab active:cursor-grabbing";
-            card.draggable = true;
+            // 💡 บังคับเอาสถานะพฤติกรรมการลาก (draggable) ออกจากการ์ดหลัก เพื่อเปิดทางให้สไลด์จอบนมือถือได้อิสระ
+            card.className = "bg-white rounded-[24px] shadow-sm overflow-hidden relative flex flex-col justify-between group border border-gray-100/60 transition-all duration-300 hover:shadow-md select-none";
+            card.draggable = false; 
+            
+            // 🔒 ป้องกันปัญหาการกดโดนส่วนอื่นๆ ของสินค้าแล้วกลายเป็นการลากวัตถุค้าง (Drag Ghost) บนเบราว์เซอร์มือถือ
+            card.addEventListener('dragstart', (e) => {
+                const isHandle = e.target.closest('.drag-handle');
+                if (!isHandle) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
             card.dataset.id = product.id;
             card.dataset.index = index;
             if (typeof setupProductDragAndDropListeners === "function") {
@@ -390,8 +370,14 @@ function renderProductsGrid() {
 
         let adminActionOverlayBlock = "";
         if (activeAdmin) {
+            // 💡 กำหนดให้เฉพาะปุ่มไอคอน ☰ (drag-handle) เท่านั้นที่มีสถานะ draggable="true" เพื่อใช้สำหรับลากเปลี่ยนลำดับ
             adminActionOverlayBlock = `
-                <div class="absolute top-3 right-3 z-20 flex gap-1 bg-white/80 backdrop-blur-sm p-1 rounded-xl shadow-sm">
+                <div class="absolute top-3 right-3 z-20 flex gap-1 bg-white/90 backdrop-blur-sm p-1 rounded-xl shadow-sm items-center">
+                    <div class="drag-handle text-gray-400 hover:bg-gray-100 w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-grab active:cursor-grabbing" 
+                         draggable="true" 
+                         title="ลากเพื่อสลับตำแหน่ง">
+                        <i class="fa-solid fa-bars text-xs pointer-events-none"></i>
+                    </div>
                     <button onclick="triggerProductEditSetup('${product.id}', event)" class="text-blue-600 hover:bg-blue-50 w-7 h-7 rounded-lg flex items-center justify-center transition-all"><i class="fa-solid fa-pen text-xs"></i></button>
                     <button onclick="executeProductDeletionAction('${product.id}', event)" class="text-rose-600 hover:bg-rose-50 w-7 h-7 rounded-lg flex items-center justify-center transition-all"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
@@ -409,7 +395,7 @@ function renderProductsGrid() {
             ${adminActionOverlayBlock}
             <div class="p-4 cursor-pointer flex-1 flex flex-col justify-between" onclick="launchProductDetailsModal('${product.id}')">
                 <div class="aspect-square bg-[#fbfbfb] rounded-2xl overflow-hidden mb-4 flex items-center justify-center p-4">
-                    <img src="${product.thumbnailUrl}" class="object-contain w-full h-full transform transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy">
+                    <img src="${product.thumbnailUrl}" draggable="false" class="object-contain w-full h-full transform transition-transform duration-500 group-hover:scale-[1.02] pointer-events-none" loading="lazy">
                 </div>
                 <div class="space-y-1">
                     <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug flex items-center flex-wrap gap-1">
@@ -417,10 +403,8 @@ function renderProductsGrid() {
                         ${product.title}
                     </h3>
                     
-                    <!-- 🟢 เวอร์ชั่น PC: แสดงหมวดหมู่ย่อยปกติ (แต่จะถูก CSS ซ่อนอัตโนมัติเมื่ออยู่บนมือถือ) -->
                     <p class="text-[11px] text-gray-400 font-medium product-category">${breadcrumbStr}</p>
 
-                    <!-- 🟢 เวอร์ชั่น Mobile: ดึงป้ายจัดส่งมาแสดงตรงนี้แทนที่หมวดหมู่ย่อย (และซ่อนอัตโนมัติบน PC) -->
                     ${product.badges?.soon ? '' : `
                         <div class="md:hidden mobile-shipping-wrapper ${product.shippingMode === 'ต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
                             <i class="${product.shippingMode === 'ต่างประเทศ' ? 'fa-solid fa-plane-departure' : 'fa-solid fa-truck-fast'} mr-0.5 scale-75"></i>${product.shippingMode || "จัดส่งในไทย"}
@@ -434,7 +418,6 @@ function renderProductsGrid() {
                         ${displayPrice}
                     </div>
                     
-                    <!-- 🟢 เวอร์ชั่น PC: แสดงป้ายจัดส่งฝั่งขวาของราคาตามปกติ (และจะถูกซ่อนบนมือถือเพื่อไม่ให้ซ้ำซ้อน) -->
                     ${product.badges?.soon ? '' : `
                         <div class="hidden md:inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded tracking-tighter opacity-90 scale-95 origin-right ${product.shippingMode === 'ต่างประเทศ' ? 'bg-amber-50 text-amber-600 border border-amber-200/40' : 'bg-blue-50 text-blue-600 border border-blue-200/40'}">
                             <i class="${product.shippingMode === 'ต่างประเทศ' ? 'fa-solid fa-plane-departure' : 'fa-solid fa-truck-fast'} mr-0.5 scale-75"></i>${product.shippingMode || "จัดส่งในไทย"}
@@ -770,6 +753,7 @@ function setupGalleryDragListeners(element) {
 
     element.addEventListener('dragend', () => {
         element.classList.remove('opacity-40');
+        // ➕ ถ้ามี class ตอนลากค้างอื่นๆ ให้ระบุสั่งลบออกที่นี่ด้วย
     });
 }
 
@@ -828,20 +812,14 @@ window.openLightbox = function() {
 window.closeLightbox = function(backwardInterrupted = false) {
     const lightboxEl = document.getElementById("lightbox");
     if (!lightboxEl) return;
-
-    // 🚀 THE FIX: หากเป็นการคลิกปิดด้วยมือ และมันคือหน้าต่างบนสุด
-    // ให้โยนหน้าที่ไปให้ระบบประวัติ (popstate) เป็นคนปิด เพื่อป้องกันการปิดซ้อนกัน
-    if (!backwardInterrupted && modalHistoryStack[modalHistoryStack.length - 1] === 'lightbox') {
-        window.history.back();
-        return;
-    }
-
-    // --- ส่วนแสดงผลแอนิเมชันตอนปิด ---
     lightboxEl.classList.replace("flex", "hidden");
     
-    // ระบบเซฟตี้ ล้างค่าออกจาก Stack เฉพาะเมื่อไม่ได้ถูกขัดจังหวะจาก popstate
+    // หากเป็นการปิดโดยไม่ใช่การกดย้อนกลับจากโทรศัพท์
     if (!backwardInterrupted) {
         modalHistoryStack = modalHistoryStack.filter(id => id !== 'lightbox');
+        if (window.history.state && window.history.state.tier === 'lightbox') {
+            history.back();
+        }
     }
 }
 
@@ -1418,27 +1396,48 @@ function bindTouchSwipeElement(element, onSwipeLeft, onSwipeRight) {
 // ================= PRODUCT DRAG & DROP SORTING SYSTEM =================
 let dragProductSourceRef = null;
 
-window.setupProductDragAndDropListeners = function(element) {
-    element.addEventListener('dragstart', (e) => {
-        dragProductSourceRef = element;
-        element.classList.add('opacity-40', 'scale-95');
+// ฟังก์ชันเคลียร์ Effect ทั้งหน้าจอ ป้องกันอาการค้าง
+function clearAllDragEffects() {
+    const allCards = document.querySelectorAll('#admin-products-grid > div');
+    allCards.forEach(card => {
+        card.classList.remove('opacity-40', 'scale-95');
+    });
+}
+
+window.setupProductDragAndDropListeners = function(cardElement) {
+    // 🔍 หาไอคอนลากภายในตัวการ์ดใบนี้
+    const dragHandle = cardElement.querySelector('.drag-handle');
+    
+    // ถ้าไม่มีไอคอนลาก (เช่น ไม่ได้ล็อกอิน Admin) ไม่ต้องทำอะไร
+    if (!dragHandle) return;
+
+    // 1. เริ่มลาก: ดักจับเหตุการณ์ที่ "ไอคอนจับลาก" เท่านั้น!
+    dragHandle.addEventListener('dragstart', (e) => {
+        clearAllDragEffects();
+        
+        // 💡 สำคัญมาก: ตัวแปรอ้างอิงยังคงเก็บ "ตัวการ์ดหลัก" เพื่อเอาข้อมูลไปสลับตำแหน่ง
+        dragProductSourceRef = cardElement; 
+        cardElement.classList.add('opacity-40', 'scale-95');
         e.dataTransfer.effectAllowed = 'move';
     });
 
-    element.addEventListener('dragover', (e) => {
+    // 2. ลากผ่าน: ตัวการ์ดหลักยังคงรองรับการวาง (Drop Zone)
+    cardElement.addEventListener('dragover', (e) => {
         e.preventDefault();
     });
 
-    element.addEventListener('drop', async (e) => {
+    // 3. ปล่อยเพื่อวางสินค้า
+    cardElement.addEventListener('drop', async (e) => {
         e.stopPropagation();
-        if (dragProductSourceRef !== element) {
-            const sourceIndex = parseInt(dragProductSourceRef.dataset.index);
-            const targetIndex = parseInt(element.dataset.index);
+        clearAllDragEffects();
 
-            // คัดลอก Array สินค้าปัจจุบันออกมาคำนวณตำแหน่งใหม่
+        if (dragProductSourceRef !== cardElement && dragProductSourceRef !== null) {
+            const sourceIndex = parseInt(dragProductSourceRef.dataset.index);
+            const targetIndex = parseInt(cardElement.dataset.index);
+
             let targetDataset = [...globalProducts];
 
-            // กรองสินค้าตามตัวกรองปัจจุบัน (เพื่อให้เรียงตรงกับหน้าจอที่แอดมินเห็น)
+            // กรองสินค้าตามหน้าจอแอดมินปัจจุบัน (ดึงมาจากโค้ดเดิมของคุณในไฟล์ app.js)
             if (currentFilters.main !== 'all') {
                 targetDataset = targetDataset.filter(p => p.categoryMain === currentFilters.main);
                 if (currentFilters.sub !== 'all') targetDataset = targetDataset.filter(p => p.categorySub === currentFilters.sub);
@@ -1449,38 +1448,72 @@ window.setupProductDragAndDropListeners = function(element) {
                 targetDataset = targetDataset.filter(p => p.title.toLowerCase().includes(query) || (p.keywords && p.keywords.toLowerCase().includes(query)));
             }
 
-            // ค้นหาสินค้าตัวที่ถูกลาก และตัวที่ถูกวางทับ ใน globalProducts หลัก
             const sourceProduct = targetDataset[sourceIndex];
             const targetProduct = targetDataset[targetIndex];
 
-            if (!sourceProduct || !targetProduct) return;
+            if (!sourceProduct || !targetProduct) {
+                dragProductSourceRef = null;
+                return;
+            }
 
             const globalSourceIdx = globalProducts.findIndex(p => p.id === sourceProduct.id);
-            const globalTargetIdx = globalProducts.findIndex(p => p.id === targetProduct.id);
-
-            // สลับตำแหน่งในหน่วยความจำ
-            const [movedItem] = globalProducts.splice(globalSourceIdx, 1);
-            globalProducts.splice(globalTargetIdx, 0, movedItem);
-
-            try {
-                // สร้าง Batch เพื่ออัปเดต sortOrder ของสินค้าทุกตัวพร้อมกันรวดเดียว
-                const batch = writeBatch(db);
+            
+            // ตรรกะการสลับตำแหน่งอิงตาม Sort Mode ล่าสุดของคุณในโค้ad
+            const isLatestSortMode = document.getElementById('sort-mode-select')?.value === 'latest';
+            
+            if (isLatestSortMode) {
+                // โหมดจัดเรียงตามเวลาล่าสุด
+                const targetUpdatedAt = targetProduct.updatedAt || 0;
+                let calculatedNewTime = targetUpdatedAt;
                 
-                globalProducts.forEach((product, idx) => {
-                    const productRef = doc(db, "products", product.id);
-                    batch.update(productRef, { sortOrder: idx });
-                });
+                if (sourceIndex < targetIndex) {
+                    const nextProduct = targetDataset[targetIndex + 1];
+                    if (nextProduct) {
+                        calculatedNewTime = targetUpdatedAt - ((targetUpdatedAt - (nextProduct.updatedAt || 0)) / 2);
+                    } else {
+                        calculatedNewTime = targetUpdatedAt - 500;
+                    }
+                } else {
+                    const prevProduct = targetDataset[targetIndex - 1];
+                    if (prevProduct) {
+                        calculatedNewTime = targetUpdatedAt + (((prevProduct.updatedAt || 0) - targetUpdatedAt) / 2);
+                    } else {
+                        calculatedNewTime = targetUpdatedAt + 500;
+                    }
+                }
 
-                await batch.commit();
-                console.log("บันทึกลำดับสินค้าลงฐานข้อมูลสำเร็จ");
-            } catch (err) {
-                alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งสินค้า: " + err.message);
+                try {
+                    await updateDoc(doc(db, "products", sourceProduct.id), { updatedAt: calculatedNewTime });
+                    console.log("บันทึกลำดับสินค้าล่าสุดลง Firestore เรียบร้อยแล้ว");
+                } catch (err) {
+                    alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งสินค้าล่าสุด: " + err.message);
+                }
+            } else {
+                // โหมดจัดเรียงปกติ (sortOrder บล็อกเดิมของคุณ)
+                const globalTargetIdx = globalProducts.findIndex(p => p.id === targetProduct.id);
+                const [movedItem] = globalProducts.splice(globalSourceIdx, 1);
+                globalProducts.splice(globalTargetIdx, 0, movedItem);
+
+                try {
+                    const batch = writeBatch(db);
+                    globalProducts.forEach((product, idx) => {
+                        const productRef = doc(db, "products", product.id);
+                        batch.update(productRef, { sortOrder: idx });
+                    });
+                    await batch.commit();
+                    console.log("บันทึกลำดับจัดเรียงปกติลง Firestore เรียบร้อยแล้ว");
+                } catch (err) {
+                    alert("เกิดข้อผิดพลาดในการบันทึกตำแหน่งสินค้า: " + err.message);
+                }
             }
         }
+        dragProductSourceRef = null;
     });
 
-    element.addEventListener('dragend', () => {
-        element.classList.remove('opacity-40', 'scale-95');
+    // 4. สิ้นสุดการลาก (ดักจับที่ไอคอน)
+    dragHandle.addEventListener('dragend', () => {
+        clearAllDragEffects();
+        dragProductSourceRef = null;
     });
 }
 
@@ -1502,6 +1535,11 @@ setupProductDragAndDropListeners = function(element) {
     
     // --- [ ส่วนที่ 1: สำหรับการใช้งานบนหน้าจอคอมพิวเตอร์ PC ] ---
     element.addEventListener('dragstart', (e) => {
+        // 🔒 PC: เช็คว่าเมาส์ต้องคลิกลากที่ปุ่มไอคอน ☰ เท่านั้น
+        if (!e.target.closest('.drag-handle')) {
+            e.preventDefault();
+            return false;
+        }
         dragProductSourceRef = element;
         element.classList.add('opacity-40', 'scale-95');
         e.dataTransfer.effectAllowed = 'move';
@@ -1522,16 +1560,24 @@ setupProductDragAndDropListeners = function(element) {
 
     // --- [ ส่วนที่ 2: สำหรับการใช้งานบนหน้าจอมือถือ TOUCH SCREEN ] ---
     element.addEventListener('touchstart', (e) => {
-        // ปลดล็อกให้แอดมินสัมผัสการ์ดเพื่อเตรียมลากจัดเรียงได้ทันทีโดยไม่ต้องรอเปลี่ยน Select 
         if (!activeAdmin) return;
+
+        // 🔒 MOBILE: เช็คว่านิ้วต้องแตะโดนปุ่มไอคอน ☰ เท่านั้น!! 
+        // ถ้าแตะโดนรูปภาพ ชื่อสินค้า หรือขอบตัวการ์ด จะ return ออกไปทันที เพื่อให้หน้าจอเลื่อนได้ปกติ
+        const isHandle = e.target.closest('.drag-handle');
+        if (!isHandle) {
+            dragProductSourceRef = null; // เคลียร์ค่าทิ้ง ปล่อยให้หน้าเว็บสไลด์ได้
+            return;
+        }
 
         dragProductSourceRef = element;
         element.classList.add('opacity-40', 'scale-95', 'ring-4', 'ring-blue-500/20');
     }, { passive: true });
 
     element.addEventListener('touchmove', (e) => {
+        // หน้าจอจะล็อกไม่ให้ขยับเฉพาะตอนที่แอดมิน "ตั้งใจใช้นิ้วลากที่ปุ่ม ☰ เท่านั้น"
         if (dragProductSourceRef === element && e.cancelable) {
-            e.preventDefault(); // ล็อกหน้าจอไม่ให้เลื่อนหลุดสะดุดขณะลากการ์ดสินค้าบนมือถือ
+            e.preventDefault(); 
         }
     }, { passive: false });
 
@@ -1640,47 +1686,3 @@ async function executeProductReorderLogic(sourceCard, targetCard) {
         }
     }
 }
-
-// ==========================================================================
-// ➕ เพิ่มระบบกดลูกศร ซ้าย-ขวา บน PC เพื่อเลื่อนรูปภาพ (PC KEYBOARD NAVIGATION)
-// ==========================================================================
-window.addEventListener("keydown", (e) => {
-    // เช็คก่อนว่ามีรูปภาพในสินค้าที่เลือกอยู่หรือไม่
-    if (!currentActiveDetailProduct || !currentActiveDetailProduct.imagesArray) return;
-    
-    const images = currentActiveDetailProduct.imagesArray;
-    let nextIdx = currentLightboxIndex;
-
-    // ตรวจสอบว่าผู้ใช้กำลังพิมพ์อยู่ใน Input หรือ Textarea หรือไม่ (เพื่อป้องกันการเลื่อนรูปขณะพิมพ์ข้อความ)
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-    // 1. ถ้าผู้ใช้เปิด Lightbox อยู่ (ดูจาก modalHistoryStack ตัวบนสุด)
-    if (modalHistoryStack[modalHistoryStack.length - 1] === 'lightbox') {
-        if (e.key === "ArrowRight") {
-            nextIdx = currentLightboxIndex + 1;
-            // ถ้าเลื่อนขวาจนเลยรูปสุดท้าย ให้วนกลับไปรูปแรกสุด (index 0)
-            if (nextIdx >= images.length) nextIdx = 0;
-            navigateLightboxView(nextIdx);
-        } else if (e.key === "ArrowLeft") {
-            nextIdx = currentLightboxIndex - 1;
-            // ลบตัวแปร prevIdx ที่บั๊กออกแล้วเปลี่ยนเป็นระบบวนลูป: ถ้าเลื่อนซ้ายจนเลยรูปแรก ให้วนไปรูปสุดท้าย
-            if (nextIdx < 0) nextIdx = images.length - 1;
-            navigateLightboxView(nextIdx);
-        }
-        return; // ปฏิบัติการเสร็จสิ้นในชั้น Lightbox
-    }
-
-    // 2. ถ้าไม่ได้เปิด Lightbox แต่เปิดหน้า Popup Detail สินค้าปกติอยู่ (modal-detail)
-    if (modalHistoryStack.includes('modal-detail')) {
-        if (e.key === "ArrowRight") {
-            nextIdx = currentLightboxIndex + 1;
-            if (nextIdx >= images.length) nextIdx = 0; // วนกลับไปรูปแรก
-            setupProductGallerySliderUI(nextIdx);
-        } else if (e.key === "ArrowLeft") {
-            nextIdx = currentLightboxIndex - 1;
-            if (nextIdx < 0) nextIdx = images.length - 1; // วนไปรูปสุดท้าย
-            setupProductGallerySliderUI(nextIdx);
-        }
-    }
-});
-
