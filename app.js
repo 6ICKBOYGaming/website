@@ -428,7 +428,10 @@ function renderProductsGrid() {
                         </div>
                     `}
                 </div>
-                <a href="${product.buyUrl || '#'}" target="_blank" onclick="if(typeof trackButtonLinkMetricEvent === 'function') { trackButtonLinkMetricEvent('${product.id}', '${product.buyUrl}') }" class="w-full ${btnColorClass} font-bold text-xs py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-sm">
+                <a href="${product.badges?.soon ? 'javascript:void(0)' : (product.buyUrl || '#')}" 
+                ${product.badges?.soon ? '' : 'target="_blank"'} 
+                onclick="if(!${!!product.badges?.soon} && typeof trackButtonLinkMetricEvent === 'function') { trackButtonLinkMetricEvent('${product.id}', '${product.buyUrl}') }" 
+                class="w-full ${btnColorClass} font-bold text-xs py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-sm ${product.badges?.soon ? 'pointer-events-none opacity-90' : ''}">
                     <i class="fa-solid fa-cart-shopping"></i>
                     <span>${btnLabelString}</span>
                 </a>
@@ -619,7 +622,7 @@ window.launchProductDetailsModal = function(id) {
         }
     };
 
-    // ลงทะเบียน Event กดปุ่มคีย์บอร์ด
+   // ลงทะเบียน Event กดปุ่มคีย์บอร์ด
     window.addEventListener("keydown", handleDetailKeyDown);
 
     // ปรับปรุงฟังก์ชันปิด Modal เพื่อทำลาย Event ลบหน่วยความจำทิ้งเมื่อปิดหน้าต่าง
@@ -633,16 +636,16 @@ window.launchProductDetailsModal = function(id) {
         }
     };
 
-    // === ระบบปุ่มกดซื้อสินค้า ===
+    // === ระบบปุ่มกดซื้อสินค้า (แก้ไขเสร็จสมบูรณ์) ===
     const buyBtn = document.getElementById("detail-buy-btn");
-    buyBtn.onclick = () => trackButtonLinkMetricEvent(p.id, p.buyUrl);
     
     if (p.badges?.soon) {
-        buyBtn.removeAttribute('href'); 
+        buyBtn.removeAttribute('href');
+        buyBtn.onclick = null; // 🛑 เคลียร์ Event คลิกทิ้งทั้งหมด เพื่อไม่ให้มีการนับยอดสถิติ
         buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>เร็วๆ นี้</span>`;
         buyBtn.className = "w-full bg-[#71d4a4] text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm pointer-events-none";
     } else {
-        buyBtn.href = p.buyUrl || "#"; 
+        buyBtn.href = p.buyUrl || "#";
         
         const isAppLink = p.buyUrl && !p.buyUrl.startsWith('http://') && !p.buyUrl.startsWith('https://');
         if (isAppLink) {
@@ -654,6 +657,7 @@ window.launchProductDetailsModal = function(id) {
         buyBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> <span>สั่งซื้อสินค้าตอนนี้</span>`;
         buyBtn.className = "w-full bg-[#10b981] hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md transition-all";
         
+        // 🟢 ฝังฟังก์ชันนับสถิติเฉพาะสินค้าที่พร้อมจำหน่ายเท่านั้น
         buyBtn.onclick = function() {
             if (typeof trackButtonLinkMetricEvent === "function") {
                 trackButtonLinkMetricEvent(p.id, p.buyUrl);
@@ -1392,24 +1396,35 @@ async function initIPViewStatsCounter() {
 window.trackButtonLinkMetricEvent = async function(productId, targetUrl) {
     if (!targetUrl || targetUrl === "undefined") return;
 
+    // 1. ดึงฟอร์แมตวันที่ปัจจุบัน (YYYY-MM-DD) ตามเวลาท้องถิ่น
+    const localDate = new Date();
+    const yyyy = localDate.getFullYear();
+    const mm = String(localDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(localDate.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
     try {
-        const metricRef = doc(db, "metrics", "button_clicks");
-        await runTransaction(db, async (transaction) => {
-            const metricDoc = await transaction.get(metricRef);
-            let currentClicks = 0;
-            if (metricDoc.exists()) {
-                currentClicks = metricDoc.data()[productId] || 0;
-            }
-            transaction.set(metricRef, { [productId]: currentClicks + 1 }, { merge: true });
-        });
-        console.log(`บันทึกสถิติการคลิกสำหรับสินค้า ${productId} สำเร็จ`);
+        // 2. ชี้ Path ไปยัง Document วันปัจจุบันใน Collection "statistics" ให้ตรงกับฟังก์ชันโหลดข้อมูล
+        const statsDocRef = doc(db, "statistics", todayStr);
         
-        // ❌ ลบ window.open(targetUrl, '_blank'); ตรงนี้ออกไปเลยครับ!
+        await runTransaction(db, async (transaction) => {
+            const statsDoc = await transaction.get(statsDocRef);
+            
+            // ดึง clicksRegistry เดิมที่มีอยู่ (ถ้าไม่มีให้เป็น Object ว่าง)
+            let clicksRegistry = statsDoc.exists() && statsDoc.data().clicksRegistry ? statsDoc.data().clicksRegistry : {};
+            
+            // เพิ่มจำนวนคลิกของสินค้านั้น ๆ +1
+            let currentClicks = clicksRegistry[productId] || 0;
+            clicksRegistry[productId] = currentClicks + 1;
+            
+            // บันทึกกลับลงไปในฟิลด์ clicksRegistry
+            transaction.set(statsDocRef, { clicksRegistry: clicksRegistry }, { merge: true });
+        });
+        
+        console.log(`บันทึกสถิติการคลิกรายวันสำหรับสินค้า ${productId} สำเร็จ`);
         
     } catch (error) {
         console.error("เกิดข้อผิดพลาดในการบันทึกสถิติ:", error);
-        
-        // ❌ ลบ window.open(targetUrl, '_blank'); ตรงนี้ออกไปด้วยเช่นกันครับ!
     }
 };
 
