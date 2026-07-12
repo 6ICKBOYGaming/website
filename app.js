@@ -63,14 +63,25 @@ function syncRealtimeDatabase() {
 
     // 2. Listen Category Configuration Trees Mapping Definitions Data Engine Rows
     onSnapshot(doc(db, "configurations", "categories"), (snapshot) => {
-        if (snapshot.exists()) {
-            globalCategories = snapshot.data();
-        } else {
-            globalCategories = { main: ["คีย์บอร์ด", "เมาส์", "ลำโพง", "หูฟัง"], sub: ["Wireless", "Mechanical"], brand: ["Logitech", "Razer", "Artisan"] };
-            setDoc(doc(db, "configurations", "categories"), globalCategories);
-        }
+    if (snapshot.exists()) {
+        globalCategories = snapshot.data();
+    } else {
+        // หากไม่พบเอกสารในฐานข้อมูล ให้ใช้ค่าเริ่มต้นและบันทึกลงไปใหม่
+        globalCategories = { 
+            main: ["คีย์บอร์ด", "เมาส์", "ลำโพง", "หูฟัง"], 
+            sub: ["Wireless", "Mechanical"], 
+            brand: ["Logitech", "Razer", "Artisan"] 
+        };
+        setDoc(doc(db, "configurations", "categories"), globalCategories)
+            .catch(err => console.error("ไม่สามารถสร้างเอกสารหมวดหมู่เริ่มต้นได้:", err));
+    }
+        // อัปเดต UI หลังจากข้อมูลถูกโหลดสำเร็จ
         renderSidebarCategoriesStructure();
         populateFormDropdownSelections();
+    }, (error) => {
+        // ดักจับ Error ในกรณีที่ Security Rules หมดอายุ หรือสิทธิ์เข้าถึงถูกปฏิเสธ
+        console.error("เกิดข้อผิดพลาดในการดักฟังข้อมูลหมวดหมู่สินค้า (Firestore Error):", error);
+        alert("ไม่สามารถโหลดข้อมูลหมวดหมู่สินค้าได้ กรุณาตรวจสอบหน้าต่าง Console หรือระบบหลังบ้านของ Firebase");
     });
 }
 
@@ -1809,56 +1820,89 @@ window.clearSingleImage = function(targetId) {
 document.addEventListener("DOMContentLoaded", () => {
     const API_KEY = "095c39746011f543a08e9ce88e8c65f9";
 
-    // 1. ตรรกะตรวจจับการเลือกไฟล์และทำการอัปโหลดผ่าน ImgBB API
+    // ฟังก์ชันส่วนกลางสำหรับแปลงไฟล์เป็น WebP และอัปโหลดไปยัง ImgBB
+    async function processAndUploadImage(file, targetInput, previewDiv, imgView) {
+        if (!file) return;
+
+        // ล็อกการทำงานหน้าฟอร์มชั่วคราวขณะอัปโหลด
+        const originalPlaceholder = targetInput.placeholder;
+        targetInput.value = "กำลังแปลงไฟล์และอัปโหลดรูปภาพ...";
+        targetInput.disabled = true;
+
+        try {
+            // ➕ แปลงไฟล์ภาพที่เลือก/วาง ให้เป็น .webp ก่อนส่งไป ImgBB
+            const webpFile = await convertToWebP(file, 0.8);
+
+            const formData = new FormData();
+            formData.append("image", webpFile);
+
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
+                method: "POST",
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                const directUrl = result.data.url;
+                
+                // หยอด direct URL ลงช่อง Input
+                targetInput.value = directUrl;
+                
+                // เปิดแสดงภาพ Preview เล็กๆ ด้านล่างช่องกรอก
+                if (imgView) imgView.src = directUrl;
+                if (previewDiv) previewDiv.classList.remove("hidden");
+            } else {
+                throw new Error(result.error ? result.error.message : "การอัปโหลดผิดพลาด");
+            }
+        } catch (err) {
+            alert("เกิดข้อผิดพลาดในการอัปโหลด: " + err.message);
+            targetInput.value = "";
+        } finally {
+            targetInput.disabled = false;
+            targetInput.placeholder = originalPlaceholder;
+        }
+    }
+
+    // 1. ตรรกะตรวจจับการเลือกไฟล์ (Browse) และการกดวางรูปภาพ (Paste)
     const fileInputs = document.querySelectorAll(".imgbb-file-element");
     fileInputs.forEach(input => {
+        const targetId = input.getAttribute("data-target");
+        const targetInput = document.getElementById(targetId);
+        const previewDiv = document.getElementById(`preview-div-${targetId}`);
+        const imgView = document.getElementById(`img-view-${targetId}`);
+
+        // ตรวจจับการเลือกไฟล์ผ่านปุ่ม Browse
         input.addEventListener("change", async (e) => {
-            const targetId = e.target.getAttribute("data-target");
             const file = e.target.files[0];
             if (!file) return;
 
-            const targetInput = document.getElementById(targetId);
-            const previewDiv = document.getElementById(`preview-div-${targetId}`);
-            const imgView = document.getElementById(`img-view-${targetId}`);
-
-            // ล็อกการทำงานหน้าฟอร์มชั่วคราวขณะอัปโหลด
-            const originalPlaceholder = targetInput.placeholder;
-            targetInput.value = "กำลังอัปโหลดรูปภาพ...";
-            targetInput.disabled = true;
-
-            const formData = new FormData();
-            formData.append("image", file);
-
-            try {
-                const response = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
-                    method: "POST",
-                    body: formData
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    const directUrl = result.data.url;
-                    
-                    // หยอด direct URL ลงช่อง Input
-                    targetInput.value = directUrl;
-                    
-                    // เปิดแสดงภาพ Preview เล็กๆ ด้านล่างช่องกรอก
-                    if (imgView) imgView.src = directUrl;
-                    if (previewDiv) previewDiv.classList.remove("hidden");
-                } else {
-                    throw new Error(result.error ? result.error.message : "การอัปโหลดผิดพลาด");
-                }
-            } catch (err) {
-                alert("เกิดข้อผิดพลาดในการอัปโหลด: " + err.message);
-                targetInput.value = "";
-            } finally {
-                targetInput.disabled = false;
-                targetInput.placeholder = originalPlaceholder;
-                input.value = ""; // เคลียร์ค่าของอินพุตไฟล์เดิมออกให้เลือกซ้ำได้
-            }
+            await processAndUploadImage(file, targetInput, previewDiv, imgView);
+            input.value = ""; // เคลียร์ค่าของอินพุตไฟล์เดิมออกให้เลือกซ้ำได้
         });
-    });
 
+        // ตรวจจับการกดวาง (Ctrl+V / Cmd+V) รูปภาพลงในช่องกรอก URL
+        if (targetInput) {
+            targetInput.addEventListener("paste", async (e) => {
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                let file = null;
+
+                // ตรวจสอบว่าสิ่งที่ระบุในคลิปบอร์ดมีไฟล์รูปภาพหรือไม่
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        file = items[i].getAsFile();
+                        break;
+                    }
+                }
+
+                // ถ้าสิ่งที่ผู้ใช้กดวางคือรูปภาพ ให้ทำลาย Event ปกติ แล้วเข้าสู่กระบวนการอัปโหลด
+                if (file) {
+                    e.preventDefault();
+                    await processAndUploadImage(file, targetInput, previewDiv, imgView);
+                }
+            });
+        }
+    });
+    
     // 2. ตรรกะกรณีพิมพ์ URL เอง หรือระบบเรียกแก้ไขสินค้าเดิมขึ้นมา 
     // ตรวจจับให้แสดงผลภาพ Preview ด้านล่างให้สอดคล้องกันโดยอัตโนมัติ
     const monitorTargets = ["form-thumb", "form-gallery-1", "form-gallery-2", "form-gallery-3", "form-gallery-4", "form-gallery-5", "form-gallery-6", "form-gallery-7", "form-gallery-8"];
@@ -1878,7 +1922,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         imgView.src = currentVal;
                         previewDiv.classList.remove("hidden");
                     }
-                } else if (currentVal === "" || currentVal === "กำลังอัปโหลดรูปภาพ...") {
+                } else if (currentVal === "" || currentVal === "กำลังแปลงไฟล์และอัปโหลดรูปภาพ..." || currentVal === "กำลังอัปโหลดรูปภาพ...") {
                     previewDiv.classList.add("hidden");
                 }
             }
@@ -1924,6 +1968,45 @@ async function uploadToImgBB(file) {
 // ==========================================================================
 // PASTE IMAGE TO UPLOAD WITH IMGBB API ENGINE
 // ==========================================================================
+// ฟังก์ชันสำหรับแปลงไฟล์รูปภาพเป็น .webp (Client-side)
+function convertToWebP(file, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        // ถ้ารูปเป็น .webp อยู่แล้ว ให้ส่งกลับไปเลย ไม่ต้องแปลงซ้ำ
+        if (file.type === "image/webp") {
+            return resolve(file);
+        }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function(event) {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = function() {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // ตั้งชื่อไฟล์ใหม่ให้เป็นนามสกุล .webp
+                        const originalName = file.name || "pasted-image.png";
+                        const newFileName = originalName.replace(/\.[^/.]+$/, "") + ".webp";
+                        const webpFile = new File([blob], newFileName, { type: "image/webp" });
+                        resolve(webpFile);
+                    } else {
+                        reject(new Error("ไม่สามารถแปลงไฟล์เป็น WebP ผ่าน Canvas ได้"));
+                    }
+                }, "image/webp", quality);
+            };
+            img.onerror = () => reject(new Error("โหลดข้อมูลรูปภาพไม่สำเร็จ"));
+        };
+        reader.onerror = () => reject(new Error("อ่านไฟล์รูปภาพไม่สำเร็จ"));
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const IMGBB_API_KEY = "095c39746011f543a08e9ce88e8c65f9";
     
@@ -1964,13 +2047,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // แสดงสถานะระหว่างอัปโหลด
                 const originalPlaceholder = inputEl.placeholder;
-                inputEl.value = "กำลังอัปโหลดรูปภาพที่คัดลอกมา...";
+                inputEl.value = "กำลังประมวลผลไฟล์และอัปโหลดรูปภาพ...";
                 inputEl.disabled = true;
 
-                const formData = new FormData();
-                formData.append("image", imageFile);
-
                 try {
+                    // ➕ แปลงไฟล์ภาพที่ได้ให้เป็น .webp ก่อนส่งไป ImgBB
+                    imageFile = await convertToWebP(imageFile, 0.8);
+
+                    const formData = new FormData();
+                    formData.append("image", imageFile);
+
                     const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
                         method: "POST",
                         body: formData
@@ -1980,14 +2066,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (result.success) {
                         const directUrl = result.data.url;
                         
-                        // หยอด URL สาธารณะจาก ImgBB ลงช่อง Input สำเร็จ
+                        // หหยอด URL สาธารณะจาก ImgBB ลงช่อง Input สำเร็จ
                         inputEl.value = directUrl;
                         
                         // แสดงรูปภาพ Preview ขนาดเล็กทันที
                         if (imgView) imgView.src = directUrl;
                         if (previewDiv) previewDiv.classList.remove("hidden");
                         
-                        console.log(`วางและอัปโหลดรูปภาพไปยัง ImgBB สำเร็จ (${id}): ${directUrl}`);
+                        console.log(`วางและอัปโหลดรูปภาพ WebP ไปยัง ImgBB สำเร็จ (${id}): ${directUrl}`);
                     } else {
                         throw new Error(result.error ? result.error.message : "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์ ImgBB");
                     }
@@ -2002,3 +2088,63 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
+// ฟังก์ชันบีบอัดรูปภาพให้ได้ขนาดใกล้เคียงเป้าหมาย (เช่น 60 KB)
+function compressToTargetSize(file, targetSizeKB = 60) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function(event) {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = function() {
+                let width = img.width;
+                let height = img.height;
+                
+                // สเตปที่ 1: จำกัดความกว้าง/สูงเริ่มต้นไม่ให้เกิน 900px (ถ้าเกินจะคุม 60KB ได้ยากและภาพจะเบลอ)
+                let maxDimension = 900; 
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                let quality = 0.8; // เริ่มต้นที่ความชัด 80%
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                // ฟังก์ชันวนลูปบีบอัดจนกว่าขนาดไฟล์จะลงมาต่ำกว่าหรือใกล้เคียงเป้าหมาย
+                function checkAndCompress(w, h, q, attempt = 1) {
+                    canvas.width = w;
+                    canvas.height = h;
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    canvas.toBlob((blob) => {
+                        if (!blob) return reject(new Error("กระบวนการบีบอัดล้มเหลว"));
+                        
+                        const currentSizeKB = blob.size / 1024;
+                        
+                        // เงื่อนไข: ถ้าขนาดผ่านเกณฑ์ (<= 60KB) หรือพยายามปรับลดมาครบ 3 ครั้งแล้ว ให้ส่งออกไฟล์ทันที
+                        if (currentSizeKB <= targetSizeKB || attempt >= 3 || q <= 0.4) {
+                            const newFileName = (file.name || "image.png").replace(/\.[^/.]+$/, "") + ".webp";
+                            const webpFile = new File([blob], newFileName, { type: "image/webp" });
+                            resolve(webpFile);
+                        } else {
+                            // ถ้าขนาดไฟล์ยังเกิน 60KB ให้ลดขนาดภาพลง 15% และลดความชัดลง 0.1 แล้วลองบีบอัดใหม่
+                            checkAndCompress(Math.round(w * 0.85), Math.round(h * 0.85), q - 0.1, attempt + 1);
+                        }
+                    }, "image/webp", q);
+                }
+
+                // เริ่มรันลูปครั้งแรก
+                checkAndCompress(width, height, quality);
+            };
+        };
+        reader.onerror = (err) => reject(err);
+    });
+}
