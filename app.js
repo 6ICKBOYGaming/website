@@ -1104,12 +1104,14 @@ function renderCategoryManagementUI() {
     const subList = document.getElementById("manage-sub-list");
     const brandList = document.getElementById("manage-brand-list");
 
+    // 1. หมวดหมู่หลัก (Main)
     mainList.innerHTML = "";
     globalCategories.main.forEach((cat, index) => {
         const li = document.createElement("li");
         li.className = "bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm text-xs flex items-center justify-between cursor-grab active:cursor-grabbing transition-all";
         li.draggable = true;
         li.dataset.index = index;
+        li.dataset.type = "main"; // กำหนดประเภทหมวดหมู่
         li.innerHTML = `
             <div class="flex items-center gap-2 flex-1 mr-2"><i class="fa-solid fa-grip-vertical text-gray-300"></i>
                 <input type="text" value="${cat}" onchange="inlineUpdateCategoryField('main', ${index}, this.value)" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-0.5 font-medium">
@@ -1120,26 +1122,40 @@ function renderCategoryManagementUI() {
         mainList.appendChild(li);
     });
 
+    // 2. หมวดหมู่ย่อย (Sub) -> แก้ไขให้รองรับการลากวาง
     subList.innerHTML = "";
     globalCategories.sub.forEach((cat, index) => {
-        subList.innerHTML += `
-            <li class="bg-white p-2.5 rounded-xl border border-gray-200 text-xs flex items-center justify-between">
+        const li = document.createElement("li");
+        li.className = "bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm text-xs flex items-center justify-between cursor-grab active:cursor-grabbing transition-all";
+        li.draggable = true;
+        li.dataset.index = index;
+        li.dataset.type = "sub"; // กำหนดประเภทหมวดหมู่
+        li.innerHTML = `
+            <div class="flex items-center gap-2 flex-1 mr-2"><i class="fa-solid fa-grip-vertical text-gray-300"></i>
                 <input type="text" value="${cat}" onchange="inlineUpdateCategoryField('sub', ${index}, this.value)" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-0.5 font-medium">
-                <button onclick="removeCategoryFieldItem('sub', ${index})" class="text-rose-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
-            </li>
+            </div>
+            <button onclick="removeCategoryFieldItem('sub', ${index})" class="text-rose-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
         `;
+        setupDragAndDropSortingListeners(li);
+        subList.appendChild(li);
     });
 
+    // 3. แบรนด์สินค้า (Brand) -> แก้ไขให้รองรับการลากวาง (และจดจำลำดับตามที่ลากจริง)
     brandList.innerHTML = "";
-    const sortedBrandsMetadataMap = globalCategories.brand.map((b, originalIndex) => ({ b, originalIndex }));
-    sortedBrandsMetadataMap.sort((a,b) => a.b.localeCompare(b.b));
-    sortedBrandsMetadataMap.forEach(item => {
-        brandList.innerHTML += `
-            <li class="bg-white p-2.5 rounded-xl border border-gray-200 text-xs flex items-center justify-between">
-                <input type="text" value="${item.b}" onchange="inlineUpdateCategoryField('brand', ${item.originalIndex}, this.value)" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-0.5 font-medium">
-                <button onclick="removeCategoryFieldItem('brand', ${item.originalIndex})" class="text-rose-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
-            </li>
+    globalCategories.brand.forEach((cat, index) => {
+        const li = document.createElement("li");
+        li.className = "bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm text-xs flex items-center justify-between cursor-grab active:cursor-grabbing transition-all";
+        li.draggable = true;
+        li.dataset.index = index;
+        li.dataset.type = "brand"; // กำหนดประเภทหมวดหมู่
+        li.innerHTML = `
+            <div class="flex items-center gap-2 flex-1 mr-2"><i class="fa-solid fa-grip-vertical text-gray-300"></i>
+                <input type="text" value="${cat}" onchange="inlineUpdateCategoryField('brand', ${index}, this.value)" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-0.5 font-medium">
+            </div>
+            <button onclick="removeCategoryFieldItem('brand', ${index})" class="text-rose-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
         `;
+        setupDragAndDropSortingListeners(li);
+        brandList.appendChild(li);
     });
 }
 
@@ -1181,18 +1197,38 @@ function setupDragAndDropSortingListeners(element) {
     element.addEventListener('dragover', (e) => e.preventDefault());
     element.addEventListener('drop', async (e) => {
         e.stopPropagation();
-        if (dragSourceElementReference !== element) {
+        
+        if (dragSourceElementReference !== element && dragSourceElementReference !== null) {
+            // ดึงประเภทของหมวดหมู่ (ถ้าเป็นอันหลักจะไม่มี dataset.type ให้ fallback เป็น 'main')
+            const sourceType = dragSourceElementReference.dataset.type || 'main';
+            const targetType = element.dataset.type || 'main';
+            
+            // ป้องกันไม่ให้แอดมินลากหมวดหมู่ข้ามกล่องกัน เช่น ลากแบรนด์ไปวางใส่หมวดหมู่ย่อย
+            if (sourceType !== targetType) {
+                dragSourceElementReference = null;
+                return;
+            }
+
             const sourceIndex = parseInt(dragSourceElementReference.dataset.index);
             const targetIndex = parseInt(element.dataset.index);
-            const movedElementItem = globalCategories.main.splice(sourceIndex, 1)[0];
-            globalCategories.main.splice(targetIndex, 0, movedElementItem);
+            
+            // ดึงข้อมูลออกมาตาม Dynamic Type (main, sub, brand) เพื่อสลับตำแหน่งใน Memory
+            const movedElementItem = globalCategories[sourceType].splice(sourceIndex, 1)[0];
+            globalCategories[sourceType].splice(targetIndex, 0, movedElementItem);
+            
             try {
+                // บันทึกโครงสร้างใหม่ลง Firestore ทันที
                 await setDoc(doc(db, "configurations", "categories"), globalCategories);
                 renderCategoryManagementUI();
-            } catch(err) { alert(err.message); }
+            } catch(err) { 
+                alert(err.message); 
+            }
         }
     });
-    element.addEventListener('dragend', () => element.classList.remove('dragging-item'));
+    element.addEventListener('dragend', () => {
+        if(element) element.classList.remove('dragging-item');
+        dragSourceElementReference = null;
+    });
 }
 
 // ================= CODES & BULK OPERATIONS (DISCOUNTS / KEYWORDS) =================
