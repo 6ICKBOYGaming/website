@@ -333,8 +333,26 @@ function renderProductsGrid() {
     } else if (sorterVal === "price-asc") {
         targetDataset.sort((a,b) => (a.badges?.soon ? Infinity : calculateDiscountValue(a.price, a.discountRule).finalPrice) - (b.badges?.soon ? Infinity : calculateDiscountValue(b.price, b.discountRule).finalPrice));
     } else {
-        // ➕ เพิ่มเงื่อนไขนี้ เพื่อรองรับ "จัดเรียงปกติ" และป้องกันโค้ดเออร์เรอร์หลุดการทำงาน
-        targetDataset.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        // 🔒 แยกสินค้าตามป้าย เพื่อล็อกกลุ่มบนสุด และสุ่มเฉพาะสินค้าปกติ
+
+        // 1. แยกสินค้าออกเป็น 3 ตะกร้า
+        const soonProducts = targetDataset.filter(item => item.badges?.soon);
+        const newProducts = targetDataset.filter(item => item.badges?.new && !item.badges?.soon);
+        const normalProducts = targetDataset.filter(item => !item.badges?.soon && !item.badges?.new);
+
+        // 2. ล็อกลำดับ Coming Soon และ NEW ตาม sortOrder เดิมจากหลังบ้าน (ไม่สุ่ม)
+        soonProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        newProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+        // 3. สุ่มตำแหน่งเฉพาะสินค้าปกติที่ไม่มีป้ายใดๆ เท่านั้น
+        normalProducts.sort(() => Math.random() - 0.5);
+
+        // 4. รวมกลุ่มสินค้าเรียงลำดับ: [Coming Soon] -> [NEW] -> [สินค้าปกติแบบสุ่ม]
+        const finalOrderedList = [...soonProducts, ...newProducts, ...normalProducts];
+        
+        // 5. อัปเดตข้อมูลกลับเข้า targetDataset อย่างปลอดภัยโดยไม่ใช้วิธี Re-assign ตัวแปร
+        targetDataset.length = 0; 
+        targetDataset.push(...finalOrderedList);
     }
 
     if(targetDataset.length === 0) {
@@ -1777,7 +1795,27 @@ async function executeProductReorderLogic(sourceCard, targetCard) {
     if (sorterVal === "latest") {
         targetDataset.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } else {
-        targetDataset.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        // 🔒 แยกสินค้าเพื่อล็อกกลุ่ม Coming Soon และ NEW ไว้บนสุดให้ตรงกับ renderProductsGrid
+        const soonAndNewProducts = targetDataset.filter(item => item.badges?.soon && item.badges?.new);
+        const soonOnlyProducts = targetDataset.filter(item => item.badges?.soon && !item.badges?.new);
+        const newOnlyProducts = targetDataset.filter(item => item.badges?.new && !item.badges?.soon);
+        const normalProducts = targetDataset.filter(item => !item.badges?.soon && !item.badges?.new);
+
+        // เรียงลำดับตาม sortOrder ภายในกลุ่ม
+        soonAndNewProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        soonOnlyProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        newOnlyProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        normalProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+        // รวมกลุ่มตามลำดับ Priority [Coming Soon + NEW] -> [Coming Soon] -> [NEW] -> [สินค้าปกติ]
+        const finalOrderedList = [
+            ...soonAndNewProducts, 
+            ...soonOnlyProducts, 
+            ...newOnlyProducts, 
+            ...normalProducts
+        ];
+        
+        targetDataset = finalOrderedList;
     }
 
     const sourceProduct = targetDataset[sourceIndex];
