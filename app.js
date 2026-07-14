@@ -302,6 +302,14 @@ function calculateDiscountValue(basePrice, discountStringRule) {
         return { finalPrice: Math.round(basePrice), discountAppliedAmount: 0 };
     }
 }
+// ================= ฟังก์ชันช่วยสำหรับการสุ่มประสิทธิภาพสูง (แนะนำให้วางไว้บนสุดของโค้ด หรือนอกฟังก์ชันหลัก) =================
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
 
 // ================= CORE CLIENT PRODUCTS RENDER FEED (MATCHING IMAGE PREVIEW) =================
 function renderProductsGrid() {
@@ -344,11 +352,11 @@ function renderProductsGrid() {
         soonProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
         newProducts.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
-        // 3. สุ่มตำแหน่งเฉพาะสินค้าปกติที่ไม่มีป้ายใดๆ เท่านั้น
-        normalProducts.sort(() => Math.random() - 0.5);
+        // 3. ปรับปรุง: สุ่มตำแหน่งเฉพาะสินค้าปกติที่ไม่มีป้ายใดๆ ด้วย Fisher-Yates Shuffle แทนวิธีเดิมที่กิน CPU
+        const shuffledNormalProducts = shuffleArray(normalProducts);
 
         // 4. รวมกลุ่มสินค้าเรียงลำดับ: [Coming Soon] -> [NEW] -> [สินค้าปกติแบบสุ่ม]
-        const finalOrderedList = [...soonProducts, ...newProducts, ...normalProducts];
+        const finalOrderedList = [...soonProducts, ...newProducts, ...shuffledNormalProducts];
         
         // 5. อัปเดตข้อมูลกลับเข้า targetDataset อย่างปลอดภัยโดยไม่ใช้วิธี Re-assign ตัวแปร
         targetDataset.length = 0; 
@@ -1976,32 +1984,38 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
     });
+});
+
+// 1. สร้างฟังก์ชันเช็กภาพพรีวิวแบบรายชิ้น (จะทำงานต่อเมื่อถูกสั่งเท่านั้น ไม่วิ่งวนลูปเอง)
+function updateSingleImagePreview(id) {
+    const inputEl = document.getElementById(id);
+    const previewDiv = document.getElementById(`preview-div-${id}`);
+    const imgView = document.getElementById(`img-view-${id}`);
     
-    // 2. ตรรกะกรณีพิมพ์ URL เอง หรือระบบเรียกแก้ไขสินค้าเดิมขึ้นมา 
-    // ตรวจจับให้แสดงผลภาพ Preview ด้านล่างให้สอดคล้องกันโดยอัตโนมัติ
-    const monitorTargets = ["form-thumb", "form-gallery-1", "form-gallery-2", "form-gallery-3", "form-gallery-4", "form-gallery-5", "form-gallery-6", "form-gallery-7", "form-gallery-8"];
-    
-    // ตั้งตัวตรวจจับลูปสั้นๆ เพื่อคอยเช็กการเปลี่ยนแปลงค่า (Value) ในอินพุต
-    setInterval(() => {
-        monitorTargets.forEach(id => {
-            const inputEl = document.getElementById(id);
-            const previewDiv = document.getElementById(`preview-div-${id}`);
-            const imgView = document.getElementById(`img-view-${id}`);
-            
-            if (inputEl && previewDiv && imgView) {
-                const currentVal = inputEl.value.trim();
-                // เช็กว่าเป็นลิงก์จริงและไม่ได้อยู่ในสภาวะกำลังดาวน์โหลด
-                if (currentVal && currentVal.startsWith("http")) {
-                    if (imgView.src !== currentVal) {
-                        imgView.src = currentVal;
-                        previewDiv.classList.remove("hidden");
-                    }
-                } else if (currentVal === "" || currentVal === "กำลังแปลงไฟล์และอัปโหลดรูปภาพ..." || currentVal === "กำลังอัปโหลดรูปภาพ...") {
-                    previewDiv.classList.add("hidden");
-                }
+    if (inputEl && previewDiv && imgView) {
+        const currentVal = inputEl.value.trim();
+        // เช็กว่าเป็นลิงก์จริงและไม่ได้อยู่ในสภาวะกำลังดาวน์โหลด
+        if (currentVal && currentVal.startsWith("http")) {
+            if (imgView.src !== currentVal) {
+                imgView.src = currentVal;
+                previewDiv.classList.remove("hidden");
             }
-        });
-    }, 500);
+        } else if (currentVal === "" || currentVal === "กำลังแปลงไฟล์และอัปโหลดรูปภาพ..." || currentVal === "กำลังอัปโหลดรูปภาพ...") {
+            previewDiv.classList.add("hidden");
+        }
+    }
+}
+
+// 2. ตั้งตัวตรวจจับ Event (ดักจับเฉพาะตอนผู้ใช้พิมพ์หรือแก้ไขค่าในช่องจริง ๆ)
+const monitorTargets = ["form-thumb", "form-gallery-1", "form-gallery-2", "form-gallery-3", "form-gallery-4", "form-gallery-5", "form-gallery-6", "form-gallery-7", "form-gallery-8"];
+
+monitorTargets.forEach(id => {
+    const inputEl = document.getElementById(id);
+    if (inputEl) {
+        // ทำงานทันทีเมื่อมีการพิมพ์ (input) หรือวางลิงก์แล้วเปลี่ยนช่อง (change)
+        inputEl.addEventListener("input", () => updateSingleImagePreview(id));
+        inputEl.addEventListener("change", () => updateSingleImagePreview(id));
+    }
 });
 
 // UPLOAD ImgBB
