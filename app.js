@@ -1263,7 +1263,8 @@ function renderDiscountManager(searchQuery = "") {
     if (!body) return; 
     body.innerHTML = "";
     
-    if (searchQuery !== "") currentDiscountQuery = searchQuery;
+    // 🛠️ แก้ไข: ลบเงื่อนไข !== "" ออก เพื่อให้ยอมรับค่าว่างเวลาแอดมินลบคำค้นหา
+    currentDiscountQuery = searchQuery; 
 
     let subset = [...globalProducts];
     
@@ -1277,7 +1278,8 @@ function renderDiscountManager(searchQuery = "") {
     }
     
     if (subset.length === 0) {
-        body.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-400 text-xs">ไม่พบรายการสินค้าที่ค้นหา...</td></tr>`;
+        // อัปเดต colspan เป็น 4 เพื่อให้รองรับคอลัมน์ราคาปกติที่เพิ่มเข้ามาใหม่
+        body.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400 text-xs">ไม่พบรายการสินค้าที่ค้นหา...</td></tr>`;
         return;
     }
 
@@ -1289,10 +1291,32 @@ function renderDiscountManager(searchQuery = "") {
                 <img src="${p.thumbnailUrl}" class="w-8 h-8 object-contain bg-gray-50 rounded-lg border p-0.5">
                 <span class="line-clamp-1">${p.title} <span class="text-xs text-gray-400">(${p.brand || 'ไม่ระบุแบรนด์'})</span></span>
             </td>
+            <!-- ➕ เพิ่มช่องกรอกราคาปกติ (แก้ไขค่าแล้วกด Enter เพื่อบันทึก) -->
+            <td class="p-3 w-32">
+                <input type="number" value="${p.price || 0}" placeholder="ราคาปกติ" onkeydown="saveInlinePriceRule('${p.id}', event)" class="w-full px-3 py-1 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-right">
+            </td>
             <td class="p-3"><input type="text" value="${p.discountRule || ''}" placeholder="เช่น 25%=2000" onkeydown="saveInlineDiscountRule('${p.id}', event)" class="w-full px-3 py-1 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold"></td>
         `;
         body.appendChild(tr);
     });
+}
+
+// ➕ เพิ่มฟังก์ชันสำหรับบันทึกราคาปกติผ่าน Inline Input (เมื่อกดปุ่ม Enter)
+window.saveInlinePriceRule = async function(id, event) {
+    if (event.key === 'Enter') {
+        const newPrice = parseFloat(event.target.value);
+        if (isNaN(newPrice) || newPrice < 0) {
+            return alert("กรุณากรอกจำนวนราคาปกติที่ถูกต้อง");
+        }
+        try {
+            // อัปเดตฟิลด์ price ลงใน Firestore ของสินค้า ID นั้น ๆ
+            await updateDoc(doc(db, "products", id), { price: newPrice });
+            alert("อัปเดตราคาปกติสำเร็จแล้ว!");
+            event.target.blur(); // เอาเคอร์เซอร์ออกจากช่องกรอก
+        } catch (err) {
+            alert("เกิดข้อผิดพลาดในการบันทึกราคา: " + err.message);
+        }
+    }
 }
 
 // ผูก Event ให้ช่องค้นหาหน้าส่วนลดทำงานแบบ Realtime ทันทีที่พิมพ์
@@ -1347,11 +1371,11 @@ function renderKeywordManager(searchQuery = "") {
     if (!body) return; 
     body.innerHTML = "";
     
-    if (searchQuery !== "") currentKeywordQuery = searchQuery;
+    currentKeywordQuery = searchQuery; 
 
     const selectedCategoryMainFilter = document.getElementById("filter-keyword-cat")?.value || "all";
     let subset = [...globalProducts];
-    
+
     if (selectedCategoryMainFilter !== 'all') {
         subset = subset.filter(p => p.categoryMain === selectedCategoryMainFilter);
     }
