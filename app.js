@@ -1197,6 +1197,12 @@ window.addCategoryField = async function(type) {
     const val = inputNode.value.trim();
     if(!val) return;
     globalCategories[type].push(val);
+    
+    // ถ้าประเภทข้อมูลเป็นแบรนด์ (brand) หรือหมวดหมู่อื่นที่อยากให้เรียง ให้จัดเรียงลำดับใหม่ทันทีก่อนเซฟ
+    if (type === 'brand') {
+        globalCategories.brand.sort((a, b) => a.localeCompare(b));
+    }
+    
     try {
         await setDoc(doc(db, "configurations", "categories"), globalCategories);
         inputNode.value = "";
@@ -1208,7 +1214,17 @@ window.inlineUpdateCategoryField = async function(type, index, newVal) {
     const cleaned = newVal.trim();
     if(!cleaned) return renderCategoryManagementUI();
     globalCategories[type][index] = cleaned;
-    try { await setDoc(doc(db, "configurations", "categories"), globalCategories); } catch(err){ alert(err.message); }
+    
+    // จัดเรียงลำดับใหม่ทันทีหลังพิมพ์แก้ไขเสร็จ
+    if (type === 'brand') {
+        globalCategories.brand.sort((a, b) => a.localeCompare(b));
+    }
+    
+    try { 
+        await setDoc(doc(db, "configurations", "categories"), globalCategories); 
+        // ทำการ Render หน้าจอการตั้งค่าใหม่ เพื่อให้รายการสลับไปอยู่ตำแหน่งตามลำดับตัวอักษรที่อัปเดต
+        renderCategoryManagementUI();
+    } catch(err){ alert(err.message); }
 }
 
 window.removeCategoryFieldItem = async function(type, index) {
