@@ -1168,19 +1168,26 @@ function renderCategoryManagementUI() {
 
     // 3. แบรนด์สินค้า (Brand) -> แก้ไขให้รองรับการลากวาง (และจดจำลำดับตามที่ลากจริง)
     brandList.innerHTML = "";
+    
+    // ทำการเรียงลำดับ A-Z ใน Memory ทันที
+    globalCategories.brand.sort((a, b) => a.localeCompare(b));
+    // (ทางเลือก) ส่งคำสั่งอัปเดตลำดับที่เรียงแล้วกลับไปบันทึกบน Firebase ทันทีที่เปิดหน้าจัดการ
+    setDoc(doc(db, "configurations", "categories"), globalCategories).catch(err => console.error(err));
+
     globalCategories.brand.forEach((cat, index) => {
         const li = document.createElement("li");
-        li.className = "bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm text-xs flex items-center justify-between cursor-grab active:cursor-grabbing transition-all";
-        li.draggable = true;
+        // เอา cursor-grab และ draggable="true" ออก เนื่องจากระบบเรียงอัตโนมัติแล้ว ไม่จำเป็นต้องลากวางอีก
+        li.className = "bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm text-xs flex items-center justify-between transition-all";
         li.dataset.index = index;
-        li.dataset.type = "brand"; // กำหนดประเภทหมวดหมู่
+        li.dataset.type = "brand"; 
         li.innerHTML = `
-            <div class="flex items-center gap-2 flex-1 mr-2"><i class="fa-solid fa-grip-vertical text-gray-300"></i>
+            <div class="flex items-center gap-2 flex-1 mr-2">
+                <i class="fa-solid fa-font text-gray-300"></i> <!-- เปลี่ยนไอคอนลากเป็นไอคอนตัวอักษร -->
                 <input type="text" value="${cat}" onchange="inlineUpdateCategoryField('brand', ${index}, this.value)" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-0.5 font-medium">
             </div>
             <button onclick="removeCategoryFieldItem('brand', ${index})" class="text-rose-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
         `;
-        setupDragAndDropSortingListeners(li);
+        // เอา setupDragAndDropSortingListeners(li) ออก เพื่อยกเลิกพฤติกรรมการลากวางของแบรนด์
         brandList.appendChild(li);
     });
 }
