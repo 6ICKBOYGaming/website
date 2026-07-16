@@ -102,12 +102,17 @@ function initAppListeners() {
     });
 
     // Search Engine listeners configurations profiles
-    document.getElementById("search-input").addEventListener("keydown", (e) => {
-        if(e.key === 'Enter') {
-            currentFilters.query = e.target.value.trim().toLowerCase();
+    const searchForm = document.getElementById("search-form");
+    const searchInput = document.getElementById("search-input");
+
+    if (searchForm && searchInput) {
+        searchForm.addEventListener("submit", (e) => {
+            e.preventDefault(); // ป้องกันไม่ให้หน้าเว็บรีโหลด
+            currentFilters.query = searchInput.value.trim().toLowerCase();
             renderProductsGrid();
-        }
-    });
+            searchInput.blur(); // ซ่อนแป้นพิมพ์บนมือถือทันทีหลังจากกดค้นหาสำเร็จ
+        });
+    }
     document.getElementById("sort-select").addEventListener("change", () => renderProductsGrid());
 
     const inputDate = document.getElementById("stats-date-picker");

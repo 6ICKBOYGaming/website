@@ -79,7 +79,10 @@
             
             <div id="search-sort-container" class="flex gap-4 items-center">
                 <div class="relative flex-1">
-                    <input type="text" id="search-input" placeholder="ค้นหาสินค้าเกมมิ่งเกียร์ที่นี่..." class="w-full pl-11 pr-4 py-3 bg-white border border-transparent rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm text-gray-700 placeholder-gray-400">
+                    <!-- ➕ ครอบด้วย tag form และใส่ enterkeyhint เพื่อบังคับให้แป้นพิมพ์มือถือแสดงปุ่ม "ค้นหา" -->
+                    <form id="search-form" action="javascript:void(0);" class="m-0 p-0">
+                        <input type="search" id="search-input" enterkeyhint="search" placeholder="ค้นหาสินค้าเกมมิ่งเกียร์ที่นี่..." class="w-full pl-11 pr-4 py-3 bg-white border border-transparent rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm text-gray-700 placeholder-gray-400">
+                    </form>
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-gray-400 text-sm"></i>
                 </div>
                 <select id="sort-select" class="px-4 py-3 bg-white border border-transparent rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-xs font-medium cursor-pointer min-w-[180px] text-gray-600">
